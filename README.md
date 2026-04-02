@@ -132,8 +132,8 @@ bash scripts/train.sh \
   configs/method/mfsan.yaml \
   configs/experiment/benchmark_multi_source.yaml
 
-# 汇总 runs/tables 下的结果
-bash scripts/eval.sh runs/tables
+# 汇总 runs/ 下按实验目录组织的结果
+bash scripts/eval.sh runs
 ```
 
 ## 手动安装训练依赖

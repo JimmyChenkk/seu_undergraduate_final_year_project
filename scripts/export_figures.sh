@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RESULTS_DIR="${1:-runs/tables}"
-OUTPUT_DIR="${2:-runs/figures}"
-shift 2 || true
+RESULTS_DIR="runs"
+if [[ $# -ge 1 && "$1" != --* ]]; then
+  RESULTS_DIR="$1"
+  shift
+fi
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
 if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
@@ -11,6 +13,11 @@ if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
 fi
 
 ARGS=()
+if [[ $# -ge 2 && "$1" == "--output-dir" ]]; then
+  ARGS+=("--output-dir" "$2")
+  shift 2
+fi
+
 POSITIONAL=("$@")
 INDEX=0
 while [[ ${INDEX} -lt ${#POSITIONAL[@]} ]]; do
@@ -37,5 +44,4 @@ done
 
 "${PYTHON_BIN}" -m src.evaluation.report_figures \
   --results-dir "${RESULTS_DIR}" \
-  --output-dir "${OUTPUT_DIR}" \
   "${ARGS[@]}"

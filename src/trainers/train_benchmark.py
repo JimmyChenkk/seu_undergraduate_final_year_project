@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime
 import importlib.util
 import json
 from pathlib import Path
@@ -16,6 +15,7 @@ import numpy as np
 import yaml
 
 from src.datasets.te_da_dataset import TEDADatasetConfig, TEDADatasetInterface
+from src.utils.run_layout import build_run_layout
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -78,33 +78,33 @@ def build_run_paths(
     *,
     experiment_config: dict[str, Any],
     method_name: str,
-    setting_name: str,
     scenario_id: str,
-) -> dict[str, Path]:
-    """Create report-style output paths under ``runs/``."""
+    backbone_name: str,
+    fold_name: str,
+    batch_root_name: str | None = None,
+) -> dict[str, Any]:
+    """Create per-run output paths under ``runs/``."""
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_root = (
-        Path("runs")
-        / "artifacts"
-        / timestamp
-        / method_name
-        / setting_name
-        / scenario_id
-    )
-    figures_dir = run_root / "figures"
-    analysis_path = run_root / "analysis.npz"
-    metrics_path = run_root / "metrics.json"
-    summary_path = Path(experiment_config["tracking"]["table_dir"]) / (
-        f"{experiment_config['experiment_name']}_{scenario_id}_{method_name}.json"
+    tracking_config = experiment_config.get("tracking", {})
+    layout = build_run_layout(
+        output_dir=Path(experiment_config.get("output_dir", "runs")),
+        method_name=method_name,
+        scenario_id=scenario_id,
+        backbone_name=backbone_name,
+        fold_name=fold_name,
+        batch_root_name=batch_root_name or tracking_config.get("batch_root_name"),
     )
     return {
-        "timestamp": Path(timestamp),
-        "run_root": run_root,
-        "figures_dir": figures_dir,
-        "analysis_path": analysis_path,
-        "metrics_path": metrics_path,
-        "summary_path": summary_path,
+        "timestamp": layout.timestamp,
+        "batch_root": layout.batch_root,
+        "run_root": layout.run_root,
+        "artifacts_dir": layout.artifacts_dir,
+        "tables_dir": layout.tables_dir,
+        "figures_dir": layout.figures_dir,
+        "logs_dir": layout.logs_dir,
+        "checkpoints_dir": layout.checkpoints_dir,
+        "analysis_path": layout.artifacts_dir / "analysis.npz",
+        "metrics_path": layout.tables_dir / "result.json",
     }
 
 
@@ -355,8 +355,7 @@ def run_deep_experiment(
     }
 
     if bool(runtime.get("save_checkpoint", False)):
-        checkpoint_dir = Path(experiment_config["tracking"]["checkpoint_dir"])
-        checkpoint_path = checkpoint_dir / f"{experiment_config['experiment_name']}_{scenario_id}_{method_config['method_name']}.pt"
+        checkpoint_path = run_paths["checkpoints_dir"] / "model.pt"
         ensure_parent(checkpoint_path)
         torch.save(model.state_dict(), checkpoint_path)
         result["checkpoint_path"] = str(checkpoint_path)
@@ -383,6 +382,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-config", type=Path, required=True)
     parser.add_argument("--method-config", type=Path, required=True)
     parser.add_argument("--experiment-config", type=Path, required=True)
+    parser.add_argument(
+        "--batch-root-name",
+        type=str,
+        default=None,
+        help="Optional batch parent under runs/, for example 20260402_full_run.",
+    )
     return parser.parse_args()
 
 
@@ -405,14 +410,17 @@ def main() -> None:
     setting = build_setting(data_config, data_payload, experiment_payload)
     batch_size = int(method_payload.get("optimization", {}).get("batch_size", 32))
     num_workers = int(experiment_payload.get("runtime", {}).get("num_workers", 0))
+    backbone_name = str(method_payload.get("backbone", {}).get("name", "fcn"))
     source_domain_ids = [reference.domain.name for reference in setting.source_domains]
     target_domain_id = setting.target_domain.domain.name
     scenario_id = build_scenario_id(source_domain_ids, target_domain_id)
     run_paths = build_run_paths(
         experiment_config=experiment_payload,
         method_name=method_name,
-        setting_name=setting.setting_name,
         scenario_id=scenario_id,
+        backbone_name=backbone_name,
+        fold_name=selected_fold,
+        batch_root_name=args.batch_root_name,
     )
     prepared_data = prepare_benchmark_data(
         config=data_config,
@@ -441,13 +449,14 @@ def main() -> None:
         "source_domains": [split.domain_id for split in prepared_data.source_splits],
         "target_domain": prepared_data.target_split.domain_id,
         "scenario_id": scenario_id,
+        "backbone_name": backbone_name,
         "fold_name": selected_fold,
-        "timestamp": str(run_paths["timestamp"]),
+        "timestamp": run_paths["timestamp"],
+        "batch_root": str(run_paths["batch_root"]) if run_paths["batch_root"] else None,
         "run_root": str(run_paths["run_root"]),
         "result": method_result,
     }
     save_json(run_paths["metrics_path"], result_payload)
-    save_json(run_paths["summary_path"], result_payload)
     print(json.dumps(result_payload, indent=2, ensure_ascii=False))
 
 
