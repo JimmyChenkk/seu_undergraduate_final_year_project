@@ -60,6 +60,8 @@ def _make_loader(
     batch_size: int,
     shuffle: bool,
     num_workers: int,
+    pin_memory: bool,
+    persistent_workers: bool,
 ) -> DataLoader:
     dataset = TensorDataset(x, y)
     return DataLoader(
@@ -67,6 +69,8 @@ def _make_loader(
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers and num_workers > 0,
         drop_last=shuffle,
     )
 
@@ -114,6 +118,8 @@ def prepare_benchmark_data(
     setting: DomainAdaptationSetting,
     batch_size: int,
     num_workers: int = 0,
+    pin_memory: bool = False,
+    persistent_workers: bool = False,
     fold_name: str | None = None,
 ) -> PreparedBenchmarkData:
     """Prepare loaders for single-source or multi-source benchmark experiments."""
@@ -138,6 +144,8 @@ def prepare_benchmark_data(
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_workers,
+            pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
         )
         for split in source_splits
     ]
@@ -148,6 +156,8 @@ def prepare_benchmark_data(
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,
+            pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
         )
         for split in source_splits
     ]
@@ -158,6 +168,8 @@ def prepare_benchmark_data(
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,
+            pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
         )
         for split in source_splits
     ]
@@ -167,6 +179,8 @@ def prepare_benchmark_data(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
     )
     target_eval_loader = _make_loader(
         target_split.eval_x,
@@ -174,6 +188,8 @@ def prepare_benchmark_data(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
     )
 
     return PreparedBenchmarkData(

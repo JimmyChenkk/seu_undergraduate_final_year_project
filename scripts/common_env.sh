@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+if [[ -n "${ROOT_DIR:-}" && -z "${MPLCONFIGDIR:-}" ]]; then
+  export MPLCONFIGDIR="${ROOT_DIR}/data/cache/matplotlib"
+fi
+
+if [[ -n "${MPLCONFIGDIR:-}" ]]; then
+  mkdir -p "${MPLCONFIGDIR}"
+fi
+
 resolve_python_runner() {
   local script_name="${1:-script}"
 

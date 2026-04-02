@@ -20,7 +20,7 @@ DEFAULT_METHODS = [
     "dan",
     "dann",
     "cdan",
-    "jdot",
+    "deepjdot",
 ]
 
 DEFAULT_SCENES = [

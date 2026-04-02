@@ -78,6 +78,12 @@ def set_seed(seed: int) -> None:
     np = _import_numpy()
     random.seed(seed)
     np.random.seed(seed)
+    if importlib.util.find_spec("torch") is not None:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
 
 
 def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
@@ -88,6 +94,8 @@ def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> 
         required.extend(["sklearn", "matplotlib"])
     if method_name == "jdot":
         required.extend(["sklearn", "ot"])
+    if method_name == "deepjdot":
+        required.append("ot")
 
     missing = [name for name in required if importlib.util.find_spec(name) is None]
     if missing:
@@ -191,7 +199,14 @@ def _mean_metrics(history_chunk):
     return summary
 
 
-def _evaluate_accuracy(model, loader, device, *, max_batches: int | None = None):
+def _evaluate_accuracy(
+    model,
+    loader,
+    device,
+    *,
+    max_batches: int | None = None,
+    non_blocking: bool = False,
+):
     import torch
 
     model.eval()
@@ -199,8 +214,8 @@ def _evaluate_accuracy(model, loader, device, *, max_batches: int | None = None)
     correct = 0
     with torch.no_grad():
         for batch_index, (x_batch, y_batch) in enumerate(loader):
-            x_batch = x_batch.to(device)
-            y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device, non_blocking=non_blocking)
+            y_batch = y_batch.to(device, non_blocking=non_blocking)
             logits = model.predict_logits(x_batch)
             predictions = logits.argmax(dim=1)
             correct += int((predictions == y_batch).sum().item())
@@ -217,16 +232,33 @@ def _evaluate_domain_accuracies(
     device,
     *,
     max_batches: int | None = None,
+    non_blocking: bool = False,
 ) -> tuple[dict[str, float], float]:
     per_domain = {
-        domain_id: float(_evaluate_accuracy(model, loader, device, max_batches=max_batches))
+        domain_id: float(
+            _evaluate_accuracy(
+                model,
+                loader,
+                device,
+                max_batches=max_batches,
+                non_blocking=non_blocking,
+            )
+        )
         for domain_id, loader in zip(domain_ids, loaders)
     }
     mean_accuracy = float(sum(per_domain.values()) / max(len(per_domain), 1))
     return per_domain, mean_accuracy
 
 
-def _collect_loader_outputs(model, loader, device, *, domain_name: str, max_batches: int | None = None):
+def _collect_loader_outputs(
+    model,
+    loader,
+    device,
+    *,
+    domain_name: str,
+    max_batches: int | None = None,
+    non_blocking: bool = False,
+):
     """Collect logits, predictions, labels and embeddings for one loader."""
 
     np = _import_numpy()
@@ -240,7 +272,7 @@ def _collect_loader_outputs(model, loader, device, *, domain_name: str, max_batc
     model.eval()
     with torch.no_grad():
         for batch_index, (x_batch, y_batch) in enumerate(loader):
-            x_batch = x_batch.to(device)
+            x_batch = x_batch.to(device, non_blocking=non_blocking)
             logits = model.predict_logits(x_batch)
             features = model.extract_features(x_batch)
             embeddings.append(features.detach().cpu().numpy())
@@ -282,6 +314,7 @@ def export_analysis_artifacts(
     scenario_id: str,
     method_name: str,
     max_batches: int | None = None,
+    non_blocking: bool = False,
 ) -> dict[str, Any]:
     """Persist embeddings and prediction traces for later figures."""
 
@@ -297,6 +330,7 @@ def export_analysis_artifacts(
             device,
             domain_name=split.domain_id,
             max_batches=max_batches,
+            non_blocking=non_blocking,
         )
         source_chunks.append(chunk)
 
@@ -306,6 +340,7 @@ def export_analysis_artifacts(
         device,
         domain_name=prepared_data.target_split.domain_id,
         max_batches=max_batches,
+        non_blocking=non_blocking,
     )
 
     source_embeddings = np.concatenate([chunk["embeddings"] for chunk in source_chunks], axis=0)
@@ -366,7 +401,11 @@ def run_deep_experiment(
     if bool(runtime.get("disable_cudnn", False)):
         torch.backends.cudnn.enabled = False
         torch.backends.cudnn.benchmark = False
+    elif device_name.startswith("cuda"):
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
     device = torch.device(device_name)
+    transfer_non_blocking = bool(runtime.get("pin_memory", device.type == "cuda")) and device.type == "cuda"
 
     model = build_method(
         method_config,
@@ -413,10 +452,16 @@ def run_deep_experiment(
             target_batch = next(target_iterator)
 
             source_batches = [
-                (x_batch.to(device), y_batch.to(device))
+                (
+                    x_batch.to(device, non_blocking=transfer_non_blocking),
+                    y_batch.to(device, non_blocking=transfer_non_blocking),
+                )
                 for x_batch, y_batch in source_batches
             ]
-            target_batch = (target_batch[0].to(device), target_batch[1].to(device))
+            target_batch = (
+                target_batch[0].to(device, non_blocking=transfer_non_blocking),
+                target_batch[1].to(device, non_blocking=transfer_non_blocking),
+            )
 
             optimizer.zero_grad()
             step_output = model.compute_loss(source_batches, target_batch)
@@ -434,6 +479,7 @@ def run_deep_experiment(
             source_domain_ids,
             device,
             max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
         )
         final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
             model,
@@ -441,12 +487,14 @@ def run_deep_experiment(
             source_domain_ids,
             device,
             max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
         )
         target_eval_acc = _evaluate_accuracy(
             model,
             prepared_data.target_eval_loader,
             device,
             max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
         )
         summary = _mean_metrics(epoch_metrics)
         summary["epoch"] = epoch_index + 1
@@ -485,6 +533,7 @@ def run_deep_experiment(
             scenario_id=scenario_id,
             method_name=str(method_config["method_name"]),
             max_batches=analysis_max_batches,
+            non_blocking=transfer_non_blocking,
         )
         result.update(analysis_summary)
 
@@ -561,6 +610,14 @@ def main() -> None:
     setting = build_setting(data_config, data_payload, experiment_payload)
     batch_size = int(method_payload.get("optimization", {}).get("batch_size", 32))
     num_workers = int(experiment_payload.get("runtime", {}).get("num_workers", 0))
+    runtime_payload = experiment_payload.get("runtime", {})
+    pin_memory = False
+    if str(experiment_payload.get("device", "cpu")).startswith("cuda"):
+        import torch
+
+        pin_memory = torch.cuda.is_available()
+    pin_memory = bool(runtime_payload.get("pin_memory", pin_memory))
+    persistent_workers = bool(runtime_payload.get("persistent_workers", num_workers > 0))
     backbone_name = str(method_payload.get("backbone", {}).get("name", "fcn"))
     source_domain_ids = [reference.domain.name for reference in setting.source_domains]
     target_domain_id = setting.target_domain.domain.name
@@ -578,6 +635,8 @@ def main() -> None:
         setting=setting,
         batch_size=batch_size,
         num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
         fold_name=selected_fold,
     )
 

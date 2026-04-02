@@ -67,6 +67,58 @@ def multiple_kernel_mmd(features_source: torch.Tensor, features_target: torch.Te
     return xx.mean() + yy.mean() - xy.mean() - yx.mean()
 
 
+def deepjdot_loss(
+    source_labels: torch.Tensor,
+    logits_target: torch.Tensor,
+    features_source: torch.Tensor,
+    features_target: torch.Tensor,
+    *,
+    reg_dist: float = 0.1,
+    reg_cl: float = 1.0,
+    sample_weights: torch.Tensor | None = None,
+    target_sample_weights: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Compute the DeepJDOT optimal transport loss on one minibatch."""
+
+    import ot
+
+    batch_size = min(features_source.shape[0], features_target.shape[0], source_labels.shape[0], logits_target.shape[0])
+    if batch_size == 0:
+        return torch.tensor(0.0, device=features_source.device)
+
+    source_labels = source_labels[:batch_size]
+    logits_target = logits_target[:batch_size]
+    features_source = features_source[:batch_size]
+    features_target = features_target[:batch_size]
+
+    feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
+    repeated_target_logits = logits_target.unsqueeze(0).expand(batch_size, -1, -1).permute(1, 2, 0)
+    repeated_source_labels = source_labels.unsqueeze(0).expand(batch_size, -1)
+    class_cost = F.cross_entropy(
+        repeated_target_logits,
+        repeated_source_labels,
+        reduction="none",
+    ).transpose(0, 1)
+    total_cost = reg_dist * feature_cost + reg_cl * class_cost
+
+    if sample_weights is None:
+        sample_weights = torch.full(
+            (batch_size,),
+            1.0 / batch_size,
+            device=features_source.device,
+            dtype=features_source.dtype,
+        )
+    if target_sample_weights is None:
+        target_sample_weights = torch.full(
+            (batch_size,),
+            1.0 / batch_size,
+            device=features_target.device,
+            dtype=features_target.dtype,
+        )
+
+    return ot.emd2(sample_weights, target_sample_weights, total_cost)
+
+
 class GradientReverseFunction(Function):
     """Classic GRL used by DANN."""
 

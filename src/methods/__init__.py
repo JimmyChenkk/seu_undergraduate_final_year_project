@@ -5,6 +5,7 @@ from __future__ import annotations
 from .cdan import CDANMethod
 from .coral import CORALMethod
 from .dan import DANMethod
+from .deepjdot import DeepJDOTMethod
 from .dann import DANNMethod
 from .jdot import run_jdot_experiment
 from .source_only import SourceOnlyMethod
@@ -39,6 +40,13 @@ def build_method(method_config, *, num_classes: int, in_channels: int, num_sourc
         return CORALMethod(adaptation_weight=float(loss.get("adaptation_weight", 0.5)), **shared_kwargs)
     if method_name == "dan":
         return DANMethod(adaptation_weight=float(loss.get("adaptation_weight", 0.5)), **shared_kwargs)
+    if method_name == "deepjdot":
+        return DeepJDOTMethod(
+            adaptation_weight=float(loss.get("adaptation_weight", 1.0)),
+            reg_dist=float(loss.get("reg_dist", 0.1)),
+            reg_cl=float(loss.get("reg_cl", 1.0)),
+            **shared_kwargs,
+        )
     if method_name == "dann":
         return DANNMethod(
             adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
@@ -52,6 +60,7 @@ __all__ = [
     "CDANMethod",
     "CORALMethod",
     "DANMethod",
+    "DeepJDOTMethod",
     "DANNMethod",
     "SourceOnlyMethod",
     "build_method",

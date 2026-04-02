@@ -109,7 +109,7 @@ git status -sb
 ## 当前阶段范围
 
 - 当前已经从“纯数据勘察”进入“小型 benchmark 复现准备”阶段。
-- 方法范围先收敛为：`source_only`、`CORAL`、`DAN`、`DANN`、`CDAN`、`JDOT`。
+- 方法范围先收敛为：`source_only`、`CORAL`、`DAN`、`DANN`、`CDAN`、`DeepJDOT`。
 - `external/` 与 `refs/` 继续只读；真正会进入 Git 的实验代码全部落在 `src/`、`configs/`、`scripts/`。
 - 训练依赖目前还需要手动安装，项目代码不会擅自替你绕过缺包问题。
 - 默认首轮小规模场景为：`mode1->mode4`、`mode4->mode1`、`mode2->mode5`、`mode5->mode2`、`mode3->mode6`、`mode6->mode3`。
