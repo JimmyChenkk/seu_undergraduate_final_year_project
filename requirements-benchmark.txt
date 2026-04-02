@@ -1,0 +1,7 @@
+# Manual install list for benchmark reproduction.
+# Keep installation manual so the project environment stays under user control.
+numpy>=2.0
+PyYAML>=6.0
+torch>=2.2
+scikit-learn>=1.5
+POT>=0.9

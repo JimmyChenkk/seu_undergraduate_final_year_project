@@ -1,0 +1,44 @@
+# Local-only paths from WORKFLOW.md
+.vscode/
+configs/
+data/
+external/
+refs/
+runs/
+AGENTS.md
+WORKFLOW.md
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS
+.DS_Store
+.idea/
+.codex
+*.swp
+*.swo
+
+# Environment
+.env
+.venv/
+venv/
+.conda/
+
+# Cache and temporary artifacts
+*.tmp
+*.temp
+*.bak
+*.log
+
+# Large model / checkpoint / export files
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.npy
+*.npz
+*.Zone.Identifier
