@@ -127,15 +127,13 @@ def main() -> None:
 
                 temp_experiment_path = temp_root / f"{method_name}_{source_domain}_to_{target_domain}.yaml"
                 _save_yaml(temp_experiment_path, experiment_payload)
+                # Reuse the stable shell wrapper so automation and one-off runs share
+                # the same environment setup (conda activation, MPL cache, etc.).
                 command = [
-                    sys.executable,
-                    "-m",
-                    "src.trainers.train_benchmark",
-                    "--data-config",
+                    "bash",
+                    "scripts/train.sh",
                     str(args.data_config),
-                    "--method-config",
                     str(method_config_path),
-                    "--experiment-config",
                     str(temp_experiment_path),
                     "--batch-root-name",
                     batch_root_name,
