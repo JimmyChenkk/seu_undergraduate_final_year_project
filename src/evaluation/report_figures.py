@@ -73,6 +73,17 @@ def _save_figure(path: Path) -> None:
     plt.close()
 
 
+def _load_analysis_payload(artifact_path: Path):
+    np, _, _ = _runtime_dependencies()
+    try:
+        return np.load(artifact_path, allow_pickle=False)
+    except ValueError as exc:
+        raise ValueError(
+            f"Unsafe or legacy analysis artifact detected: {artifact_path}. "
+            "Please regenerate it with the current trainer before exporting figures."
+        ) from exc
+
+
 def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
     np, plt, _ = _runtime_dependencies()
     grouped: dict[str, list[float]] = {}
@@ -153,7 +164,7 @@ def _balanced_sample_indices(source_count: int, target_count: int, *, max_points
 
 def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     np, plt, _ = _runtime_dependencies()
-    payload = np.load(artifact_path, allow_pickle=True)
+    payload = _load_analysis_payload(artifact_path)
     source_embeddings = payload["source_embeddings"]
     source_labels = payload["source_labels"]
     source_domains = payload["source_domains"].astype(str)
@@ -211,7 +222,7 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
 
 def export_confusion_matrix_figure(artifact_path: Path, output_path: Path) -> None:
     np, plt, _ = _runtime_dependencies()
-    payload = np.load(artifact_path, allow_pickle=True)
+    payload = _load_analysis_payload(artifact_path)
     labels = payload["target_labels"]
     predictions = payload["target_predictions"]
 
@@ -238,7 +249,7 @@ def export_domain_comparison_figure(
     np, plt, _ = _runtime_dependencies()
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     for axis, artifact_path in zip(axes, [left_artifact, right_artifact]):
-        payload = np.load(artifact_path, allow_pickle=True)
+        payload = _load_analysis_payload(artifact_path)
         source_embeddings = payload["source_embeddings"]
         target_embeddings = payload["target_embeddings"]
         source_indices, target_indices = _balanced_sample_indices(
@@ -299,8 +310,7 @@ def _resolve_artifact_output_dir(artifact_path: Path, output_dir: Path | None) -
     if output_dir is None:
         return artifact_path.parent.parent / "figures"
 
-    np, _, _ = _runtime_dependencies()
-    payload = np.load(artifact_path, allow_pickle=True)
+    payload = _load_analysis_payload(artifact_path)
     scenario_value = str(payload["scenario_id"][0]) if "scenario_id" in payload else artifact_path.parent.name
     method_value = str(payload["method_name"][0]) if "method_name" in payload else artifact_path.parent.parent.name
     return output_dir / f"{method_value}_{scenario_value}"

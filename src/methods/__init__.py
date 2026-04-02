@@ -7,7 +7,6 @@ from .coral import CORALMethod
 from .dan import DANMethod
 from .deepjdot import DeepJDOTMethod
 from .dann import DANNMethod
-from .jdot import run_jdot_experiment
 from .source_only import SourceOnlyMethod
 
 
@@ -64,5 +63,4 @@ __all__ = [
     "DANNMethod",
     "SourceOnlyMethod",
     "build_method",
-    "run_jdot_experiment",
 ]

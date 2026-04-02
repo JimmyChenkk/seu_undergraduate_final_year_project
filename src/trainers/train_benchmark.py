@@ -92,8 +92,6 @@ def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> 
     required = ["numpy", "yaml", "torch"]
     if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
         required.extend(["sklearn", "matplotlib"])
-    if method_name == "jdot":
-        required.extend(["sklearn", "ot"])
     if method_name == "deepjdot":
         required.append("ot")
 
@@ -199,6 +197,15 @@ def _mean_metrics(history_chunk):
     return summary
 
 
+def _string_array(values: list[str]):
+    np = _import_numpy()
+    items = [str(value) for value in values]
+    if not items:
+        return np.empty((0,), dtype="<U1")
+    max_length = max(len(item) for item in items)
+    return np.asarray(items, dtype=f"<U{max(max_length, 1)}")
+
+
 def _evaluate_accuracy(
     model,
     loader,
@@ -278,7 +285,7 @@ def _collect_loader_outputs(
             embeddings.append(features.detach().cpu().numpy())
             logits_list.append(logits.detach().cpu().numpy())
             labels_list.append(y_batch.numpy())
-            domains.append(np.array([domain_name] * len(y_batch), dtype=object))
+            domains.append(_string_array([domain_name] * len(y_batch)))
             if max_batches is not None and batch_index + 1 >= max_batches:
                 break
 
@@ -288,7 +295,7 @@ def _collect_loader_outputs(
             "logits": np.empty((0, 0), dtype=np.float32),
             "labels": np.empty((0,), dtype=np.int64),
             "predictions": np.empty((0,), dtype=np.int64),
-            "domains": np.empty((0,), dtype=object),
+            "domains": _string_array([]),
         }
 
     embeddings_array = np.concatenate(embeddings, axis=0)
@@ -350,8 +357,8 @@ def export_analysis_artifacts(
 
     np.savez_compressed(
         analysis_path,
-        scenario_id=np.array([scenario_id], dtype=object),
-        method_name=np.array([method_name], dtype=object),
+        scenario_id=_string_array([scenario_id]),
+        method_name=_string_array([method_name]),
         source_embeddings=source_embeddings,
         source_labels=source_labels,
         source_predictions=source_predictions,
@@ -640,23 +647,13 @@ def main() -> None:
         fold_name=selected_fold,
     )
 
-    if method_name == "jdot":
-        from src.methods import run_jdot_experiment
-        method_result = run_jdot_experiment(
-            prepared_data,
-            method_payload,
-            analysis_path=run_paths["analysis_path"] if bool(experiment_payload.get("runtime", {}).get("save_analysis", True)) else None,
-            scenario_id=scenario_id,
-            runtime_config=experiment_payload.get("runtime", {}),
-        )
-    else:
-        method_result = run_deep_experiment(
-            method_config=method_payload,
-            experiment_config=experiment_payload,
-            prepared_data=prepared_data,
-            run_paths=run_paths,
-            scenario_id=scenario_id,
-        )
+    method_result = run_deep_experiment(
+        method_config=method_payload,
+        experiment_config=experiment_payload,
+        prepared_data=prepared_data,
+        run_paths=run_paths,
+        scenario_id=scenario_id,
+    )
 
     result_payload = {
         "experiment_name": experiment_payload.get("experiment_name"),
