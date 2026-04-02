@@ -1,11 +1,13 @@
-"""Aggregate per-run JSON results into a compact comparison table."""
+"""Aggregate per-run JSON results into comparison tables and round reviews."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
+from src.evaluation.review import extract_core_metrics, load_review
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
 
@@ -21,16 +23,34 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _build_rows(results_dir: Path) -> list[dict]:
-    rows = []
+def _relative_or_name(path: Path, base_dir: Path) -> str:
+    if base_dir.is_dir() and path.is_relative_to(base_dir):
+        return str(path.relative_to(base_dir))
+    return path.name
+
+
+def _load_run_review(result_payload: dict[str, Any], result_path: Path) -> dict[str, Any] | None:
+    review_path_value = result_payload.get("review_path")
+    review_path = Path(str(review_path_value)) if review_path_value else result_path.parent / "review.json"
+    return load_review(review_path)
+
+
+def build_rows(results_dir: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     for path in find_result_json_paths(results_dir):
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if "result" not in payload:
+            continue
         result = payload.get("result", {})
         if not isinstance(result, dict) or not payload.get("method_name"):
             continue
+
+        metrics = extract_core_metrics(payload)
+        review_payload = _load_run_review(payload, path)
+        figure_paths = payload.get("figure_paths", {})
         rows.append(
             {
-                "file": str(path.relative_to(results_dir)) if results_dir.is_dir() and path.is_relative_to(results_dir) else path.name,
+                "file": _relative_or_name(path, results_dir),
                 "method": payload.get("method_name"),
                 "setting": payload.get("setting"),
                 "scenario_id": payload.get("scenario_id"),
@@ -38,15 +58,54 @@ def _build_rows(results_dir: Path) -> list[dict]:
                 "fold": payload.get("fold_name"),
                 "source": ",".join(payload.get("source_domains", [])),
                 "target": payload.get("target_domain"),
-                "target_eval_acc": result.get("final_target_eval_acc", result.get("target_eval_acc")),
+                "source_train_acc": metrics["source_train_acc"],
+                "source_eval_acc": metrics["source_eval_acc"],
+                "target_eval_acc": metrics["target_eval_acc"],
+                "target_eval_balanced_acc": metrics["target_eval_balanced_acc"],
                 "run_root": payload.get("run_root"),
+                "figure_paths": figure_paths,
+                "review_flags": review_payload.get("flags", {}) if review_payload else {},
+                "next_focus": review_payload.get("next_focus", []) if review_payload else [],
             }
         )
     return rows
 
 
-def _render_markdown_table(rows: list[dict]) -> str:
-    header = ["file", "method", "setting", "scenario_id", "backbone", "fold", "source", "target", "target_eval_acc"]
+def annotate_rows_with_baseline(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    baseline_rows = {
+        row["scenario_id"]: row
+        for row in rows
+        if row.get("method") == "source_only"
+    }
+
+    annotated: list[dict[str, Any]] = []
+    for row in rows:
+        baseline = baseline_rows.get(row["scenario_id"])
+        baseline_target = baseline.get("target_eval_acc") if baseline else None
+        target_value = row.get("target_eval_acc")
+        delta = None
+        if baseline_target is not None and target_value is not None:
+            delta = float(target_value - baseline_target)
+        annotated.append(
+            {
+                **row,
+                "delta_target_vs_source_only": delta,
+            }
+        )
+    return annotated
+
+
+def render_markdown_table(rows: list[dict[str, Any]]) -> str:
+    header = [
+        "method",
+        "scenario_id",
+        "source_train_acc",
+        "source_eval_acc",
+        "target_eval_acc",
+        "delta_target_vs_source_only",
+        "backbone",
+        "fold",
+    ]
     lines = [
         "| " + " | ".join(header) + " |",
         "| " + " | ".join(["---"] * len(header)) + " |",
@@ -56,37 +115,122 @@ def _render_markdown_table(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _save_summary(summary_dir: Path, rows: list[dict], markdown_table: str) -> None:
+def build_round_review(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    items = []
+    for row in sorted(rows, key=lambda item: (str(item["scenario_id"]), str(item["method"]))):
+        item = {
+            "method": row["method"],
+            "scenario_id": row["scenario_id"],
+            "source_train_acc": row["source_train_acc"],
+            "source_eval_acc": row["source_eval_acc"],
+            "target_eval_acc": row["target_eval_acc"],
+            "delta_target_vs_source_only": row["delta_target_vs_source_only"],
+            "review_flags": row["review_flags"],
+            "next_focus": row["next_focus"],
+            "run_root": row["run_root"],
+            "figure_paths": row["figure_paths"],
+        }
+        items.append(item)
+
+    best_by_scenario = {}
+    for row in rows:
+        scenario_id = str(row["scenario_id"])
+        target_eval_acc = row.get("target_eval_acc")
+        if target_eval_acc is None:
+            continue
+        best_row = best_by_scenario.get(scenario_id)
+        if best_row is None or float(target_eval_acc) > float(best_row["target_eval_acc"]):
+            best_by_scenario[scenario_id] = {
+                "method": row["method"],
+                "target_eval_acc": float(target_eval_acc),
+                "delta_target_vs_source_only": row.get("delta_target_vs_source_only"),
+            }
+
+    recommended_rechecks = []
+    for item in items:
+        if item["method"] == "source_only":
+            continue
+        flags = item["review_flags"]
+        delta = item["delta_target_vs_source_only"]
+        if flags.get("source_training_weak"):
+            reason = "source_training_weak"
+        elif flags.get("source_generalization_weak"):
+            reason = "source_generalization_weak"
+        elif flags.get("target_transfer_weak"):
+            reason = "target_transfer_weak"
+        elif delta is not None and delta < 0:
+            reason = "underperforming_baseline"
+        else:
+            continue
+        recommended_rechecks.append(
+            {
+                "method": item["method"],
+                "scenario_id": item["scenario_id"],
+                "reason": reason,
+                "next_focus": item["next_focus"],
+            }
+        )
+
+    return {
+        "row_count": len(rows),
+        "baseline_method": "source_only",
+        "scenarios": sorted(set(str(row["scenario_id"]) for row in rows)),
+        "items": items,
+        "best_by_scenario": best_by_scenario,
+        "recommended_rechecks": recommended_rechecks,
+    }
+
+
+def _resolve_summary_dir(results_dir: Path, summary_dir: Path | None) -> Path | None:
+    if summary_dir is not None:
+        return summary_dir
+    comparison_root = resolve_comparison_root(results_dir)
+    if comparison_root is None:
+        return None
+    return comparison_root / "tables"
+
+
+def _save_summary(summary_dir: Path, rows: list[dict[str, Any]], markdown_table: str) -> None:
     summary_dir.mkdir(parents=True, exist_ok=True)
-    summary_payload = {
+    comparison_payload = {
         "row_count": len(rows),
         "rows": rows,
     }
     (summary_dir / "comparison.json").write_text(
-        json.dumps(summary_payload, indent=2, ensure_ascii=False) + "\n",
+        json.dumps(comparison_payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     (summary_dir / "comparison.md").write_text(markdown_table + "\n", encoding="utf-8")
+    (summary_dir / "round_review.json").write_text(
+        json.dumps(build_round_review(rows), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None) -> Path | None:
+    rows = annotate_rows_with_baseline(build_rows(results_dir))
+    if not rows:
+        return None
+    resolved_summary_dir = _resolve_summary_dir(results_dir, summary_dir)
+    if resolved_summary_dir is None:
+        return None
+    _save_summary(resolved_summary_dir, rows, render_markdown_table(rows))
+    return resolved_summary_dir
 
 
 def main() -> None:
     args = parse_args()
-    rows = _build_rows(args.results_dir)
+    rows = annotate_rows_with_baseline(build_rows(args.results_dir))
 
     if not rows:
         print("No result JSON files found.")
         return
 
-    markdown_table = _render_markdown_table(rows)
+    markdown_table = render_markdown_table(rows)
     print(markdown_table)
 
-    summary_dir = args.summary_dir
-    if summary_dir is None and len(rows) > 1:
-        comparison_root = resolve_comparison_root(args.results_dir)
-        if comparison_root is not None:
-            summary_dir = comparison_root / "tables"
+    summary_dir = export_comparison_summary(args.results_dir, args.summary_dir)
     if summary_dir is not None:
-        _save_summary(summary_dir, rows, markdown_table)
         print(f"\nSaved comparison summary to {summary_dir}")
 
 

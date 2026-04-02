@@ -7,7 +7,6 @@ from .coral import CORALMethod
 from .dan import DANMethod
 from .dann import DANNMethod
 from .jdot import run_jdot_experiment
-from .mfsan import MFSANMethod
 from .source_only import SourceOnlyMethod
 
 
@@ -45,16 +44,6 @@ def build_method(method_config, *, num_classes: int, in_channels: int, num_sourc
             grl_lambda=float(loss.get("grl_lambda", 1.0)),
             **shared_kwargs,
         )
-    if method_name == "mfsan":
-        return MFSANMethod(
-            num_classes=num_classes,
-            num_sources=num_sources,
-            in_channels=in_channels,
-            dropout=dropout,
-            hidden_dim=int(backbone.get("hidden_dim", 128)),
-            mmd_weight=float(loss.get("adaptation_weight", 0.5)),
-            discrepancy_weight=float(loss.get("discrepancy_weight", 0.1)),
-        )
     raise KeyError(f"Unsupported method: {method_name}")
 
 
@@ -63,7 +52,6 @@ __all__ = [
     "CORALMethod",
     "DANMethod",
     "DANNMethod",
-    "MFSANMethod",
     "SourceOnlyMethod",
     "build_method",
     "run_jdot_experiment",

@@ -5,7 +5,7 @@
 ## 项目背景
 
 - 研究主题：领域自适应流程工业故障诊断。
-- 目标场景：优先支持 single-source to single-target 与 multi-source to single-target，后续可扩展到半监督 target、更多源域、更多评估协议。
+- 目标场景：当前主线聚焦 single-source to single-target 的通用领域自适应，后续如有必要再扩展到更多协议。
 - 数据集：Tennessee Eastman Process Domain Adaptation，原始 `.pickle` 文件统一放在 `data/raw/`。
 - 参考仓库：
   - `external/tep-domain-adaptation`：benchmark 与数据组织参考。
@@ -32,6 +32,7 @@ workspace/
 │  ├─ benchmark/
 │  └─ cache/
 ├─ src/
+│  ├─ automation/
 │  ├─ datasets/
 │  ├─ methods/
 │  ├─ trainers/
@@ -45,7 +46,8 @@ workspace/
 │  ├─ build_benchmark.py
 │  ├─ build_benchmark.sh
 │  ├─ train.sh
-│  └─ eval.sh
+│  ├─ eval.sh
+│  └─ run_small_scale_round.sh
 ├─ paper/
 │  ├─ thesis.tex
 │  ├─ chapters/
@@ -72,7 +74,7 @@ workspace/
 1. 先构建 benchmark：梳理 `data/raw/` 的字段格式、域划分、训练/验证/测试协议，并固化到 `data/benchmark/`。
 2. 先跑 source-only baseline：建立最小可重复的上界/下界与日志记录规范。
 3. 再接入 single-source UDA：优先选择实现稳定、文献成熟的方法做第一轮验证。
-4. 再扩展到 multi-source UDA：补充多源域采样、权重设计与统一评估流程。
+4. 采用 3 轮自主小规模优化：先批量跑简单场景，再由 Codex 自己读结果与图，继续改代码或配置复跑。
 5. 最后整理图表并写论文：把 `runs/` 中的结果沉淀到 `paper/figs/` 与各章节草稿。
 
 ## Git 追踪策略
@@ -107,9 +109,10 @@ git status -sb
 ## 当前阶段范围
 
 - 当前已经从“纯数据勘察”进入“小型 benchmark 复现准备”阶段。
-- 方法范围先收敛为：`source_only`、`CORAL`、`DAN`、`DANN`、`JDOT`、`MFSAN`。
+- 方法范围先收敛为：`source_only`、`CORAL`、`DAN`、`DANN`、`CDAN`、`JDOT`。
 - `external/` 与 `refs/` 继续只读；真正会进入 Git 的实验代码全部落在 `src/`、`configs/`、`scripts/`。
 - 训练依赖目前还需要手动安装，项目代码不会擅自替你绕过缺包问题。
+- 默认首轮小规模场景为：`mode1->mode4`、`mode4->mode1`、`mode2->mode5`、`mode5->mode2`、`mode3->mode6`、`mode6->mode3`。
 
 ## 复现命令示例
 
@@ -126,11 +129,20 @@ bash scripts/train.sh \
   configs/method/dann.yaml \
   configs/experiment/benchmark_single_source.yaml
 
-# multi-source: MFSAN
+# single-source: CDAN
 bash scripts/train.sh \
   configs/data/te_da.yaml \
-  configs/method/mfsan.yaml \
-  configs/experiment/benchmark_multi_source.yaml
+  configs/method/cdan.yaml \
+  configs/experiment/benchmark_single_source.yaml
+
+# 默认小规模首轮 sweep
+bash scripts/run_small_scale_round.sh
+
+# 只跑一个方法和一个场景做 smoke test
+bash scripts/run_small_scale_round.sh \
+  --methods source_only \
+  --scenes mode1:mode4 \
+  --dry-run
 
 # 汇总 runs/ 下按实验目录组织的结果
 bash scripts/eval.sh runs

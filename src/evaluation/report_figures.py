@@ -13,10 +13,12 @@ from sklearn.manifold import TSNE
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
 
-def _load_result_rows(results_dir: Path) -> list[dict]:
+def load_result_rows(results_dir: Path) -> list[dict]:
     rows = []
     for path in find_result_json_paths(results_dir):
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if "result" not in payload:
+            continue
         result = payload.get("result", {})
         if not isinstance(result, dict) or not payload.get("method_name"):
             continue
@@ -33,7 +35,6 @@ def _load_result_rows(results_dir: Path) -> list[dict]:
                 "target_eval_acc": float(
                     result.get("final_target_eval_acc", result.get("target_eval_acc", 0.0))
                 ),
-                "target_eval_balanced_acc": result.get("target_eval_balanced_acc"),
                 "run_root": payload.get("run_root"),
                 "analysis_path": result.get("analysis_path"),
             }
@@ -53,28 +54,19 @@ def _save_figure(path: Path) -> None:
 
 
 def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
-    grouped: dict[tuple[str, str], list[float]] = {}
+    grouped: dict[str, list[float]] = {}
     for row in rows:
-        key = (row["setting"], row["method"])
-        grouped.setdefault(key, []).append(row["target_eval_acc"])
+        grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
 
-    settings = sorted(set(item[0] for item in grouped))
-    methods = sorted(set(item[1] for item in grouped))
-    x = np.arange(len(methods))
-    width = 0.35 if len(settings) > 1 else 0.6
+    methods = sorted(grouped)
+    values = [np.mean(grouped[method]) for method in methods]
 
     plt.figure(figsize=(10, 5))
-    for index, setting in enumerate(settings):
-        values = [np.mean(grouped.get((setting, method), [np.nan])) for method in methods]
-        offset = (index - (len(settings) - 1) / 2) * width
-        plt.bar(x + offset, values, width=width, label=setting.replace("_", "-"))
-
-    plt.xticks(x, methods, rotation=20)
+    plt.bar(np.arange(len(methods)), values, width=0.65, color="#4C78A8")
+    plt.xticks(np.arange(len(methods)), methods, rotation=20)
     plt.ylabel("Accuracy")
     plt.ylim(0, 1.0)
-    plt.title("Method Mean Accuracy by Setting")
-    if len(settings) > 1:
-        plt.legend()
+    plt.title("Method Mean Target Accuracy")
     _save_figure(output_path)
 
 
@@ -115,6 +107,26 @@ def _fit_tsne(features: np.ndarray) -> np.ndarray:
     return tsne.fit_transform(features)
 
 
+def _balanced_sample_indices(source_count: int, target_count: int, *, max_points: int = 2000) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(42)
+    if source_count + target_count <= max_points:
+        return np.arange(source_count), np.arange(target_count)
+
+    max_source = min(source_count, max_points // 2)
+    max_target = min(target_count, max_points - max_source)
+    remaining = max_points - (max_source + max_target)
+    if remaining > 0:
+        extra_source = min(source_count - max_source, remaining)
+        max_source += max(0, extra_source)
+        remaining -= max(0, extra_source)
+        extra_target = min(target_count - max_target, remaining)
+        max_target += max(0, extra_target)
+
+    source_indices = np.sort(rng.choice(source_count, size=max_source, replace=False))
+    target_indices = np.sort(rng.choice(target_count, size=max_target, replace=False))
+    return source_indices, target_indices
+
+
 def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     payload = np.load(artifact_path, allow_pickle=True)
     source_embeddings = payload["source_embeddings"]
@@ -124,9 +136,19 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     target_labels = payload["target_labels"]
     target_domains = payload["target_domains"].astype(str)
 
+    source_indices, target_indices = _balanced_sample_indices(
+        len(source_embeddings),
+        len(target_embeddings),
+    )
+    source_embeddings = source_embeddings[source_indices]
+    source_labels = source_labels[source_indices]
+    source_domains = source_domains[source_indices]
+    target_embeddings = target_embeddings[target_indices]
+    target_labels = target_labels[target_indices]
+    target_domains = target_domains[target_indices]
+
     features = np.concatenate([source_embeddings, target_embeddings], axis=0)
     label_values = np.concatenate([source_labels, target_labels], axis=0)
-    domain_values = np.concatenate([source_domains, target_domains], axis=0)
     domain_flags = np.array(["source"] * len(source_embeddings) + ["target"] * len(target_embeddings))
     embedding_2d = _fit_tsne(features)
 
@@ -185,13 +207,19 @@ def export_domain_comparison_figure(
     right_artifact: Path,
     output_path: Path,
 ) -> None:
-    """Create a side-by-side domain-fusion t-SNE comparison like the proposal figures."""
+    """Create a side-by-side domain-fusion t-SNE comparison figure."""
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     for axis, artifact_path in zip(axes, [left_artifact, right_artifact]):
         payload = np.load(artifact_path, allow_pickle=True)
         source_embeddings = payload["source_embeddings"]
         target_embeddings = payload["target_embeddings"]
+        source_indices, target_indices = _balanced_sample_indices(
+            len(source_embeddings),
+            len(target_embeddings),
+        )
+        source_embeddings = source_embeddings[source_indices]
+        target_embeddings = target_embeddings[target_indices]
         features = np.concatenate([source_embeddings, target_embeddings], axis=0)
         domain_flags = np.array(["source"] * len(source_embeddings) + ["target"] * len(target_embeddings))
         embedding_2d = _fit_tsne(features)
@@ -212,6 +240,22 @@ def export_domain_comparison_figure(
     axes[0].legend(loc="best")
     plt.suptitle("Domain Fusion Comparison")
     _save_figure(output_path)
+
+
+def export_run_review_figures(artifact_path: Path, output_dir: Path) -> None:
+    _ensure_dir(output_dir)
+    export_tsne_figures(artifact_path, output_dir)
+    export_confusion_matrix_figure(artifact_path, output_dir / "confusion_matrix.png")
+
+
+def export_summary_figures(results_dir: Path, output_dir: Path) -> None:
+    rows = load_result_rows(results_dir)
+    if not rows:
+        return
+
+    _ensure_dir(output_dir)
+    export_mean_bar_chart(rows, output_dir / "method_mean_accuracy.png")
+    export_setting_heatmap(rows, "single_source", output_dir / "single_source_heatmap.png")
 
 
 def _resolve_summary_output_dir(results_dir: Path, output_dir: Path | None) -> Path:
@@ -252,26 +296,21 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    rows = _load_result_rows(args.results_dir)
+    rows = load_result_rows(args.results_dir)
     if not rows and not args.artifact and not args.compare_domain_artifacts:
         print("No result JSON files found.")
         return
 
     summary_output_dir = _resolve_summary_output_dir(args.results_dir, args.output_dir)
     if rows:
-        _ensure_dir(summary_output_dir)
-        export_mean_bar_chart(rows, summary_output_dir / "method_mean_accuracy.png")
-        export_setting_heatmap(rows, "single_source", summary_output_dir / "single_source_heatmap.png")
-        export_setting_heatmap(rows, "multi_source", summary_output_dir / "multi_source_heatmap.png")
+        export_summary_figures(args.results_dir, summary_output_dir)
 
     for artifact_item in args.artifact:
         artifact_path = Path(artifact_item)
         if not artifact_path.exists():
             continue
         figure_dir = _resolve_artifact_output_dir(artifact_path, args.output_dir)
-        _ensure_dir(figure_dir)
-        export_tsne_figures(artifact_path, figure_dir)
-        export_confusion_matrix_figure(artifact_path, figure_dir / "confusion_matrix.png")
+        export_run_review_figures(artifact_path, figure_dir)
 
     for pair_index, (left_item, right_item) in enumerate(args.compare_domain_artifacts, start=1):
         left_path = Path(left_item)

@@ -15,6 +15,7 @@ import numpy as np
 import yaml
 
 from src.datasets.te_da_dataset import TEDADatasetConfig, TEDADatasetInterface
+from src.evaluation.review import build_run_review, save_review
 from src.utils.run_layout import build_run_layout
 
 
@@ -50,10 +51,12 @@ def set_seed(seed: int) -> None:
     np.random.seed(seed)
 
 
-def ensure_dependencies(method_name: str) -> None:
+def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
     """Fail early with a concise message when the training stack is missing."""
 
     required = ["torch"]
+    if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
+        required.extend(["sklearn", "matplotlib"])
     if method_name == "jdot":
         required.extend(["sklearn", "ot"])
 
@@ -105,6 +108,7 @@ def build_run_paths(
         "checkpoints_dir": layout.checkpoints_dir,
         "analysis_path": layout.artifacts_dir / "analysis.npz",
         "metrics_path": layout.tables_dir / "result.json",
+        "review_path": layout.tables_dir / "review.json",
     }
 
 
@@ -152,24 +156,42 @@ def _mean_metrics(history_chunk):
     return summary
 
 
-def _evaluate_target_accuracy(model, loader, device):
+def _evaluate_accuracy(model, loader, device, *, max_batches: int | None = None):
     import torch
 
     model.eval()
     total = 0
     correct = 0
     with torch.no_grad():
-        for x_batch, y_batch in loader:
+        for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             logits = model.predict_logits(x_batch)
             predictions = logits.argmax(dim=1)
             correct += int((predictions == y_batch).sum().item())
             total += int(y_batch.numel())
+            if max_batches is not None and batch_index + 1 >= max_batches:
+                break
     return correct / max(total, 1)
 
 
-def _collect_loader_outputs(model, loader, device, *, domain_name: str):
+def _evaluate_domain_accuracies(
+    model,
+    loaders,
+    domain_ids,
+    device,
+    *,
+    max_batches: int | None = None,
+) -> tuple[dict[str, float], float]:
+    per_domain = {
+        domain_id: float(_evaluate_accuracy(model, loader, device, max_batches=max_batches))
+        for domain_id, loader in zip(domain_ids, loaders)
+    }
+    mean_accuracy = float(sum(per_domain.values()) / max(len(per_domain), 1))
+    return per_domain, mean_accuracy
+
+
+def _collect_loader_outputs(model, loader, device, *, domain_name: str, max_batches: int | None = None):
     """Collect logits, predictions, labels and embeddings for one loader."""
 
     import torch
@@ -181,7 +203,7 @@ def _collect_loader_outputs(model, loader, device, *, domain_name: str):
 
     model.eval()
     with torch.no_grad():
-        for x_batch, y_batch in loader:
+        for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device)
             logits = model.predict_logits(x_batch)
             features = model.extract_features(x_batch)
@@ -189,6 +211,8 @@ def _collect_loader_outputs(model, loader, device, *, domain_name: str):
             logits_list.append(logits.detach().cpu().numpy())
             labels_list.append(y_batch.numpy())
             domains.append(np.array([domain_name] * len(y_batch), dtype=object))
+            if max_batches is not None and batch_index + 1 >= max_batches:
+                break
 
     if not embeddings:
         return {
@@ -221,6 +245,7 @@ def export_analysis_artifacts(
     analysis_path: Path,
     scenario_id: str,
     method_name: str,
+    max_batches: int | None = None,
 ) -> dict[str, Any]:
     """Persist embeddings and prediction traces for later figures."""
 
@@ -229,7 +254,13 @@ def export_analysis_artifacts(
     ensure_parent(analysis_path)
     source_chunks = []
     for split, loader in zip(prepared_data.source_splits, prepared_data.source_eval_loaders):
-        chunk = _collect_loader_outputs(model, loader, device, domain_name=split.domain_id)
+        chunk = _collect_loader_outputs(
+            model,
+            loader,
+            device,
+            domain_name=split.domain_id,
+            max_batches=max_batches,
+        )
         source_chunks.append(chunk)
 
     target_chunk = _collect_loader_outputs(
@@ -237,6 +268,7 @@ def export_analysis_artifacts(
         prepared_data.target_eval_loader,
         device,
         domain_name=prepared_data.target_split.domain_id,
+        max_batches=max_batches,
     )
 
     source_embeddings = np.concatenate([chunk["embeddings"] for chunk in source_chunks], axis=0)
@@ -318,7 +350,20 @@ def run_deep_experiment(
     steps_per_epoch = max(len(loader) for loader in prepared_data.source_train_loaders)
     if runtime.get("dry_run", False):
         steps_per_epoch = min(steps_per_epoch, 2)
+    evaluation_max_batches = runtime.get("eval_max_batches")
+    if evaluation_max_batches is None and runtime.get("dry_run", False):
+        evaluation_max_batches = 2
+    if evaluation_max_batches is not None:
+        evaluation_max_batches = int(evaluation_max_batches)
+    analysis_max_batches = runtime.get("analysis_max_batches")
+    if analysis_max_batches is None and runtime.get("dry_run", False):
+        analysis_max_batches = evaluation_max_batches
+    if analysis_max_batches is not None:
+        analysis_max_batches = int(analysis_max_batches)
 
+    source_domain_ids = [split.domain_id for split in prepared_data.source_splits]
+    final_source_train_by_domain: dict[str, float] = {}
+    final_source_eval_by_domain: dict[str, float] = {}
     epochs = int(optimization.get("epochs", 1))
     for epoch_index in range(epochs):
         model.train()
@@ -341,15 +386,44 @@ def run_deep_experiment(
             for key, value in step_output.metrics.items():
                 epoch_metrics[key].append(value)
 
-        target_eval_acc = _evaluate_target_accuracy(model, prepared_data.target_eval_loader, device)
+        final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
+            model,
+            prepared_data.source_train_eval_loaders,
+            source_domain_ids,
+            device,
+            max_batches=evaluation_max_batches,
+        )
+        final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
+            model,
+            prepared_data.source_eval_loaders,
+            source_domain_ids,
+            device,
+            max_batches=evaluation_max_batches,
+        )
+        target_eval_acc = _evaluate_accuracy(
+            model,
+            prepared_data.target_eval_loader,
+            device,
+            max_batches=evaluation_max_batches,
+        )
         summary = _mean_metrics(epoch_metrics)
         summary["epoch"] = epoch_index + 1
+        summary["acc_source_train"] = float(source_train_acc)
+        summary["acc_source_eval"] = float(source_eval_acc)
         summary["target_eval_acc"] = float(target_eval_acc)
         history.append(summary)
 
     result = {
         "method_name": str(method_config["method_name"]),
         "history": history,
+        "source_train_acc_by_domain": final_source_train_by_domain,
+        "source_eval_acc_by_domain": final_source_eval_by_domain,
+        "source_train_acc": float(history[-1]["acc_source_train"]),
+        "source_eval_acc": float(history[-1]["acc_source_eval"]),
+        "best_source_train_acc": float(max(item["acc_source_train"] for item in history)),
+        "final_source_train_acc": float(history[-1]["acc_source_train"]),
+        "best_source_eval_acc": float(max(item["acc_source_eval"] for item in history)),
+        "final_source_eval_acc": float(history[-1]["acc_source_eval"]),
         "best_target_eval_acc": float(max(item["target_eval_acc"] for item in history)),
         "final_target_eval_acc": float(history[-1]["target_eval_acc"]),
     }
@@ -368,6 +442,7 @@ def run_deep_experiment(
             analysis_path=run_paths["analysis_path"],
             scenario_id=scenario_id,
             method_name=str(method_config["method_name"]),
+            max_batches=analysis_max_batches,
         )
         result.update(analysis_summary)
 
@@ -375,6 +450,39 @@ def run_deep_experiment(
     result["cudnn_enabled"] = bool(torch.backends.cudnn.enabled)
 
     return result
+
+
+def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any]) -> dict[str, str | None]:
+    figure_paths = {
+        "tsne_domain": None,
+        "tsne_class": None,
+        "confusion_matrix": None,
+    }
+    analysis_path_value = result_payload.get("result", {}).get("analysis_path")
+    if not analysis_path_value:
+        return figure_paths
+
+    analysis_path = Path(str(analysis_path_value))
+    if not analysis_path.exists():
+        return figure_paths
+
+    from src.evaluation.report_figures import export_run_review_figures
+
+    export_run_review_figures(analysis_path, run_paths["figures_dir"])
+    figure_paths["tsne_domain"] = str(run_paths["figures_dir"] / "tsne_domain.png")
+    figure_paths["tsne_class"] = str(run_paths["figures_dir"] / "tsne_class.png")
+    figure_paths["confusion_matrix"] = str(run_paths["figures_dir"] / "confusion_matrix.png")
+    return figure_paths
+
+
+def _refresh_batch_outputs(batch_root: Path) -> None:
+    from src.evaluation.evaluate import export_comparison_summary
+    from src.evaluation.report_figures import export_summary_figures
+
+    summary_dir = export_comparison_summary(batch_root)
+    if summary_dir is None:
+        return
+    export_summary_figures(batch_root, summary_dir.parent / "figures")
 
 
 def parse_args() -> argparse.Namespace:
@@ -397,7 +505,7 @@ def main() -> None:
     method_payload = load_yaml(args.method_config)
     experiment_payload = load_yaml(args.experiment_config)
     method_name = str(method_payload.get("method_name", "")).lower()
-    ensure_dependencies(method_name)
+    ensure_dependencies(method_name, experiment_payload)
 
     from src.datasets.te_torch_dataset import prepare_benchmark_data
 
@@ -432,7 +540,12 @@ def main() -> None:
 
     if method_name == "jdot":
         from src.methods import run_jdot_experiment
-        method_result = run_jdot_experiment(prepared_data, method_payload)
+        method_result = run_jdot_experiment(
+            prepared_data,
+            method_payload,
+            analysis_path=run_paths["analysis_path"] if bool(experiment_payload.get("runtime", {}).get("save_analysis", True)) else None,
+            scenario_id=scenario_id,
+        )
     else:
         method_result = run_deep_experiment(
             method_config=method_payload,
@@ -456,7 +569,14 @@ def main() -> None:
         "run_root": str(run_paths["run_root"]),
         "result": method_result,
     }
+    figure_paths = _export_run_figures(result_payload, run_paths)
+    review_payload = build_run_review(result_payload, figure_paths=figure_paths)
+    result_payload["figure_paths"] = figure_paths
+    result_payload["review_path"] = str(run_paths["review_path"])
     save_json(run_paths["metrics_path"], result_payload)
+    save_review(run_paths["review_path"], review_payload)
+    if run_paths["batch_root"] is not None:
+        _refresh_batch_outputs(run_paths["batch_root"])
     print(json.dumps(result_payload, indent=2, ensure_ascii=False))
 
 

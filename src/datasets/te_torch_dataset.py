@@ -47,6 +47,7 @@ class PreparedBenchmarkData:
     source_splits: list[DomainSplitTensors]
     target_split: DomainSplitTensors
     source_train_loaders: list[DataLoader]
+    source_train_eval_loaders: list[DataLoader]
     source_eval_loaders: list[DataLoader]
     target_train_loader: DataLoader
     target_eval_loader: DataLoader
@@ -140,6 +141,16 @@ def prepare_benchmark_data(
         )
         for split in source_splits
     ]
+    source_train_eval_loaders = [
+        _make_loader(
+            split.train_x,
+            split.train_y,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+        )
+        for split in source_splits
+    ]
     source_eval_loaders = [
         _make_loader(
             split.eval_x,
@@ -170,6 +181,7 @@ def prepare_benchmark_data(
         source_splits=source_splits,
         target_split=target_split,
         source_train_loaders=source_train_loaders,
+        source_train_eval_loaders=source_train_eval_loaders,
         source_eval_loaders=source_eval_loaders,
         target_train_loader=target_train_loader,
         target_eval_loader=target_eval_loader,
