@@ -380,6 +380,9 @@ def run_deep_experiment(
         lr=float(optimization.get("learning_rate", 1e-3)),
         weight_decay=float(optimization.get("weight_decay", 0.0)),
     )
+    max_grad_norm = optimization.get("max_grad_norm")
+    if max_grad_norm is not None:
+        max_grad_norm = float(max_grad_norm)
 
     history = []
     target_iterator = _cycle(prepared_data.target_train_loader)
@@ -418,6 +421,8 @@ def run_deep_experiment(
             optimizer.zero_grad()
             step_output = model.compute_loss(source_batches, target_batch)
             step_output.loss.backward()
+            if max_grad_norm is not None and max_grad_norm > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             for key, value in step_output.metrics.items():

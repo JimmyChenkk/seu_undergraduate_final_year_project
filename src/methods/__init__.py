@@ -32,6 +32,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, num_sourc
         return CDANMethod(
             adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
             grl_lambda=float(loss.get("grl_lambda", 1.0)),
+            randomized_dim=int(loss.get("randomized_dim", 1024)),
             **shared_kwargs,
         )
     if method_name == "coral":
