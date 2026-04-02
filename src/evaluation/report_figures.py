@@ -3,14 +3,33 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.manifold import TSNE
-
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
+
+
+class FigureDependencyError(RuntimeError):
+    """Raised when figure-export dependencies are missing."""
+
+
+def _runtime_dependencies():
+    required = ["numpy", "matplotlib", "sklearn"]
+    missing = [name for name in required if importlib.util.find_spec(name) is None]
+    if missing:
+        raise FigureDependencyError(
+            "Missing figure-export dependencies: "
+            + ", ".join(missing)
+            + ". Install them manually in tep_env, for example with "
+            + "`pip install -r requirements-benchmark.txt`."
+        )
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from sklearn.manifold import TSNE
+
+    return np, plt, TSNE
 
 
 def load_result_rows(results_dir: Path) -> list[dict]:
@@ -47,6 +66,7 @@ def _ensure_dir(path: Path) -> None:
 
 
 def _save_figure(path: Path) -> None:
+    _, plt, _ = _runtime_dependencies()
     _ensure_dir(path.parent)
     plt.tight_layout()
     plt.savefig(path, dpi=220, bbox_inches="tight")
@@ -54,6 +74,7 @@ def _save_figure(path: Path) -> None:
 
 
 def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
+    np, plt, _ = _runtime_dependencies()
     grouped: dict[str, list[float]] = {}
     for row in rows:
         grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
@@ -71,6 +92,7 @@ def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
 
 
 def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Path) -> None:
+    np, plt, _ = _runtime_dependencies()
     subset = [row for row in rows if row["setting"] == setting_name]
     if not subset:
         return
@@ -100,14 +122,16 @@ def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Pat
 
 
 def _fit_tsne(features: np.ndarray) -> np.ndarray:
-    if len(features) < 5:
+    np, _, TSNE = _runtime_dependencies()
+    if len(features) <= 5:
         return np.zeros((len(features), 2), dtype=np.float32)
-    perplexity = min(30, max(5, len(features) // 10))
+    perplexity = min(30, max(5, len(features) // 10), len(features) - 1)
     tsne = TSNE(n_components=2, init="pca", learning_rate="auto", perplexity=perplexity, random_state=42)
     return tsne.fit_transform(features)
 
 
 def _balanced_sample_indices(source_count: int, target_count: int, *, max_points: int = 2000) -> tuple[np.ndarray, np.ndarray]:
+    np, _, _ = _runtime_dependencies()
     rng = np.random.default_rng(42)
     if source_count + target_count <= max_points:
         return np.arange(source_count), np.arange(target_count)
@@ -128,6 +152,7 @@ def _balanced_sample_indices(source_count: int, target_count: int, *, max_points
 
 
 def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
+    np, plt, _ = _runtime_dependencies()
     payload = np.load(artifact_path, allow_pickle=True)
     source_embeddings = payload["source_embeddings"]
     source_labels = payload["source_labels"]
@@ -185,6 +210,7 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
 
 
 def export_confusion_matrix_figure(artifact_path: Path, output_path: Path) -> None:
+    np, plt, _ = _runtime_dependencies()
     payload = np.load(artifact_path, allow_pickle=True)
     labels = payload["target_labels"]
     predictions = payload["target_predictions"]
@@ -209,6 +235,7 @@ def export_domain_comparison_figure(
 ) -> None:
     """Create a side-by-side domain-fusion t-SNE comparison figure."""
 
+    np, plt, _ = _runtime_dependencies()
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     for axis, artifact_path in zip(axes, [left_artifact, right_artifact]):
         payload = np.load(artifact_path, allow_pickle=True)
@@ -272,6 +299,7 @@ def _resolve_artifact_output_dir(artifact_path: Path, output_dir: Path | None) -
     if output_dir is None:
         return artifact_path.parent.parent / "figures"
 
+    np, _, _ = _runtime_dependencies()
     payload = np.load(artifact_path, allow_pickle=True)
     scenario_value = str(payload["scenario_id"][0]) if "scenario_id" in payload else artifact_path.parent.name
     method_value = str(payload["method_name"][0]) if "method_name" in payload else artifact_path.parent.parent.name
@@ -327,4 +355,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FigureDependencyError as exc:
+        raise SystemExit(str(exc))

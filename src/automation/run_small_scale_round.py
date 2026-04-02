@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+import importlib.util
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 from typing import Iterable
-
-import yaml
 
 from src.utils.run_layout import build_timestamp
 
@@ -34,13 +33,31 @@ DEFAULT_SCENES = [
 ]
 
 
+class AutomationDependencyError(RuntimeError):
+    """Raised when the small-scale automation entrypoint is missing YAML support."""
+
+
+def _import_yaml():
+    if importlib.util.find_spec("yaml") is None:
+        raise AutomationDependencyError(
+            "Missing automation dependency: yaml. Install it manually in tep_env, for example with "
+            + "`pip install -r requirements-benchmark.txt`."
+        )
+
+    import yaml
+
+    return yaml
+
+
 def _load_yaml(path: Path) -> dict:
+    yaml = _import_yaml()
     with path.open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle)
     return payload or {}
 
 
 def _save_yaml(path: Path, payload: dict) -> None:
+    yaml = _import_yaml()
     path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
 
 
@@ -123,11 +140,20 @@ def main() -> None:
                     "--batch-root-name",
                     batch_root_name,
                 ]
-                subprocess.run(command, check=True)
+                completed = subprocess.run(command, check=False)
+                if completed.returncode != 0:
+                    raise SystemExit(
+                        "Small-scale round stopped at "
+                        f"{method_name} on {source_domain}->{target_domain} "
+                        f"(exit code {completed.returncode})."
+                    )
 
     print(f"Batch results written under runs/{batch_root_name}")
     print(f"Comparison summary expected at runs/{batch_root_name}/comparison_summary/")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except AutomationDependencyError as exc:
+        raise SystemExit(str(exc))

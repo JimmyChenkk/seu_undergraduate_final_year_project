@@ -9,17 +9,45 @@ import importlib.util
 import json
 from pathlib import Path
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
-import yaml
-
-from src.datasets.te_da_dataset import TEDADatasetConfig, TEDADatasetInterface
 from src.evaluation.review import build_run_review, save_review
 from src.utils.run_layout import build_run_layout
 
+if TYPE_CHECKING:
+    from src.datasets.te_da_dataset import TEDADatasetConfig
+
+
+class TrainingDependencyError(RuntimeError):
+    """Raised when the benchmark training stack is not installed."""
+
+
+def _import_numpy():
+    if importlib.util.find_spec("numpy") is None:
+        raise TrainingDependencyError(
+            "Missing training dependency: numpy. Install it manually in tep_env, for example with "
+            + "`pip install -r requirements-benchmark.txt`."
+        )
+
+    import numpy as np
+
+    return np
+
+
+def _import_yaml():
+    if importlib.util.find_spec("yaml") is None:
+        raise TrainingDependencyError(
+            "Missing training dependency: yaml. Install it manually in tep_env, for example with "
+            + "`pip install -r requirements-benchmark.txt`."
+        )
+
+    import yaml
+
+    return yaml
+
 
 def load_yaml(path: Path) -> dict[str, Any]:
+    yaml = _import_yaml()
     with path.open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle)
     return payload or {}
@@ -47,6 +75,7 @@ def save_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def set_seed(seed: int) -> None:
+    np = _import_numpy()
     random.seed(seed)
     np.random.seed(seed)
 
@@ -54,7 +83,7 @@ def set_seed(seed: int) -> None:
 def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
     """Fail early with a concise message when the training stack is missing."""
 
-    required = ["torch"]
+    required = ["numpy", "yaml", "torch"]
     if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
         required.extend(["sklearn", "matplotlib"])
     if method_name == "jdot":
@@ -62,7 +91,7 @@ def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> 
 
     missing = [name for name in required if importlib.util.find_spec(name) is None]
     if missing:
-        raise RuntimeError(
+        raise TrainingDependencyError(
             "Missing training dependencies: "
             + ", ".join(missing)
             + ". Install them manually in tep_env, for example with "
@@ -112,8 +141,14 @@ def build_run_paths(
     }
 
 
-def build_setting(data_config: TEDADatasetConfig, data_payload: dict[str, Any], experiment_payload: dict[str, Any]):
+def build_setting(
+    data_config: "TEDADatasetConfig",
+    data_payload: dict[str, Any],
+    experiment_payload: dict[str, Any],
+):
     """Build single-source or multi-source setting from config files."""
+
+    from src.datasets.te_da_dataset import TEDADatasetInterface
 
     protocol = deepcopy(data_payload.get("protocol", {}))
     protocol_override = experiment_payload.get("protocol_override", {})
@@ -194,6 +229,7 @@ def _evaluate_domain_accuracies(
 def _collect_loader_outputs(model, loader, device, *, domain_name: str, max_batches: int | None = None):
     """Collect logits, predictions, labels and embeddings for one loader."""
 
+    np = _import_numpy()
     import torch
 
     embeddings = []
@@ -249,6 +285,7 @@ def export_analysis_artifacts(
 ) -> dict[str, Any]:
     """Persist embeddings and prediction traces for later figures."""
 
+    np = _import_numpy()
     from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix
 
     ensure_parent(analysis_path)
@@ -507,6 +544,7 @@ def main() -> None:
     method_name = str(method_payload.get("method_name", "")).lower()
     ensure_dependencies(method_name, experiment_payload)
 
+    from src.datasets.te_da_dataset import TEDADatasetConfig
     from src.datasets.te_torch_dataset import prepare_benchmark_data
 
     data_config = TEDADatasetConfig.from_dict(data_payload)
@@ -581,4 +619,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except TrainingDependencyError as exc:
+        raise SystemExit(str(exc))

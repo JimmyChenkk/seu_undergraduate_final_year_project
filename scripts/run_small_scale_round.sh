@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PYTHON_BIN="${PYTHON_BIN:-python}"
-if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-fi
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT_DIR}/scripts/common_env.sh"
 
-"${PYTHON_BIN}" -m src.automation.run_small_scale_round "$@"
+cd "${ROOT_DIR}"
+resolve_python_runner "run_small_scale_round.sh"
+
+"${PYTHON_RUNNER[@]}" -m src.automation.run_small_scale_round "$@"
