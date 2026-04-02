@@ -588,6 +588,7 @@ def main() -> None:
             method_payload,
             analysis_path=run_paths["analysis_path"] if bool(experiment_payload.get("runtime", {}).get("save_analysis", True)) else None,
             scenario_id=scenario_id,
+            runtime_config=experiment_payload.get("runtime", {}),
         )
     else:
         method_result = run_deep_experiment(

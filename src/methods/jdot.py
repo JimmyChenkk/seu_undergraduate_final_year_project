@@ -7,6 +7,51 @@ import sys
 from typing import Any
 
 import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin
+
+
+class StableLogisticRegression(BaseEstimator, ClassifierMixin):
+    """Logistic regression wrapper that keeps probabilities strictly finite."""
+
+    def __init__(
+        self,
+        *,
+        max_iter: int = 200,
+        solver: str = "lbfgs",
+        tol: float = 1e-4,
+        c: float = 1.0,
+        clip_min_prob: float = 1e-12,
+    ) -> None:
+        self.max_iter = max_iter
+        self.solver = solver
+        self.tol = tol
+        self.c = c
+        self.clip_min_prob = clip_min_prob
+
+    def fit(self, X, y, sample_weight=None):
+        from sklearn.linear_model import LogisticRegression
+
+        self.estimator_ = LogisticRegression(
+            max_iter=self.max_iter,
+            solver=self.solver,
+            tol=self.tol,
+            C=self.c,
+        )
+        self.estimator_.fit(X, y, sample_weight=sample_weight)
+        self.classes_ = self.estimator_.classes_
+        return self
+
+    def predict(self, X):
+        return self.estimator_.predict(X)
+
+    def predict_proba(self, X):
+        probabilities = self.estimator_.predict_proba(X)
+        probabilities = np.clip(probabilities, self.clip_min_prob, 1.0)
+        probabilities /= probabilities.sum(axis=1, keepdims=True)
+        return probabilities
+
+    def predict_log_proba(self, X):
+        return np.log(self.predict_proba(X))
 
 
 def _import_skada_jdot():
@@ -27,6 +72,14 @@ def _import_skada_jdot():
 
 def _flatten_tensor_batch(tensor) -> np.ndarray:
     return tensor.numpy().reshape(tensor.shape[0], -1)
+
+
+def _downsample_pair(x: np.ndarray, y: np.ndarray, limit: int | None) -> tuple[np.ndarray, np.ndarray]:
+    if limit is None or limit <= 0 or len(y) <= limit:
+        return x, y
+    indices = np.linspace(0, len(y) - 1, num=limit, dtype=int)
+    indices = np.unique(indices)
+    return x[indices], y[indices]
 
 
 def _save_jdot_analysis_artifacts(
@@ -67,10 +120,10 @@ def run_jdot_experiment(
     *,
     analysis_path: Path | None = None,
     scenario_id: str | None = None,
+    runtime_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run a shallow JDOT baseline on flattened TEP trajectories."""
 
-    from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix
 
     source_split = prepared_data.source_splits[0]
@@ -84,6 +137,17 @@ def run_jdot_experiment(
     x_target_eval = _flatten_tensor_batch(target_split.eval_x)
     y_target_eval = target_split.eval_y.numpy()
 
+    runtime_config = runtime_config or {}
+    if bool(runtime_config.get("dry_run", False)):
+        x_source, y_source = _downsample_pair(x_source, y_source, limit=256)
+        x_source_eval, y_source_eval = _downsample_pair(x_source_eval, y_source_eval, limit=128)
+        x_target_train, _ = _downsample_pair(
+            x_target_train,
+            np.arange(x_target_train.shape[0], dtype=np.int64),
+            limit=256,
+        )
+        x_target_eval, y_target_eval = _downsample_pair(x_target_eval, y_target_eval, limit=128)
+
     x_joint = np.concatenate([x_source, x_target_train], axis=0)
     y_joint = np.concatenate([y_source, np.full(shape=x_target_train.shape[0], fill_value=-1, dtype=y_source.dtype)])
     sample_domain = np.concatenate(
@@ -94,15 +158,22 @@ def run_jdot_experiment(
     )
 
     jdot_kwargs = method_config.get("jdot", {})
-    estimator = LogisticRegression(
+    estimator = StableLogisticRegression(
         max_iter=int(jdot_kwargs.get("logreg_max_iter", 200)),
-        multi_class="auto",
+        solver=str(jdot_kwargs.get("logreg_solver", "lbfgs")),
+        tol=float(jdot_kwargs.get("logreg_tol", 1e-4)),
+        c=float(jdot_kwargs.get("logreg_c", 1.0)),
+        clip_min_prob=float(jdot_kwargs.get("clip_min_prob", 1e-12)),
     )
     JDOTClassifier = _import_skada_jdot()
     model = JDOTClassifier(
         base_estimator=estimator,
         alpha=float(jdot_kwargs.get("alpha", 0.5)),
-        n_iter_max=int(jdot_kwargs.get("n_iter_max", 10)),
+        n_iter_max=(
+            min(int(jdot_kwargs.get("n_iter_max", 10)), 2)
+            if bool(runtime_config.get("dry_run", False))
+            else int(jdot_kwargs.get("n_iter_max", 10))
+        ),
         verbose=bool(jdot_kwargs.get("verbose", False)),
     )
     model.fit(x_joint, y_joint, sample_domain=sample_domain)
