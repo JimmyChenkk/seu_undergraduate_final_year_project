@@ -86,6 +86,25 @@ def set_seed(seed: int) -> None:
             torch.cuda.manual_seed_all(seed)
 
 
+def configure_torch_runtime(runtime: dict[str, Any], device_name: str) -> None:
+    """Apply conservative torch backend defaults for the selected device."""
+
+    if not device_name.startswith("cuda"):
+        return
+
+    import torch
+
+    if bool(runtime.get("disable_cudnn", False)):
+        torch.backends.cudnn.enabled = False
+        torch.backends.cudnn.benchmark = False
+        return
+
+    torch.backends.cudnn.enabled = True
+    # cuDNN autotune can push some drivers into unstable states during long runs,
+    # so keep it opt-in instead of enabling it by default.
+    torch.backends.cudnn.benchmark = bool(runtime.get("cudnn_benchmark", False))
+
+
 def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
     """Fail early with a concise message when the training stack is missing."""
 
@@ -219,7 +238,7 @@ def _evaluate_accuracy(
     model.eval()
     total = 0
     correct = 0
-    with torch.no_grad():
+    with torch.inference_mode():
         for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
             y_batch = y_batch.to(device, non_blocking=non_blocking)
@@ -277,11 +296,10 @@ def _collect_loader_outputs(
     domains = []
 
     model.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
-            logits = model.predict_logits(x_batch)
-            features = model.extract_features(x_batch)
+            logits, features = model(x_batch)
             embeddings.append(features.detach().cpu().numpy())
             logits_list.append(logits.detach().cpu().numpy())
             labels_list.append(y_batch.numpy())
@@ -405,14 +423,14 @@ def run_deep_experiment(
     device_name = str(experiment_config.get("device", "cpu"))
     if device_name.startswith("cuda") and not torch.cuda.is_available():
         device_name = "cpu"
-    if bool(runtime.get("disable_cudnn", False)):
-        torch.backends.cudnn.enabled = False
-        torch.backends.cudnn.benchmark = False
-    elif device_name.startswith("cuda"):
-        torch.backends.cudnn.enabled = True
-        torch.backends.cudnn.benchmark = True
+    configure_torch_runtime(runtime, device_name)
     device = torch.device(device_name)
-    transfer_non_blocking = bool(runtime.get("pin_memory", device.type == "cuda")) and device.type == "cuda"
+    pin_memory_enabled = bool(runtime.get("pin_memory", False))
+    transfer_non_blocking = (
+        bool(runtime.get("non_blocking_transfers", pin_memory_enabled))
+        and pin_memory_enabled
+        and device.type == "cuda"
+    )
 
     model = build_method(
         method_config,
@@ -470,7 +488,7 @@ def run_deep_experiment(
                 target_batch[1].to(device, non_blocking=transfer_non_blocking),
             )
 
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             step_output = model.compute_loss(source_batches, target_batch)
             step_output.loss.backward()
             if max_grad_norm is not None and max_grad_norm > 0:
@@ -546,6 +564,9 @@ def run_deep_experiment(
 
     result["device_used"] = str(device)
     result["cudnn_enabled"] = bool(torch.backends.cudnn.enabled)
+    result["cudnn_benchmark"] = bool(torch.backends.cudnn.benchmark)
+    result["pin_memory"] = pin_memory_enabled
+    result["non_blocking_transfers"] = bool(transfer_non_blocking)
 
     return result
 
@@ -616,14 +637,9 @@ def main() -> None:
     set_seed(int(experiment_payload.get("seed", 42)))
     setting = build_setting(data_config, data_payload, experiment_payload)
     batch_size = int(method_payload.get("optimization", {}).get("batch_size", 32))
-    num_workers = int(experiment_payload.get("runtime", {}).get("num_workers", 0))
     runtime_payload = experiment_payload.get("runtime", {})
-    pin_memory = False
-    if str(experiment_payload.get("device", "cpu")).startswith("cuda"):
-        import torch
-
-        pin_memory = torch.cuda.is_available()
-    pin_memory = bool(runtime_payload.get("pin_memory", pin_memory))
+    num_workers = int(runtime_payload.get("num_workers", 0))
+    pin_memory = bool(runtime_payload.get("pin_memory", False))
     persistent_workers = bool(runtime_payload.get("persistent_workers", num_workers > 0))
     backbone_name = str(method_payload.get("backbone", {}).get("name", "fcn"))
     source_domain_ids = [reference.domain.name for reference in setting.source_domains]
