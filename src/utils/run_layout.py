@@ -68,6 +68,20 @@ def build_run_name(
     return "_".join(parts)
 
 
+def _reserve_run_root(base_dir: Path, desired_name: str) -> tuple[str, Path]:
+    """Create and reserve a unique run root to avoid same-second collisions."""
+
+    suffix = 0
+    while True:
+        candidate_name = desired_name if suffix == 0 else f"{desired_name}_{suffix + 1:02d}"
+        candidate_root = base_dir / candidate_name
+        try:
+            candidate_root.mkdir(parents=False, exist_ok=False)
+            return candidate_name, candidate_root
+        except FileExistsError:
+            suffix += 1
+
+
 def build_run_layout(
     *,
     output_dir: Path,
@@ -82,14 +96,17 @@ def build_run_layout(
 
     resolved_timestamp = timestamp or build_timestamp()
     batch_root = output_dir / normalize_token(batch_root_name) if batch_root_name else None
-    run_name = build_run_name(
+    base_dir = batch_root or output_dir
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    desired_run_name = build_run_name(
         timestamp=resolved_timestamp,
         method_name=method_name,
         scenario_id=scenario_id,
         backbone_name=backbone_name,
         fold_name=fold_name,
     )
-    run_root = (batch_root or output_dir) / run_name
+    run_name, run_root = _reserve_run_root(base_dir, desired_run_name)
     layout = RunLayout(
         timestamp=resolved_timestamp,
         run_name=run_name,
@@ -103,7 +120,6 @@ def build_run_layout(
         checkpoints_dir=run_root / "checkpoints",
     )
     for directory in [
-        layout.run_root,
         layout.artifacts_dir,
         layout.tables_dir,
         layout.figures_dir,

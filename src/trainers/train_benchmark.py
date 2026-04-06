@@ -468,6 +468,15 @@ def run_deep_experiment(
     source_domain_ids = [split.domain_id for split in prepared_data.source_splits]
     final_source_train_by_domain: dict[str, float] = {}
     final_source_eval_by_domain: dict[str, float] = {}
+    selected_source_train_by_domain: dict[str, float] = {}
+    selected_source_eval_by_domain: dict[str, float] = {}
+    selected_source_train_acc = 0.0
+    selected_source_eval_acc = 0.0
+    selected_target_eval_acc = 0.0
+    selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
+    best_selection_score = float("-inf")
+    selected_epoch = 0
+    selected_state_dict: dict[str, torch.Tensor] | None = None
     epochs = int(optimization.get("epochs", 1))
     for epoch_index in range(epochs):
         model.train()
@@ -528,19 +537,69 @@ def run_deep_experiment(
         summary["target_eval_acc"] = float(target_eval_acc)
         history.append(summary)
 
+        selection_score = float(source_eval_acc)
+        if selection_mode == "final":
+            continue
+        if selection_score > best_selection_score:
+            best_selection_score = selection_score
+            selected_epoch = epoch_index + 1
+            selected_state_dict = {
+                key: value.detach().cpu().clone()
+                for key, value in model.state_dict().items()
+            }
+
+    if selection_mode != "final" and selected_state_dict is not None:
+        model.load_state_dict(selected_state_dict)
+        selected_source_train_by_domain, selected_source_train_acc = _evaluate_domain_accuracies(
+            model,
+            prepared_data.source_train_eval_loaders,
+            source_domain_ids,
+            device,
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+        )
+        selected_source_eval_by_domain, selected_source_eval_acc = _evaluate_domain_accuracies(
+            model,
+            prepared_data.source_eval_loaders,
+            source_domain_ids,
+            device,
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+        )
+        selected_target_eval_acc = _evaluate_accuracy(
+            model,
+            prepared_data.target_eval_loader,
+            device,
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+        )
+    else:
+        selected_epoch = epochs
+        selected_source_train_by_domain = final_source_train_by_domain
+        selected_source_eval_by_domain = final_source_eval_by_domain
+        selected_source_train_acc = float(history[-1]["acc_source_train"])
+        selected_source_eval_acc = float(history[-1]["acc_source_eval"])
+        selected_target_eval_acc = float(history[-1]["target_eval_acc"])
+
     result = {
         "method_name": str(method_config["method_name"]),
         "history": history,
-        "source_train_acc_by_domain": final_source_train_by_domain,
-        "source_eval_acc_by_domain": final_source_eval_by_domain,
-        "source_train_acc": float(history[-1]["acc_source_train"]),
-        "source_eval_acc": float(history[-1]["acc_source_eval"]),
+        "source_train_acc_by_domain": selected_source_train_by_domain,
+        "source_eval_acc_by_domain": selected_source_eval_by_domain,
+        "source_train_acc": float(selected_source_train_acc),
+        "source_eval_acc": float(selected_source_eval_acc),
+        "target_eval_acc": float(selected_target_eval_acc),
         "best_source_train_acc": float(max(item["acc_source_train"] for item in history)),
         "final_source_train_acc": float(history[-1]["acc_source_train"]),
         "best_source_eval_acc": float(max(item["acc_source_eval"] for item in history)),
         "final_source_eval_acc": float(history[-1]["acc_source_eval"]),
         "best_target_eval_acc": float(max(item["target_eval_acc"] for item in history)),
         "final_target_eval_acc": float(history[-1]["target_eval_acc"]),
+        "selected_source_train_acc": float(selected_source_train_acc),
+        "selected_source_eval_acc": float(selected_source_eval_acc),
+        "selected_target_eval_acc": float(selected_target_eval_acc),
+        "selected_epoch": int(selected_epoch),
+        "model_selection": selection_mode,
     }
 
     if bool(runtime.get("save_checkpoint", False)):

@@ -17,19 +17,36 @@ def _coerce_float(value: Any) -> float | None:
     return number
 
 
+def _first_metric(result: dict[str, Any], *keys: str) -> float | None:
+    for key in keys:
+        metric = _coerce_float(result.get(key))
+        if metric is not None:
+            return metric
+    return None
+
+
 def extract_core_metrics(result_payload: dict[str, Any]) -> dict[str, float | None]:
     """Normalize the small set of metrics used in the autonomous review loop."""
 
     result = result_payload.get("result", {})
     return {
-        "source_train_acc": _coerce_float(
-            result.get("final_source_train_acc", result.get("source_train_acc"))
+        "source_train_acc": _first_metric(
+            result,
+            "selected_source_train_acc",
+            "final_source_train_acc",
+            "source_train_acc",
         ),
-        "source_eval_acc": _coerce_float(
-            result.get("final_source_eval_acc", result.get("source_eval_acc"))
+        "source_eval_acc": _first_metric(
+            result,
+            "selected_source_eval_acc",
+            "final_source_eval_acc",
+            "source_eval_acc",
         ),
-        "target_eval_acc": _coerce_float(
-            result.get("final_target_eval_acc", result.get("target_eval_acc"))
+        "target_eval_acc": _first_metric(
+            result,
+            "selected_target_eval_acc",
+            "final_target_eval_acc",
+            "target_eval_acc",
         ),
         "target_eval_balanced_acc": _coerce_float(result.get("target_eval_balanced_acc")),
     }

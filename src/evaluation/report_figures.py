@@ -7,6 +7,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+from src.evaluation.review import extract_core_metrics
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
 
@@ -41,6 +42,7 @@ def load_result_rows(results_dir: Path) -> list[dict]:
         result = payload.get("result", {})
         if not isinstance(result, dict) or not payload.get("method_name"):
             continue
+        metrics = extract_core_metrics(payload)
         rows.append(
             {
                 "path": path,
@@ -51,9 +53,7 @@ def load_result_rows(results_dir: Path) -> list[dict]:
                 "fold_name": str(payload.get("fold_name", "unknown")),
                 "source_domains": payload.get("source_domains", []),
                 "target_domain": str(payload.get("target_domain")),
-                "target_eval_acc": float(
-                    result.get("final_target_eval_acc", result.get("target_eval_acc", 0.0))
-                ),
+                "target_eval_acc": float(metrics["target_eval_acc"] or 0.0),
                 "run_root": payload.get("run_root"),
                 "analysis_path": result.get("analysis_path"),
             }
