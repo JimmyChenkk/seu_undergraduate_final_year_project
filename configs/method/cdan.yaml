@@ -6,9 +6,9 @@ backbone:
   dropout: 0.1
 
 optimization:
-  epochs: 10
+  epochs: 70
   batch_size: 32
-  learning_rate: 0.001
+  learning_rate: 0.0001
   weight_decay: 0.0
   max_grad_norm: 5.0
 

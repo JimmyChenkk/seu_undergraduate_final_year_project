@@ -15,11 +15,6 @@ runtime:
   num_workers: 0
   pin_memory: false
 
-method_override:
-  optimization:
-    epochs: 70
-    learning_rate: 0.0001
-
 protocol_override:
   setting: single_source
   source_domains:
@@ -31,4 +26,3 @@ notes:
   - Default small-scale config for the autonomous 3-round workflow.
   - The batch runner overrides source and target domains per scene.
   - Keeps CUDA transfers conservative unless a probe config explicitly opts into aggressive settings.
-  - Uses a reference-aligned training budget closer to the local tep-domain-adaptation examples.

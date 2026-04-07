@@ -53,18 +53,6 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return payload or {}
 
 
-def merge_nested_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Merge dictionaries conservatively."""
-
-    result = deepcopy(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = merge_nested_dict(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -682,7 +670,6 @@ def main() -> None:
     data_payload = load_yaml(args.data_config)
     method_payload = load_yaml(args.method_config)
     experiment_payload = load_yaml(args.experiment_config)
-    method_payload = merge_nested_dict(method_payload, experiment_payload.get("method_override", {}))
     method_name = str(method_payload.get("method_name", "")).lower()
     ensure_dependencies(method_name, experiment_payload)
 

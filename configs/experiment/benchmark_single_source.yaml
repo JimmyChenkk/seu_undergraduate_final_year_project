@@ -15,11 +15,6 @@ runtime:
   num_workers: 0
   pin_memory: false
 
-method_override:
-  optimization:
-    epochs: 70
-    learning_rate: 0.0001
-
 protocol_override:
   setting: single_source
   source_domains:
@@ -30,4 +25,3 @@ protocol_override:
 notes:
   - First reproducible single-source benchmark slice.
   - Uses conservative CUDA defaults to avoid aggressive autotune and pinned-memory transfers by default.
-  - Uses a reference-aligned training budget closer to the local tep-domain-adaptation examples.
