@@ -1,0 +1,21 @@
+experiment_name: debug_source_only
+seed: 42
+device: cpu
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: true
+  save_checkpoint: false
+  num_workers: 0
+
+protocol_override:
+  source_domains:
+    - mode1
+  target_domain: mode2
+  preferred_fold: Fold 1
+
+notes:
+  - This config is intentionally lightweight for scaffold validation.

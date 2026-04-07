@@ -1,0 +1,22 @@
+method_name: cdan
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 10
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: conditional_domain_adversarial
+  adaptation_weight: 0.1
+  grl_lambda: 1.0
+  randomized_dim: 256
+
+notes:
+  - Proposal-aligned CDAN baseline for representative TEP-UDA scenes.

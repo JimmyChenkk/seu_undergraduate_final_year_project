@@ -1,0 +1,27 @@
+experiment_name: gpu_probe_pin_memory_only
+seed: 42
+device: cuda
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: true
+  save_checkpoint: false
+  save_analysis: false
+  disable_cudnn: true
+  num_workers: 0
+  pin_memory: true
+  eval_max_batches: 1
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  preferred_fold: Fold 1
+
+notes:
+  - Conservative probe with pinned-memory transfers enabled.
+  - Keeps cuDNN autotune and analysis export disabled.

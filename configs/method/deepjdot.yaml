@@ -1,0 +1,22 @@
+method_name: deepjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 10
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0
+
+loss:
+  name: deepjdot
+  adaptation_weight: 1.0
+  reg_dist: 0.1
+  reg_cl: 1.0
+
+notes:
+  - GPU-friendly DeepJDOT baseline using minibatch OT on torch tensors.
+  - Active OT baseline for the current autonomous sweep setup.

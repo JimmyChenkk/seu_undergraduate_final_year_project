@@ -1,0 +1,33 @@
+experiment_name: benchmark_single_source
+seed: 42
+device: cuda
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  num_workers: 0
+  pin_memory: false
+
+method_override:
+  optimization:
+    epochs: 70
+    learning_rate: 0.0001
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  preferred_fold: Fold 1
+
+notes:
+  - First reproducible single-source benchmark slice.
+  - Uses conservative CUDA defaults to avoid aggressive autotune and pinned-memory transfers by default.
+  - Uses a reference-aligned training budget closer to the local tep-domain-adaptation examples.

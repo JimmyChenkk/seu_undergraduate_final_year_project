@@ -1,0 +1,26 @@
+experiment_name: report_s2_t5
+seed: 42
+device: cuda
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  num_workers: 0
+  pin_memory: false
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode2
+  target_domain: mode5
+  preferred_fold: Fold 1
+
+notes:
+  - Representative task for confusion-matrix style inspection.

@@ -1,0 +1,19 @@
+method_name: dan
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 10
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0
+
+loss:
+  name: mkmmd
+  adaptation_weight: 0.05
+
+notes:
+  - DAN baseline with MK-MMD alignment.

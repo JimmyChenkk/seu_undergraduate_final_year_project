@@ -1,6 +1,5 @@
 # Local-only paths from WORKFLOW.md
 .vscode/
-configs/
 data/
 external/
 refs/
