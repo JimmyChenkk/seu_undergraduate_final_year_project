@@ -1,0 +1,34 @@
+# Tennessee Eastman Process domain adaptation dataset configuration.
+
+dataset_name: te_domain_adaptation
+
+paths:
+  raw_dir: data/raw
+  benchmark_dir: data/benchmark
+  cache_dir: data/cache
+  manifest_path: data/benchmark/manifest.json
+  inspection_json_path: data/cache/te_raw_data_inspection.json
+  inspection_report_path: data/benchmark/te_raw_data_inspection.md
+
+loading:
+  preferred_source: benchmark
+  allow_raw_fallback: true
+  raw_file_pattern: "*.pickle"
+  normalization: standardization
+  normalization_scope: domain
+  channels_first: true
+
+protocol:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  use_target_labels: false
+  few_shot_target_samples: 0
+  preferred_fold: Fold 1
+
+notes:
+  - "data/raw contains immutable upstream pickle snapshots for modes 1-6."
+  - "benchmark build should generate manifest metadata without duplicating large arrays."
+  - "existing Folds inside raw pickle files are treated as the authoritative split source."
+  - "normalization_scope=domain keeps one set of per-domain statistics across train/eval, matching the local reference benchmark."

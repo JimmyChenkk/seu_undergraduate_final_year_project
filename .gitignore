@@ -1,9 +1,9 @@
 # Local-only paths from WORKFLOW.md
-.vscode/
-data/
-external/
-refs/
-runs/
+/.vscode/
+/data/
+/external/
+/refs/
+/runs/
 
 # Python cache
 __pycache__/
