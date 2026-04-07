@@ -63,6 +63,35 @@ def save_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep CLI output compact while the full payload stays in ``result.json``."""
+
+    result = result_payload.get("result", {})
+    return {
+        "experiment_name": result_payload.get("experiment_name"),
+        "method_name": result_payload.get("method_name"),
+        "scenario_id": result_payload.get("scenario_id"),
+        "run_root": result_payload.get("run_root"),
+        "metrics_path": result_payload.get("metrics_path"),
+        "review_path": result_payload.get("review_path"),
+        "device": {
+            "device_used": result.get("device_used"),
+            "cudnn_enabled": result.get("cudnn_enabled"),
+            "cudnn_benchmark": result.get("cudnn_benchmark"),
+            "pin_memory": result.get("pin_memory"),
+            "non_blocking_transfers": result.get("non_blocking_transfers"),
+        },
+        "metrics": {
+            "source_train_acc": result.get("source_train_acc"),
+            "source_eval_acc": result.get("source_eval_acc"),
+            "target_eval_acc": result.get("target_eval_acc"),
+            "target_eval_balanced_acc": result.get("target_eval_balanced_acc"),
+            "selected_epoch": result.get("selected_epoch"),
+        },
+        "figure_paths": result_payload.get("figure_paths"),
+    }
+
+
 def set_seed(seed: int) -> None:
     np = _import_numpy()
     random.seed(seed)
@@ -847,12 +876,13 @@ def main() -> None:
     figure_paths = _export_run_figures(result_payload, run_paths)
     review_payload = build_run_review(result_payload, figure_paths=figure_paths)
     result_payload["figure_paths"] = figure_paths
+    result_payload["metrics_path"] = str(run_paths["metrics_path"])
     result_payload["review_path"] = str(run_paths["review_path"])
     save_json(run_paths["metrics_path"], result_payload)
     save_review(run_paths["review_path"], review_payload)
     if run_paths["batch_root"] is not None:
         _refresh_batch_outputs(run_paths["batch_root"])
-    print(json.dumps(result_payload, indent=2, ensure_ascii=False))
+    print(json.dumps(build_terminal_summary(result_payload), indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
