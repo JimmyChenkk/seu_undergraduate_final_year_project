@@ -4,8 +4,6 @@ data/
 external/
 refs/
 runs/
-AGENTS.md
-WORKFLOW.md
 
 # Python cache
 __pycache__/
