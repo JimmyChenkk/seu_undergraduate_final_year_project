@@ -155,3 +155,26 @@ bash scripts/eval.sh runs
 conda activate tep_env
 pip install -r requirements-benchmark.txt
 ```
+
+## 外部来源链接
+
+以下链接用于记录本项目曾使用过的外部仓库、模板与数据源，便于后续重新 `git clone`、手动下载或回溯来源。
+
+- 原始数据集（Tennessee Eastman Process Domain Adaptation, Kaggle）：
+  https://www.kaggle.com/datasets/eddardd/tennessee-eastman-process-domain-adaptation?resource=download
+- 论文模板（`paper/` 基于该模板整理）：
+  https://github.com/SuikaXhq/seu-bachelor-thesis-2022.git
+- `external/tep-domain-adaptation`：
+  https://github.com/eddardd/tep-domain-adaptation.git
+- `external/TL-Fault-Diagnosis-Library`：
+  https://github.com/Feaxure-fresh/TL-Fault-Diagnosis-Library.git
+- `external/skada`：
+  https://github.com/scikit-adaptation/skada.git
+- `refs/algorithms/Deep-Unsupervised-Domain-Adaptation`：
+  https://github.com/agrija9/Deep-Unsupervised-Domain-Adaptation.git
+- `refs/algorithms/OMEGA`：
+  https://github.com/mendicant04/OMEGA.git
+- `refs/reading/transferlearning`：
+  https://github.com/jindongwang/transferlearning.git
+- `refs/reading/awesome-domain-adaptation`：
+  https://github.com/zhaoxin94/awesome-domain-adaptation.git
