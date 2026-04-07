@@ -1,32 +1,48 @@
-\documentclass[12pt]{article}
+\documentclass[fandol]{seuthesis-2022}
 
-\usepackage[margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{hyperref}
-
-\title{Domain Adaptation for Fault Diagnosis in the Tennessee Eastman Process}
-\author{Research Workspace Scaffold}
-\date{\today}
+\title{基于迁移学习的田纳西伊士曼过程故障诊断研究}{本科毕业论文骨架示意稿}
+\author{姓名待填写}
+\studentnum{学号待填写}
+\department{院系待填写}
+\major{专业待填写}
+\supervisor{导师待填写}
+\period{2026年4月}
 
 \begin{document}
 
 \maketitle
+\makedeclaration
 
-\begin{abstract}
-This document is a minimal paper scaffold for the TE domain adaptation project.
-Each chapter currently contains concise placeholders that will be expanded as
-the benchmark, methods, experiments, and figures become stable.
+\frontmatter
+\begin{abstract}[zh]
+本文档为东南大学本科毕业设计（论文）的 LaTeX 空白骨架示意稿，用于先搭建完整论文结构，再逐步补充正式内容。当前仅保留封面、声明、摘要、目录、正文章节、参考文献、附录与致谢等必要组成部分，并以占位文字提示后续写作方向。
+
+\keywords{本科毕业论文, LaTeX 模板, 论文骨架, 占位稿}
+\end{abstract}
+
+\begin{abstract}[en]
+This document is a minimal Southeast University undergraduate thesis skeleton built with LaTeX. It keeps the required thesis elements, including the cover page, declaration, abstract, table of contents, main chapters, references, appendix, and acknowledgement, while leaving the detailed content as placeholders for later writing.
+
+\keywords{Undergraduate Thesis, LaTeX Template, Thesis Skeleton, Placeholder Draft}
 \end{abstract}
 
 \tableofcontents
 
+\mainmatter
 \input{chapters/01_intro}
 \input{chapters/02_related_work}
 \input{chapters/03_method}
 \input{chapters/04_experiments}
 \input{chapters/05_conclusion}
 
-\bibliographystyle{plain}
+\bibliographystyle{gbt7714-numerical}
 \bibliography{bib/references}
+
+\appendix
+\input{chapters/appendix_a}
+
+\begin{acknowledgement}
+此处为致谢占位内容。正式成稿时可用于感谢指导教师、课题组成员、提供帮助的同学与家人等。
+\end{acknowledgement}
 
 \end{document}

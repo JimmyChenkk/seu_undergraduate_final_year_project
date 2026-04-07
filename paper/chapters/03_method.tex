@@ -1,11 +1,10 @@
-\section{Method}
+\chapter{问题定义与方法设计}
 
-This chapter will describe the baseline and the later domain adaptation
-extensions implemented in the workspace.
+\section{任务定义与符号说明}
+本节用于定义源域、目标域、样本标签、模型输入输出及优化目标，并对全文会反复出现的主要符号给出统一约定。
 
-Current placeholder goals:
-\begin{itemize}
-  \item define notation for source domains and target domain;
-  \item document the source-only baseline first;
-  \item add UDA objectives only after the benchmark protocol is fixed.
-\end{itemize}
+\section{基线模型设计}
+本节用于介绍论文采用的基础网络结构、特征提取模块、分类头及训练流程。若后续涉及多种基线模型，也可在此节继续细分小节说明。
+
+\section{迁移学习方法设计}
+本节用于给出本文核心方法或实验比较方法的结构说明、损失函数及训练策略。正式写作时可结合模型图、公式推导和伪代码进行展开。
