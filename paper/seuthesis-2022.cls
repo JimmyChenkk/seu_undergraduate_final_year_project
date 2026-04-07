@@ -73,7 +73,9 @@
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{ctexrep}}
 \ProcessOptions\relax
 
-\LoadClass[UTF8,zihao=-4]{ctexrep}[2020/05/05]
+% The class defines its own CJK font families below, so keep ctex from
+% preloading another fontset and triggering xeCJK redefinition warnings.
+\LoadClass[UTF8,zihao=-4,fontset=none]{ctexrep}[2020/05/05]
 \RequirePackage{geometry}
 \RequirePackage{setspace}
 \RequirePackage{fancyhdr}
