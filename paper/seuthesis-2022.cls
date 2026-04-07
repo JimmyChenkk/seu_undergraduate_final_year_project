@@ -185,6 +185,12 @@
 \ifseut@font@mac\else
 \setCJKmonofont{\seut@var@str@font@fangsong}
 \fi
+\providecommand{\songti}{\CJKfamily{zhsong}}
+\providecommand{\heiti}{\CJKfamily{zhhei}}
+\ifseut@font@mac\else
+\providecommand{\fangsong}{\CJKfamily{zhfs}}
+\providecommand{\kaishu}{\CJKfamily{zhkai}}
+\fi
 \setmainfont{\seut@var@str@font@serif}
 \setsansfont{\seut@var@str@font@sans}
 \setmonofont{\seut@var@str@font@mono}
@@ -454,7 +460,7 @@
     \hangafter 0
     \hangindent 4\ccwd
     \noindent \seut@const@str@declare@authorsign\seutplaceholder[8\ccwd]{}\seut@space{1.5}%
-    \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{}年\seutplaceholder[2.5\ccwd]{}月%
+    \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[2.5\ccwd]{6}月%
       \seutplaceholder[2.5\ccwd]{}日\par
     \vspace{155pt}\par
     {\centering
@@ -467,9 +473,9 @@
     \hspace*{\fill}\par
     \seut@const@str@declare@authorsign\seutplaceholder[9.5\ccwd]{}\seut@space{2}%
       \seut@const@str@declare@supervisorsign\seutplaceholder[11.5\ccwd]{}\par
-    \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{}年\seutplaceholder[3\ccwd]{}月%
+    \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[3\ccwd]{6}月%
       \seutplaceholder[3\ccwd]{}日\seut@space{3}%
-    \seut@const@str@declare@date\seutplaceholder[2.5\ccwd]{}年\seutplaceholder[3\ccwd]{}月%
+    \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[3\ccwd]{6}月%
       \seutplaceholder[3\ccwd]{}日\par
   \end{titlepage}
 }
