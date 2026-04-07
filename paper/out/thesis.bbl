@@ -1,4 +1,4 @@
-\begin{thebibliography}{2}
+\begin{thebibliography}{8}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -11,15 +11,55 @@
   \let\eprint\href
 \fi
 
-\bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
-DOWNS J~J, VOGEL E~F.
-\newblock A plant-wide industrial process control problem\allowbreak[J].
-\newblock Computers \& Chemical Engineering, 1993, 17\allowbreak (3): 245-255.
+\bibitem[Qin(2012)]{qin2012survey}
+QIN S~J.
+\newblock Survey on data-driven industrial process monitoring and
+  diagnosis\allowbreak[J].
+\newblock Annual Reviews in Control, 2012, 36\allowbreak (2): 220-234.
 
 \bibitem[Pan et~al.(2009)Pan and Yang]{pan2009survey}
 PAN S~J, YANG Q.
 \newblock A survey on transfer learning\allowbreak[J].
 \newblock IEEE Transactions on Knowledge and Data Engineering, 2009,
   22\allowbreak (10): 1345-1359.
+
+\bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
+DOWNS J~J, VOGEL E~F.
+\newblock A plant-wide industrial process control problem\allowbreak[J].
+\newblock Computers \& Chemical Engineering, 1993, 17\allowbreak (3): 245-255.
+
+\bibitem[Sun et~al.(2016)Sun and Saenko]{sun2016deep}
+SUN B, SAENKO K.
+\newblock Deep {CORAL}: Correlation alignment for deep domain
+  adaptation\allowbreak[C]//\allowbreak
+Computer Vision -- ECCV 2016 Workshops.
+\newblock 2016: 443-450.
+
+\bibitem[Long et~al.(2015)Long, Cao, Wang, and Jordan]{long2015dan}
+LONG M, CAO Y, WANG J, et~al.
+\newblock Learning transferable features with deep adaptation
+  networks\allowbreak[C]//\allowbreak
+Proceedings of the 32nd International Conference on Machine Learning.
+\newblock 2015: 97-105.
+
+\bibitem[Ganin et~al.(2016)Ganin, Ustinova, Ajakan, Germain, Larochelle,
+  Laviolette, Marchand, and Lempitsky]{ganin2016dann}
+GANIN Y, USTINOVA E, AJAKAN H, et~al.
+\newblock Domain-adversarial training of neural networks\allowbreak[J].
+\newblock Journal of Machine Learning Research, 2016, 17\allowbreak (59): 1-35.
+
+\bibitem[Long et~al.(2018)Long, Cao, Wang, and Jordan]{long2018conditional}
+LONG M, CAO Z, WANG J, et~al.
+\newblock Conditional adversarial domain adaptation\allowbreak[C]//\allowbreak
+Advances in Neural Information Processing Systems: volume~31.
+\newblock 2018.
+
+\bibitem[Damodaran et~al.(2018)Damodaran, Kellenberger, Flamary, Tuia, and
+  Courty]{damodaran2018deepjdot}
+DAMODARAN B~B, KELLENBERGER B, FLAMARY R, et~al.
+\newblock Deepjdot: Deep joint distribution optimal transport for unsupervised
+  domain adaptation\allowbreak[C]//\allowbreak
+Proceedings of the European Conference on Computer Vision.
+\newblock 2018: 447-463.
 
 \end{thebibliography}

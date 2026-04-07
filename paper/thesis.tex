@@ -15,15 +15,23 @@
 
 \frontmatter
 \begin{abstract}[zh]
-本文档为东南大学本科毕业设计（论文）的 LaTeX 空白骨架示意稿，用于先搭建完整论文结构，再逐步补充正式内容。当前仅保留封面、声明、摘要、目录、正文章节、参考文献、附录与致谢等必要组成部分，并以占位文字提示后续写作方向。
+工业过程故障诊断对于保障生产安全、降低非计划停机损失和提升过程运行可靠性具有重要意义。随着流程工业工况日益复杂，基于数据驱动的故障诊断方法得到了广泛应用。然而，在不同操作条件、不同负载水平或不同时间阶段下采集到的过程数据往往存在明显的分布偏移，导致仅依赖源域标注数据训练得到的模型在目标域上的诊断性能显著下降。围绕这一问题，本文以 Tennessee Eastman Process Domain Adaptation 数据集为研究对象，面向单源到单目标的无监督领域自适应故障诊断场景，构建了一个面向 benchmark 复现与方法比较的实验工作流。
 
-\keywords{本科毕业论文, LaTeX 模板, 论文骨架, 占位稿}
+本文结合当前项目实现，完成了数据勘察、基准元数据构建、训练评估、结果汇总与图表导出等基础模块，并在统一的一维卷积特征提取骨干网络下实现了 Source Only、CORAL、DAN、DANN、CDAN 与 DeepJDOT 等代表性方法。针对流程工业时序信号的特点，本文对域内标准化、固定折划分、目标域无标签训练、目标域测试评估等关键环节进行了统一约定，同时设计了准确率、平衡准确率、混淆矩阵与特征可视化等评价方式，以支持后续对不同领域自适应方法迁移效果的系统分析。
+
+当前阶段的工作重点在于完成论文整体结构搭建与实验基线实现，为后续开展多场景对比实验、误差分析与方法改进奠定基础。本文的研究有助于形成一个较为规范、可复现、便于扩展的流程工业领域自适应故障诊断实验框架。
+
+\keywords{流程工业故障诊断, 领域自适应, 迁移学习, Tennessee Eastman Process, 基准复现}
 \end{abstract}
 
 \begin{abstract}[en]
-This document is a minimal Southeast University undergraduate thesis skeleton built with LaTeX. It keeps the required thesis elements, including the cover page, declaration, abstract, table of contents, main chapters, references, appendix, and acknowledgement, while leaving the detailed content as placeholders for later writing.
+Industrial fault diagnosis is essential for production safety, reduction of unplanned downtime, and reliable process operation. With increasingly complex operating conditions in process industries, data-driven diagnosis methods have become widely adopted. However, process data collected under different operating modes, load levels, or time periods usually exhibit evident distribution shifts, which makes a model trained only with labeled source-domain data generalize poorly to a target domain. To address this issue, this thesis focuses on the Tennessee Eastman Process Domain Adaptation dataset and builds a benchmark-oriented workflow for single-source to single-target unsupervised domain adaptation in industrial fault diagnosis.
 
-\keywords{Undergraduate Thesis, LaTeX Template, Thesis Skeleton, Placeholder Draft}
+Based on the current project implementation, the thesis organizes the full pipeline including data inspection, benchmark metadata construction, model training, evaluation, result aggregation, and figure export. Under a unified one-dimensional convolutional backbone, several representative methods have been implemented for comparison, including Source Only, CORAL, DAN, DANN, CDAN, and DeepJDOT. To make later experiments comparable and reproducible, this work defines a consistent protocol covering domain-wise normalization, fixed fold splitting, unlabeled target-domain adaptation, and target-domain evaluation. It also prepares multiple analysis views such as accuracy, balanced accuracy, confusion matrices, and feature visualization.
+
+At the current stage, the main focus is to establish a complete thesis structure and a reproducible experimental baseline, which will support subsequent multi-scenario comparisons, error analysis, and further method improvement. The study aims to provide a practical and extensible experimental foundation for domain adaptation based fault diagnosis in process industries.
+
+\keywords{Industrial Fault Diagnosis, Domain Adaptation, Transfer Learning, Tennessee Eastman Process, Benchmark Reproduction}
 \end{abstract}
 
 \tableofcontents
