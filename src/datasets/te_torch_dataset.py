@@ -14,6 +14,8 @@ from .te_da_dataset import (
     TEDADatasetConfig,
     TEDADatasetInterface,
     canonicalize_domain_id,
+    compute_normalization_statistics,
+    normalize_signals,
     slice_domain_split,
 )
 
@@ -89,18 +91,52 @@ def load_domain_split(
         canonical,
         fold_name=fold_name,
     )
-    train_x, train_y = slice_domain_split(
-        payload,
-        train_indices,
-        normalization=interface.config.normalization,
-        channels_first=interface.config.channels_first,
-    )
-    eval_x, eval_y = slice_domain_split(
-        payload,
-        eval_indices,
-        normalization=interface.config.normalization,
-        channels_first=interface.config.channels_first,
-    )
+
+    normalization_scope = str(interface.config.normalization_scope).strip().lower()
+    normalization_stats = None
+    if normalization_scope in {"domain", "full_domain", "global"}:
+        full_signals = np.asarray(payload["Signals"])
+        normalized_full = normalize_signals(
+            full_signals,
+            normalization=interface.config.normalization,
+            channels_first=interface.config.channels_first,
+        )
+        train_x = normalized_full[train_indices]
+        eval_x = normalized_full[eval_indices]
+    else:
+        stats_source_indices = train_indices if normalization_scope in {"train", "train_split"} else None
+        if stats_source_indices is not None:
+            stats_source = np.asarray(payload["Signals"])[stats_source_indices]
+            normalization_stats = compute_normalization_statistics(
+                stats_source,
+                normalization=interface.config.normalization,
+            )
+        train_x, train_y = slice_domain_split(
+            payload,
+            train_indices,
+            normalization=interface.config.normalization,
+            normalization_stats=normalization_stats,
+            channels_first=interface.config.channels_first,
+        )
+        eval_x, eval_y = slice_domain_split(
+            payload,
+            eval_indices,
+            normalization=interface.config.normalization,
+            normalization_stats=normalization_stats,
+            channels_first=interface.config.channels_first,
+        )
+        return DomainSplitTensors(
+            domain_id=canonical,
+            train_x=torch.from_numpy(train_x).float(),
+            train_y=torch.from_numpy(train_y).long(),
+            eval_x=torch.from_numpy(eval_x).float(),
+            eval_y=torch.from_numpy(eval_y).long(),
+            train_indices=train_indices,
+            eval_indices=eval_indices,
+        )
+
+    train_y = np.asarray(payload["Labels"], dtype=np.int64)[train_indices]
+    eval_y = np.asarray(payload["Labels"], dtype=np.int64)[eval_indices]
     return DomainSplitTensors(
         domain_id=canonical,
         train_x=torch.from_numpy(train_x).float(),

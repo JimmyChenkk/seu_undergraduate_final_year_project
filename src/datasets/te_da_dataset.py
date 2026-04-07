@@ -62,6 +62,7 @@ class TEDADatasetConfig:
     raw_file_pattern: str = "*.pickle"
     preferred_fold: str = DEFAULT_FOLD_NAME
     normalization: str = "standardization"
+    normalization_scope: str = "domain"
     channels_first: bool = True
 
     @classmethod
@@ -81,6 +82,7 @@ class TEDADatasetConfig:
             raw_file_pattern=str(loading.get("raw_file_pattern", "*.pickle")),
             preferred_fold=str(protocol.get("preferred_fold", DEFAULT_FOLD_NAME)),
             normalization=str(loading.get("normalization", "standardization")),
+            normalization_scope=str(loading.get("normalization_scope", "domain")),
             channels_first=bool(loading.get("channels_first", True)),
         )
 
@@ -605,6 +607,7 @@ def normalize_signals(
     signals: np.ndarray,
     *,
     normalization: str = "standardization",
+    normalization_stats: tuple[np.ndarray, np.ndarray] | None = None,
     channels_first: bool = True,
 ) -> np.ndarray:
     """Normalize one domain with the same convention as the public benchmark repo."""
@@ -613,22 +616,17 @@ def normalize_signals(
         raise ValueError(f"Expected 3D signals, got shape {signals.shape}")
 
     features = np.asarray(signals, dtype=np.float32).copy()
-    _, _, n_features = features.shape
-
-    min_vals = features.min(axis=(0, 1))
-    max_vals = features.max(axis=(0, 1))
-    mean_vals = features.mean(axis=(0, 1))
-    std_vals = features.std(axis=(0, 1))
-
-    if normalization == "standardization":
-        bias, scale = mean_vals, std_vals
-    elif normalization == "scaling":
-        bias, scale = min_vals, max_vals - min_vals
+    if normalization_stats is None:
+        bias, scale = compute_normalization_statistics(
+            features,
+            normalization=normalization,
+        )
     else:
-        bias = np.zeros([n_features], dtype=np.float32)
-        scale = np.ones([n_features], dtype=np.float32)
+        bias, scale = normalization_stats
+        bias = np.asarray(bias, dtype=np.float32)
+        scale = np.asarray(scale, dtype=np.float32)
 
-    for feature_index in range(n_features):
+    for feature_index in range(features.shape[-1]):
         if np.isclose(scale[feature_index], 0.0):
             denominator = bias[feature_index] if not np.isclose(bias[feature_index], 0.0) else 1.0
             features[..., feature_index] = features[..., feature_index] / denominator
@@ -642,11 +640,39 @@ def normalize_signals(
     return features
 
 
+def compute_normalization_statistics(
+    signals: np.ndarray,
+    *,
+    normalization: str = "standardization",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute per-channel normalization statistics for one domain."""
+
+    if signals.ndim != 3:
+        raise ValueError(f"Expected 3D signals, got shape {signals.shape}")
+
+    features = np.asarray(signals, dtype=np.float32)
+    _, _, n_features = features.shape
+    min_vals = features.min(axis=(0, 1))
+    max_vals = features.max(axis=(0, 1))
+    mean_vals = features.mean(axis=(0, 1))
+    std_vals = features.std(axis=(0, 1))
+
+    if normalization == "standardization":
+        return mean_vals, std_vals
+    if normalization == "scaling":
+        return min_vals, max_vals - min_vals
+    return (
+        np.zeros([n_features], dtype=np.float32),
+        np.ones([n_features], dtype=np.float32),
+    )
+
+
 def slice_domain_split(
     payload: dict[str, Any],
     indices: np.ndarray,
     *,
     normalization: str = "standardization",
+    normalization_stats: tuple[np.ndarray, np.ndarray] | None = None,
     channels_first: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Slice and normalize one payload split conservatively."""
@@ -656,6 +682,7 @@ def slice_domain_split(
     normalized = normalize_signals(
         signals,
         normalization=normalization,
+        normalization_stats=normalization_stats,
         channels_first=channels_first,
     )
     return normalized, labels

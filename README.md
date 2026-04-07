@@ -139,6 +139,10 @@ bash scripts/train.sh \
 # 默认小规模首轮 sweep
 bash scripts/run_small_scale_round.sh
 
+# 参考仓库对齐的更长训练预算
+bash scripts/run_small_scale_round.sh \
+  --experiment-config configs/experiment/autonomous_small_scale_reference_budget.yaml
+
 # 只跑一个方法和一个场景做 smoke test
 bash scripts/run_small_scale_round.sh \
   --methods source_only \

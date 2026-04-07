@@ -682,6 +682,7 @@ def main() -> None:
     data_payload = load_yaml(args.data_config)
     method_payload = load_yaml(args.method_config)
     experiment_payload = load_yaml(args.experiment_config)
+    method_payload = merge_nested_dict(method_payload, experiment_payload.get("method_override", {}))
     method_name = str(method_payload.get("method_name", "")).lower()
     ensure_dependencies(method_name, experiment_payload)
 
