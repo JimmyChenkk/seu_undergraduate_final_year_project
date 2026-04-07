@@ -1,0 +1,23 @@
+method_name: cdan
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 0
+  dropout: 0.0
+
+optimization:
+  epochs: 80
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: conditional_domain_adversarial
+  adaptation_weight: 0.1
+  grl_lambda: 1.0
+  randomized_dim: 256
+
+notes:
+  - Reference-aligned CDAN config for the long full-method round.
+  - Keeps the stabilized randomized conditioning setup from the current repo.

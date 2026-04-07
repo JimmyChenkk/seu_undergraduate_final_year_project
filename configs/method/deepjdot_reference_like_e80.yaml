@@ -1,0 +1,22 @@
+method_name: deepjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 0
+  dropout: 0.0
+
+optimization:
+  epochs: 80
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+
+loss:
+  name: deepjdot
+  adaptation_weight: 1.0
+  reg_dist: 0.1
+  reg_cl: 1.0
+
+notes:
+  - Reference-aligned DeepJDOT config for the long full-method round.
+  - Reuses the simplified classifier head to isolate OT behavior from avoidable source-side regularization.

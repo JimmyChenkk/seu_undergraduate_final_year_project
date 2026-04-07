@@ -19,15 +19,16 @@ class FullyConvolutionalEncoder(nn.Module):
         super().__init__()
 
         norm = nn.InstanceNorm1d if instance_norm else nn.BatchNorm1d
+        dropout_layer = nn.Identity() if dropout <= 0 else nn.Dropout(dropout)
         self.main = nn.Sequential(
             nn.Conv1d(in_channels, 128, kernel_size=9, padding="same"),
             norm(128),
             nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
+            dropout_layer,
             nn.Conv1d(128, 256, kernel_size=5, padding="same"),
             norm(256),
             nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
+            dropout_layer,
             nn.Conv1d(256, 128, kernel_size=3, padding="same"),
             norm(128),
             nn.ReLU(inplace=True),
@@ -50,12 +51,16 @@ class ClassifierHead(nn.Module):
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
-        self.main = nn.Sequential(
-            nn.Linear(in_features, hidden_dim),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_classes),
-        )
+        if hidden_dim <= 0:
+            self.main = nn.Linear(in_features, num_classes)
+        else:
+            dropout_layer = nn.Identity() if dropout <= 0 else nn.Dropout(dropout)
+            self.main = nn.Sequential(
+                nn.Linear(in_features, hidden_dim),
+                nn.ReLU(inplace=True),
+                dropout_layer,
+                nn.Linear(hidden_dim, num_classes),
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.main(x)
