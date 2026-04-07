@@ -9,6 +9,7 @@ import importlib.util
 import json
 from pathlib import Path
 import random
+import sys
 from typing import TYPE_CHECKING, Any
 
 from src.evaluation.review import build_run_review, save_review
@@ -91,6 +92,92 @@ def configure_torch_runtime(runtime: dict[str, Any], device_name: str) -> None:
     # cuDNN autotune can push some drivers into unstable states during long runs,
     # so keep it opt-in instead of enabling it by default.
     torch.backends.cudnn.benchmark = bool(runtime.get("cudnn_benchmark", False))
+
+
+def _should_show_progress(runtime: dict[str, Any]) -> bool:
+    """Enable terminal progress output by default only for interactive runs."""
+
+    show_progress = runtime.get("show_progress")
+    if show_progress is None:
+        return sys.stderr.isatty()
+    return bool(show_progress)
+
+
+def _progress_update_interval(runtime: dict[str, Any], steps_per_epoch: int) -> int:
+    """Limit how often we redraw the terminal progress line."""
+
+    configured = runtime.get("progress_update_interval")
+    if configured is not None:
+        return max(int(configured), 1)
+    return max(steps_per_epoch // 20, 1)
+
+
+def _render_progress_bar(current: int, total: int, *, width: int = 24) -> str:
+    """Render a compact ASCII progress bar."""
+
+    if total <= 0:
+        return "-" * width
+    filled = min(width, int(width * current / total))
+    return "#" * filled + "-" * (width - filled)
+
+
+def _mean_metric(metrics: dict[str, list[float]], key: str) -> float | None:
+    values = metrics.get(key, [])
+    if not values:
+        return None
+    return float(sum(values) / len(values))
+
+
+def _emit_step_progress(
+    *,
+    method_name: str,
+    scenario_id: str,
+    epoch_index: int,
+    epochs: int,
+    step_index: int,
+    steps_per_epoch: int,
+    epoch_metrics: dict[str, list[float]],
+) -> None:
+    """Refresh one in-place training progress line on stderr."""
+
+    current = step_index + 1
+    bar = _render_progress_bar(current, steps_per_epoch)
+    loss_value = _mean_metric(epoch_metrics, "loss_total")
+    source_acc = _mean_metric(epoch_metrics, "acc_source")
+    loss_text = "n/a" if loss_value is None else f"{loss_value:.4f}"
+    acc_text = "n/a" if source_acc is None else f"{source_acc:.3f}"
+    line = (
+        f"\r[{method_name}][{scenario_id}] "
+        f"epoch {epoch_index + 1}/{epochs} "
+        f"[{bar}] {current}/{steps_per_epoch} "
+        f"loss={loss_text} acc={acc_text}"
+    )
+    print(line, end="", file=sys.stderr, flush=True)
+
+
+def _emit_epoch_summary(
+    *,
+    method_name: str,
+    scenario_id: str,
+    epoch_index: int,
+    epochs: int,
+    summary: dict[str, float],
+) -> None:
+    """Print a concise epoch summary after validation metrics are ready."""
+
+    print(file=sys.stderr)
+    print(
+        (
+            f"[{method_name}][{scenario_id}] "
+            f"epoch {epoch_index + 1}/{epochs} done "
+            f"loss={summary.get('loss_total', float('nan')):.4f} "
+            f"src_train={summary.get('acc_source_train', float('nan')):.3f} "
+            f"src_eval={summary.get('acc_source_eval', float('nan')):.3f} "
+            f"tgt_eval={summary.get('target_eval_acc', float('nan')):.3f}"
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
@@ -442,6 +529,8 @@ def run_deep_experiment(
     steps_per_epoch = max(len(loader) for loader in prepared_data.source_train_loaders)
     if runtime.get("dry_run", False):
         steps_per_epoch = min(steps_per_epoch, 2)
+    show_progress = _should_show_progress(runtime)
+    progress_update_interval = _progress_update_interval(runtime, steps_per_epoch)
     evaluation_max_batches = runtime.get("eval_max_batches")
     if evaluation_max_batches is None and runtime.get("dry_run", False):
         evaluation_max_batches = 2
@@ -466,10 +555,11 @@ def run_deep_experiment(
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
     epochs = int(optimization.get("epochs", 1))
+    method_name = str(method_config["method_name"])
     for epoch_index in range(epochs):
         model.train()
         epoch_metrics = defaultdict(list)
-        for _ in range(steps_per_epoch):
+        for step_index in range(steps_per_epoch):
             source_batches = [next(iterator) for iterator in source_iterators]
             target_batch = next(target_iterator)
 
@@ -494,6 +584,20 @@ def run_deep_experiment(
 
             for key, value in step_output.metrics.items():
                 epoch_metrics[key].append(value)
+            if show_progress and (
+                step_index == 0
+                or step_index + 1 == steps_per_epoch
+                or (step_index + 1) % progress_update_interval == 0
+            ):
+                _emit_step_progress(
+                    method_name=method_name,
+                    scenario_id=scenario_id,
+                    epoch_index=epoch_index,
+                    epochs=epochs,
+                    step_index=step_index,
+                    steps_per_epoch=steps_per_epoch,
+                    epoch_metrics=epoch_metrics,
+                )
 
         final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
             model,
@@ -524,6 +628,14 @@ def run_deep_experiment(
         summary["acc_source_eval"] = float(source_eval_acc)
         summary["target_eval_acc"] = float(target_eval_acc)
         history.append(summary)
+        if show_progress:
+            _emit_epoch_summary(
+                method_name=method_name,
+                scenario_id=scenario_id,
+                epoch_index=epoch_index,
+                epochs=epochs,
+                summary=summary,
+            )
 
         selection_score = float(source_eval_acc)
         if selection_mode == "final":

@@ -14,6 +14,8 @@ runtime:
   cudnn_benchmark: false
   num_workers: 0
   pin_memory: false
+  show_progress: true
+  progress_update_interval: 1
 
 protocol_override:
   setting: single_source
