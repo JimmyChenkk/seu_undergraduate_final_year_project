@@ -95,8 +95,7 @@
 \RequirePackage{amssymb}
 \RequirePackage[ruled,linesnumbered]{algorithm2e}
 \RequirePackage[hyphens]{url}
-\RequirePackage{hyperref}
-\hypersetup{
+\RequirePackage[
     hyperfootnotes=true,
     hyperindex=true,
     pageanchor=true,
@@ -109,8 +108,8 @@
     linkcolor=black,
     plainpages=false,
     pdfpagelabels=true,
-    pdfborder=0 0 0,
-}
+    pdfborder={0 0 0}
+]{hyperref}
 \urlstyle{same}
 \RequirePackage[sort&compress]{gbt7714}
 \RequirePackage{natbib}
@@ -120,7 +119,6 @@
 \RequirePackage{calc}
 \RequirePackage{etoolbox}
 \RequirePackage{xeCJKfntef}
-\RequirePackage{doc}
 \RequirePackage{pdfpages}
 
 \geometry{
@@ -388,10 +386,9 @@
 \newcommand{\seut@control@placeholder}[2][\linewidth]{\CJKunderline{\makebox[#1]{#2}}}
 \def\seutplaceholder{\@ifnextchar[\seut@control@placeholder\CJKunderline}
 \renewcommand{\maketitle}{%
-  \GetFileInfo{seuthesis-2022.cls}
   \hypersetup{
     pdfauthor={\seut@var@str@titlepage@author},
-    pdfcreator={\fileversion}
+    pdfcreator={seuthesis-2022}
   }
   \begin{titlepage}
     \vspace*{30pt}
