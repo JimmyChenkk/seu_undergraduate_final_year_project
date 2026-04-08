@@ -10,21 +10,30 @@ from .dann import DANNMethod
 from .source_only import SourceOnlyMethod
 
 
-def build_method(method_config, *, num_classes: int, in_channels: int, num_sources: int):
+def build_method(method_config, *, num_classes: int, in_channels: int, input_length: int, num_sources: int):
     """Instantiate one configured method."""
 
     method_name = str(method_config["method_name"]).lower()
     optimization = method_config.get("optimization", {})
     backbone = method_config.get("backbone", {})
     loss = method_config.get("loss", {})
+    backbone_name = str(backbone.get("name", "fcn"))
     dropout = float(backbone.get("dropout", 0.1))
     classifier_hidden_dim = int(backbone.get("classifier_hidden_dim", 128))
+    backbone_kwargs = {
+        key: value
+        for key, value in backbone.items()
+        if key not in {"name", "dropout", "classifier_hidden_dim"}
+    }
 
     shared_kwargs = {
         "num_classes": num_classes,
         "in_channels": in_channels,
+        "input_length": input_length,
         "dropout": dropout,
         "classifier_hidden_dim": classifier_hidden_dim,
+        "backbone_name": backbone_name,
+        "backbone_kwargs": backbone_kwargs,
     }
     if method_name == "source_only":
         return SourceOnlyMethod(**shared_kwargs)

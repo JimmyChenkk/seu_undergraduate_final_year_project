@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from src.backbones import ClassifierHead, FullyConvolutionalEncoder
+from src.backbones import ClassifierHead, build_backbone
 
 
 @dataclass
@@ -28,11 +28,20 @@ class SingleSourceMethodBase(nn.Module):
         *,
         num_classes: int,
         in_channels: int = 34,
+        input_length: int = 600,
         dropout: float = 0.1,
         classifier_hidden_dim: int = 128,
+        backbone_name: str = "fcn",
+        backbone_kwargs: dict | None = None,
     ) -> None:
         super().__init__()
-        self.encoder = FullyConvolutionalEncoder(in_channels=in_channels, dropout=dropout)
+        self.encoder = build_backbone(
+            name=backbone_name,
+            in_channels=in_channels,
+            input_length=input_length,
+            dropout=dropout,
+            backbone_kwargs=backbone_kwargs,
+        )
         self.classifier = ClassifierHead(
             in_features=self.encoder.out_dim,
             num_classes=num_classes,

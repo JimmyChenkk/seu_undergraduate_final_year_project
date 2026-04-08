@@ -1,0 +1,26 @@
+method_name: dann
+
+backbone:
+  name: transformer
+  classifier_hidden_dim: 0
+  dropout: 0.1
+  head_dim: 16
+  nhead: 8
+  dim_feedforward: 256
+  num_layers: 6
+  reduction: avg
+
+optimization:
+  epochs: 80
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+
+loss:
+  name: domain_adversarial
+  adaptation_weight: 0.5
+  grl_lambda: 1.0
+
+notes:
+  - Transformer-backed DANN debug config.
+  - Uses average sequence pooling to stay aligned with the better-behaved transformer source-only variant.

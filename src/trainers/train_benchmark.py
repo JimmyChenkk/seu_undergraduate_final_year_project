@@ -87,6 +87,8 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
             "target_eval_acc": result.get("target_eval_acc"),
             "target_eval_balanced_acc": result.get("target_eval_balanced_acc"),
             "selected_epoch": result.get("selected_epoch"),
+            "epochs_completed": result.get("epochs_completed"),
+            "early_stopped": result.get("early_stopped"),
         },
         "figure_paths": result_payload.get("figure_paths"),
     }
@@ -155,6 +157,42 @@ def _mean_metric(metrics: dict[str, list[float]], key: str) -> float | None:
     if not values:
         return None
     return float(sum(values) / len(values))
+
+
+def _resolve_summary_metric(summary: dict[str, float], metric_name: str) -> float | None:
+    metric_map = {
+        "source_train": "acc_source_train",
+        "source_eval": "acc_source_eval",
+        "target_eval": "target_eval_acc",
+    }
+    key = metric_map.get(str(metric_name).strip().lower())
+    if key is None:
+        raise KeyError(f"Unsupported early stopping metric: {metric_name}")
+    value = summary.get(key)
+    if value is None:
+        return None
+    return float(value)
+
+
+def _emit_early_stop_notice(
+    *,
+    method_name: str,
+    scenario_id: str,
+    epoch_index: int,
+    epochs: int,
+    metric_name: str,
+    best_score: float,
+    patience: int,
+) -> None:
+    print(
+        (
+            f"[{method_name}][{scenario_id}] early stop at epoch {epoch_index + 1}/{epochs} "
+            f"after patience={patience} on {metric_name} "
+            f"(best={best_score:.4f})"
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _emit_step_progress(
@@ -540,6 +578,7 @@ def run_deep_experiment(
         method_config,
         num_classes=29,
         in_channels=int(prepared_data.target_split.input_shape[0]),
+        input_length=int(prepared_data.target_split.input_shape[-1]),
         num_sources=len(prepared_data.source_splits),
     ).to(device)
 
@@ -583,6 +622,15 @@ def run_deep_experiment(
     best_selection_score = float("-inf")
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
+    early_stopping_patience = runtime.get("early_stopping_patience")
+    if early_stopping_patience is not None:
+        early_stopping_patience = max(int(early_stopping_patience), 1)
+    early_stopping_min_delta = float(runtime.get("early_stopping_min_delta", 0.0))
+    early_stopping_min_epochs = max(int(runtime.get("early_stopping_min_epochs", 0)), 0)
+    early_stopping_metric = str(runtime.get("early_stopping_metric", "source_eval")).strip().lower()
+    early_stopping_best_score = float("-inf")
+    early_stopping_bad_epochs = 0
+    early_stopped = False
     epochs = int(optimization.get("epochs", 1))
     method_name = str(method_config["method_name"])
     for epoch_index in range(epochs):
@@ -667,15 +715,38 @@ def run_deep_experiment(
             )
 
         selection_score = float(source_eval_acc)
-        if selection_mode == "final":
-            continue
-        if selection_score > best_selection_score:
+        if selection_mode != "final" and selection_score > best_selection_score:
             best_selection_score = selection_score
             selected_epoch = epoch_index + 1
             selected_state_dict = {
                 key: value.detach().cpu().clone()
                 for key, value in model.state_dict().items()
             }
+
+        if early_stopping_patience is not None:
+            stop_score = _resolve_summary_metric(summary, early_stopping_metric)
+            if stop_score is not None:
+                if stop_score > early_stopping_best_score + early_stopping_min_delta:
+                    early_stopping_best_score = stop_score
+                    early_stopping_bad_epochs = 0
+                else:
+                    early_stopping_bad_epochs += 1
+
+                if (
+                    epoch_index + 1 >= early_stopping_min_epochs
+                    and early_stopping_bad_epochs >= early_stopping_patience
+                ):
+                    early_stopped = True
+                    _emit_early_stop_notice(
+                        method_name=method_name,
+                        scenario_id=scenario_id,
+                        epoch_index=epoch_index,
+                        epochs=epochs,
+                        metric_name=early_stopping_metric,
+                        best_score=early_stopping_best_score,
+                        patience=early_stopping_patience,
+                    )
+                    break
 
     if selection_mode != "final" and selected_state_dict is not None:
         model.load_state_dict(selected_state_dict)
@@ -703,7 +774,7 @@ def run_deep_experiment(
             non_blocking=transfer_non_blocking,
         )
     else:
-        selected_epoch = epochs
+        selected_epoch = len(history)
         selected_source_train_by_domain = final_source_train_by_domain
         selected_source_eval_by_domain = final_source_eval_by_domain
         selected_source_train_acc = float(history[-1]["acc_source_train"])
@@ -729,6 +800,16 @@ def run_deep_experiment(
         "selected_target_eval_acc": float(selected_target_eval_acc),
         "selected_epoch": int(selected_epoch),
         "model_selection": selection_mode,
+        "epochs_requested": int(epochs),
+        "epochs_completed": int(len(history)),
+        "early_stopped": bool(early_stopped),
+        "early_stopping_metric": early_stopping_metric if early_stopping_patience is not None else None,
+        "early_stopping_patience": int(early_stopping_patience) if early_stopping_patience is not None else None,
+        "early_stopping_min_delta": float(early_stopping_min_delta) if early_stopping_patience is not None else None,
+        "early_stopping_min_epochs": int(early_stopping_min_epochs) if early_stopping_patience is not None else None,
+        "early_stopping_best_score": (
+            float(early_stopping_best_score) if early_stopping_patience is not None else None
+        ),
     }
 
     if bool(runtime.get("save_checkpoint", False)):

@@ -1,0 +1,24 @@
+method_name: source_only
+
+backbone:
+  name: transformer
+  classifier_hidden_dim: 0
+  dropout: 0.1
+  head_dim: 16
+  nhead: 8
+  dim_feedforward: 256
+  num_layers: 6
+  reduction: avg
+
+optimization:
+  epochs: 80
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+
+loss:
+  name: cross_entropy
+
+notes:
+  - Transformer debug variant that uses average pooling over the sequence instead of the last token.
+  - This keeps the architecture closer to the FCN global-pooling behavior during backbone comparison.
