@@ -4,11 +4,11 @@
 
 ## 1. 项目目标
 
-- 当前阶段：开题报告支撑阶段。
-- 当前主线：先在 TEP DA 数据集上复现并比较已有 DA 方法，不把创新方法作为当前重点。
-- 当前已落地范围：通用 `single_source` DA；方法包括 `source_only`、`coral`、`dan`、`dann`、`cdan`、`jdot`；默认 backbone 以 `fcn` 为主。
-- 后续扩展：在 `fcn` 结果稳定后，再引入 `Transformer`。
-- 全量目标：优先覆盖 6 个域的主要单源单目标场景，共 `30` 种，再扩展到 `2` 类 backbone 和 `6` 种方法。
+- 当前阶段：benchmark 稳定化与论文骨架搭建阶段。
+- 当前主线：先在 TEP DA 数据集上复现并比较已有 DA 方法，再进入改进方法设计与验证。
+- 当前已落地范围：通用 `single_source` UDA；方法包括 `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`；默认 backbone 以 `fcn` 为主。
+- 后续扩展：当前版本先聚焦 FCN 主线，不保留其他 backbone 分支。
+- 全量目标：先覆盖代表性单源单目标场景并形成稳定 benchmark，再开展改进方法实验。
 
 ## 2. 默认工作方式
 
@@ -23,7 +23,7 @@
 
 ## 2.1 默认自主循环
 
-1. Round 1：先对 `source_only`、`coral`、`dan`、`dann`、`cdan`、`jdot` 跑首轮小规模 sweep。
+1. Round 1：先对 `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot` 跑首轮小规模 sweep。
 2. Round 2：Codex 自己读取 `result.json`、`review.json`、混淆矩阵和两张 t-SNE，针对共享问题或高价值方法修改代码或配置后复跑。
 3. Round 3：在同一组简单场景上确认优化是否稳定，不扩方法、不扩场景。
 4. 默认人工检查点：首轮 sweep 完整，且至少完成 `1` 轮针对性优化复跑。
@@ -38,7 +38,8 @@
   - `conda run -n tep_env python -m src.automation.run_small_scale_round ...`
   - `conda run -n tep_env python -m src.evaluation.evaluate ...`
   - `conda run -n tep_env python -m src.evaluation.report_figures ...`
-- 只有脚本自身已处理环境切换时，Codex 才可直接执行脚本入口；当前 `scripts/build_benchmark.sh` 可以自动回落到 `conda run -n tep_env`，但 `scripts/train.sh`、`scripts/eval.sh`、`scripts/export_figures.sh`、`scripts/run_small_scale_round.sh` 默认不保证自动切换到 `tep_env`。
+- 当前 `scripts/build_benchmark.sh`、`scripts/train.sh`、`scripts/eval.sh`、`scripts/export_figures.sh` 均复用统一环境解析逻辑；只要 `tep_env` 未激活但本机存在 `conda`，脚本会自动回落到 `conda run -n tep_env`。
+- 若直接运行 Python 模块而不是脚本入口，Codex 仍应优先显式使用 `conda run -n tep_env ...`。
 - 在首个 Python 类命令前，Codex 应优先确认实际解释器，例如运行 `conda run -n tep_env python -c "import sys; print(sys.executable)"`；如果 `conda` 不可用、`tep_env` 不存在、或环境损坏，先暂停并汇报，不自行改动全局环境。
 - 涉及环境判断时，Codex 在汇报里应明确说明本次命令是否使用了 `conda run -n tep_env`，以及实际执行解释器路径。
 
@@ -46,10 +47,10 @@
 
 - 单轮默认规模：`1 个方法 x 1 个场景 x 1 个 backbone x 1 个 fold`。
 - 默认先沿用现有配置中的 epoch；是否统一放大到 `80 epoch`，等首轮结果稳定后再定。
-- 默认方法：`source_only`、`coral`、`dan`、`dann`、`cdan`、`jdot`。
+- 默认方法：`source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`。
 - 默认首轮简单场景：`mode1 -> mode4`、`mode4 -> mode1`、`mode2 -> mode5`、`mode5 -> mode2`、`mode3 -> mode6`、`mode6 -> mode3`。
 - 默认代表性报告场景：`mode2 -> mode5`、`mode4 -> mode1`。
-- 未经批准不要直接做：全量 `30` 场景 sweep、`Transformer` 全链路实验、多方法并发长时间 CUDA 任务、明显扩大 `runs/` 体量的批量实验。
+- 未经批准不要直接做：全量 `30` 场景 sweep、多方法并发长时间 CUDA 任务、明显扩大 `runs/` 体量的批量实验。
 
 ## 4. 输出与检查点
 
@@ -61,7 +62,7 @@
 - 单次运行默认自动补齐：`tables/result.json`、`tables/review.json`、`figures/confusion_matrix.png`、`figures/tsne_domain.png`、`figures/tsne_class.png`。
 - 批量运行默认自动补齐：`comparison_summary/tables/comparison.json`、`comparison_summary/tables/comparison.md`、`comparison_summary/tables/round_review.json`。
 - 默认不保存 checkpoint，默认保留分析产物，即保持 `save_checkpoint: false`、`save_analysis: true`。
-- 每次新方法首次跑通、新场景首次跑通、准备扩量、准备切到 `Transformer`、准备整理报告或提交 Git 前，都要先停下来检查。
+- 每次新方法首次跑通、新场景首次跑通、准备扩量、准备整理报告或提交 Git 前，都要先停下来检查。
 - 每个检查点至少展示：
   - 关键指标 JSON
   - 基础对比图表
@@ -88,7 +89,7 @@
 | 目录 | 作用 | Git 建议 |
 | --- | --- | --- |
 | `.vscode/` | 本机编辑器配置 | 不要 PUSH |
-| `configs/` | 数据、方法、实验协议配置 | 不要 PUSH |
+| `configs/` | 数据、方法、实验协议配置 | PUSH |
 | `data/` | 数据、缓存、benchmark 元数据 | 不要 PUSH |
 | `external/` | 外部参考仓库 | 不要 PUSH |
 | `paper/` | 论文内容与最终图表 | PUSH |
@@ -123,7 +124,7 @@
 | `configs/method/coral.yaml` | CORAL 方法配置 |
 | `configs/method/dan.yaml` | DAN 方法配置 |
 | `configs/method/dann.yaml` | DANN 方法配置 |
-| `configs/method/jdot.yaml` | JDOT 方法配置 |
+| `configs/method/deepjdot.yaml` | DeepJDOT 方法配置 |
 | `configs/method/cdan.yaml` | CDAN 方法配置 |
 | `data/benchmark/manifest.json` | benchmark 元数据清单 |
 | `data/benchmark/.gitkeep` | 空目录占位文件 |
@@ -139,9 +140,10 @@
 | `paper/bib/references.bib` | 参考文献库 |
 | `paper/chapters/01_intro.tex` | 绪论章节 |
 | `paper/chapters/02_related_work.tex` | 相关工作章节 |
-| `paper/chapters/03_method.tex` | 方法章节 |
-| `paper/chapters/04_experiments.tex` | 实验章节 |
-| `paper/chapters/05_conclusion.tex` | 结论章节 |
+| `paper/chapters/03_method.tex` | 问题定义与 benchmark 平台章节 |
+| `paper/chapters/04_experiments.tex` | 基线复现与 benchmark 分析章节 |
+| `paper/chapters/05_improved_method.tex` | 改进方法设计与实验验证章节 |
+| `paper/chapters/06_conclusion.tex` | 总结与展望章节 |
 | `scripts/build_benchmark.py` | 生成 benchmark 元数据 |
 | `scripts/build_benchmark.sh` | benchmark 构建脚本入口 |
 | `scripts/train.sh` | 训练脚本入口 |
@@ -174,7 +176,7 @@
 | `src/methods/coral.py` | CORAL 实现 |
 | `src/methods/dan.py` | DAN 实现 |
 | `src/methods/dann.py` | DANN 实现 |
-| `src/methods/jdot.py` | JDOT 实现 |
+| `src/methods/deepjdot.py` | DeepJDOT 实现 |
 | `src/methods/cdan.py` | CDAN 实现 |
 | `src/automation/run_small_scale_round.py` | 默认小规模 sweep 执行逻辑 |
 | `src/trainers/__init__.py` | 训练模块入口 |
