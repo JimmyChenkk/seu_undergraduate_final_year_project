@@ -43,12 +43,18 @@ class CDANMethod(SingleSourceMethodBase):
         classifier_hidden_dim: int = 128,
         in_channels: int = 34,
         randomized_dim: int = 1024,
+        input_length: int = 600,
+        backbone_name: str = "fcn",
+        backbone_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             num_classes=num_classes,
             in_channels=in_channels,
+            input_length=input_length,
             dropout=dropout,
             classifier_hidden_dim=classifier_hidden_dim,
+            backbone_name=backbone_name,
+            backbone_kwargs=backbone_kwargs,
         )
         self.adaptation_weight = adaptation_weight
         self.grl = GradientReverseLayer(lambda_=grl_lambda)
@@ -61,7 +67,7 @@ class CDANMethod(SingleSourceMethodBase):
         self.map = RandomizedMultiLinearMap(self.encoder.out_dim, num_classes, output_dim=randomized_dim)
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
-        source_x, source_y = source_batches[0]
+        source_x, source_y = self.merge_source_batches(source_batches)
         target_x, _ = target_batch
         logits_source, features_source = self.forward(source_x)
         logits_target, features_target = self.forward(target_x)

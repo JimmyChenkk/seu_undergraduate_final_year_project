@@ -28,7 +28,7 @@ class DeepJDOTMethod(SingleSourceMethodBase):
         self.reg_cl = reg_cl
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
-        source_x, source_y = source_batches[0]
+        source_x, source_y = self.merge_source_batches(source_batches)
         target_x, _ = target_batch
         logits_source, features_source = self.forward(source_x)
         logits_target, features_target = self.forward(target_x)

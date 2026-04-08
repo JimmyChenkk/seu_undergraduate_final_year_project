@@ -21,7 +21,7 @@ class MethodStepOutput:
 class SingleSourceMethodBase(nn.Module):
     """Shared encoder/classifier stack for single-source methods."""
 
-    supports_multi_source = False
+    supports_multi_source = True
 
     def __init__(
         self,
@@ -61,6 +61,16 @@ class SingleSourceMethodBase(nn.Module):
     def extract_features(self, x: torch.Tensor) -> torch.Tensor:
         _, features = self.forward(x)
         return features
+
+    def merge_source_batches(self, source_batches) -> tuple[torch.Tensor, torch.Tensor]:
+        """Merge one or more source-domain minibatches into one supervised batch."""
+
+        if len(source_batches) == 1:
+            return source_batches[0]
+
+        source_x = torch.cat([x_batch for x_batch, _ in source_batches], dim=0)
+        source_y = torch.cat([y_batch for _, y_batch in source_batches], dim=0)
+        return source_x, source_y
 
 
 def accuracy_from_logits(logits: torch.Tensor, labels: torch.Tensor) -> float:

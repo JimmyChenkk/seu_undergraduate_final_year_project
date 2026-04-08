@@ -14,7 +14,7 @@ class SourceOnlyMethod(SingleSourceMethodBase):
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
         del target_batch
-        source_x, source_y = source_batches[0]
+        source_x, source_y = self.merge_source_batches(source_batches)
         logits_source, _ = self.forward(source_x)
         classification_loss = F.cross_entropy(logits_source, source_y)
         return MethodStepOutput(
