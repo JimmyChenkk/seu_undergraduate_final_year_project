@@ -137,7 +137,7 @@ bash scripts/export_figures.sh runs
   `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`。
 - 数据配置默认入口为 `configs/data/te_da.yaml`。
 - 常用实验配置位于 `configs/experiment/`，包括：
-  `benchmark_single_source.yaml`、`autonomous_small_scale.yaml`、`debug.yaml` 以及若干 GPU probe / report 配置。
+  `benchmark_single_source.yaml`、`autonomous_small_scale.yaml`、`full_36_fcn_aggressive_5090.yaml`、`report_s2_t5.yaml`、`report_s4_t1.yaml`。
 - `run_small_scale_round.sh` 默认会批量运行以下场景：
   `mode1->mode4`、`mode4->mode1`、`mode2->mode5`、`mode5->mode2`、`mode3->mode6`、`mode6->mode3`。
 

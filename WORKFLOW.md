@@ -117,7 +117,7 @@
 | `configs/data/te_da.yaml` | 数据路径与协议基础配置 |
 | `configs/experiment/benchmark_single_source.yaml` | 单源 benchmark 主实验配置 |
 | `configs/experiment/autonomous_small_scale.yaml` | 默认自主小规模 sweep 配置 |
-| `configs/experiment/debug.yaml` | 调试配置 |
+| `configs/experiment/full_36_fcn_aggressive_5090.yaml` | 当前全量单源加多源主跑配置 |
 | `configs/experiment/report_s2_t5.yaml` | 代表性报告场景配置 |
 | `configs/experiment/report_s4_t1.yaml` | 代表性报告场景配置 |
 | `configs/method/source_only.yaml` | source-only 方法配置 |
