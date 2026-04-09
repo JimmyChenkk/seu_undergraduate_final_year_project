@@ -8,8 +8,8 @@ tracking:
 
 runtime:
   dry_run: false
-  save_checkpoint: false
-  save_analysis: false
+  save_checkpoint: true
+  save_analysis: true
   disable_cudnn: false
   cudnn_benchmark: true
   num_workers: 8

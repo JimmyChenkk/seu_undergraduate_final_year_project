@@ -54,6 +54,55 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return payload or {}
 
 
+def deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge ``override`` into ``base`` without mutating inputs."""
+
+    merged = deepcopy(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge_dict(merged[key], value)
+        else:
+            merged[key] = deepcopy(value)
+    return merged
+
+
+def apply_method_overrides(
+    experiment_payload: dict[str, Any],
+    method_payload: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Apply optional experiment-level per-method overrides."""
+
+    overrides = experiment_payload.get("method_overrides", {})
+    if not isinstance(overrides, dict):
+        return experiment_payload, method_payload
+
+    method_name = str(method_payload.get("method_name", "")).strip().lower()
+    merged_experiment = deepcopy(experiment_payload)
+    merged_method = deepcopy(method_payload)
+    for key in ("*", "all", method_name):
+        override_payload = overrides.get(key)
+        if not isinstance(override_payload, dict):
+            continue
+        for section_name, section_value in override_payload.items():
+            if not isinstance(section_value, dict):
+                if section_name in {"runtime", "tracking", "protocol_override"}:
+                    merged_experiment[section_name] = deepcopy(section_value)
+                else:
+                    merged_method[section_name] = deepcopy(section_value)
+                continue
+            if section_name in {"runtime", "tracking", "protocol_override"}:
+                merged_experiment[section_name] = deep_merge_dict(
+                    merged_experiment.get(section_name, {}),
+                    section_value,
+                )
+            else:
+                merged_method[section_name] = deep_merge_dict(
+                    merged_method.get(section_name, {}),
+                    section_value,
+                )
+    return merged_experiment, merged_method
+
+
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -159,19 +208,64 @@ def _mean_metric(metrics: dict[str, list[float]], key: str) -> float | None:
     return float(sum(values) / len(values))
 
 
-def _resolve_summary_metric(summary: dict[str, float], metric_name: str) -> float | None:
+def _resolve_metric_score(
+    summary: dict[str, float],
+    metric_name: str,
+    *,
+    weights: dict[str, float] | None = None,
+) -> float | None:
+    """Resolve one score-to-maximize from epoch summary metrics."""
+
+    normalized = str(metric_name).strip().lower()
+    aliases = {
+        "best_source_train": "source_train",
+        "best_source_eval": "source_eval",
+        "best_target_eval": "target_eval",
+        "best_target_eval_oracle": "target_eval",
+        "best_target_confidence": "target_confidence",
+        "lowest_target_entropy": "target_entropy",
+        "min_target_entropy": "target_entropy",
+        "best_hybrid_source_eval_target_confidence": "hybrid_source_eval_target_confidence",
+        "best_hybrid_source_eval_inverse_entropy": "hybrid_source_eval_inverse_entropy",
+    }
+    normalized = aliases.get(normalized, normalized)
     metric_map = {
         "source_train": "acc_source_train",
         "source_eval": "acc_source_eval",
         "target_eval": "target_eval_acc",
+        "target_confidence": "target_train_mean_confidence",
+        "target_entropy": "target_train_mean_entropy",
     }
-    key = metric_map.get(str(metric_name).strip().lower())
-    if key is None:
-        raise KeyError(f"Unsupported early stopping metric: {metric_name}")
-    value = summary.get(key)
-    if value is None:
-        return None
-    return float(value)
+    if normalized in metric_map:
+        value = summary.get(metric_map[normalized])
+        if value is None:
+            return None
+        score = float(value)
+        if normalized == "target_entropy":
+            score = -score
+        return score
+
+    if normalized == "hybrid_source_eval_target_confidence":
+        source_eval = summary.get("acc_source_eval")
+        target_confidence = summary.get("target_train_mean_confidence")
+        if source_eval is None or target_confidence is None:
+            return None
+        resolved_weights = weights or {}
+        source_weight = float(resolved_weights.get("source_eval", 0.7))
+        target_weight = float(resolved_weights.get("target_confidence", 0.3))
+        return source_weight * float(source_eval) + target_weight * float(target_confidence)
+
+    if normalized == "hybrid_source_eval_inverse_entropy":
+        source_eval = summary.get("acc_source_eval")
+        target_entropy = summary.get("target_train_mean_entropy")
+        if source_eval is None or target_entropy is None:
+            return None
+        resolved_weights = weights or {}
+        source_weight = float(resolved_weights.get("source_eval", 0.7))
+        entropy_weight = float(resolved_weights.get("target_entropy", 0.3))
+        return source_weight * float(source_eval) - entropy_weight * float(target_entropy)
+
+    raise KeyError(f"Unsupported metric for model selection / early stopping: {metric_name}")
 
 
 def _emit_early_stop_notice(
@@ -250,9 +344,9 @@ def _emit_epoch_summary(
 def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
     """Fail early with a concise message when the training stack is missing."""
 
-    required = ["numpy", "yaml", "torch"]
+    required = ["numpy", "yaml", "torch", "sklearn"]
     if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
-        required.extend(["sklearn", "matplotlib"])
+        required.append("matplotlib")
     if method_name == "deepjdot":
         required.append("ot")
 
@@ -393,6 +487,43 @@ def _evaluate_accuracy(
     return correct / max(total, 1)
 
 
+def _evaluate_unlabeled_target_proxy(
+    model,
+    loader,
+    device,
+    *,
+    max_batches: int | None = None,
+    non_blocking: bool = False,
+) -> dict[str, float]:
+    """Compute label-free target-domain proxy metrics for UDA model selection."""
+
+    import torch
+
+    model.eval()
+    total = 0
+    confidence_sum = 0.0
+    entropy_sum = 0.0
+    with torch.inference_mode():
+        for batch_index, (x_batch, _) in enumerate(loader):
+            x_batch = x_batch.to(device, non_blocking=non_blocking)
+            logits = model.predict_logits(x_batch)
+            probabilities = torch.softmax(logits, dim=1)
+            confidence = probabilities.max(dim=1).values
+            entropy = -(
+                probabilities * torch.log(probabilities.clamp_min(1e-8))
+            ).sum(dim=1) / math.log(probabilities.shape[1])
+            confidence_sum += float(confidence.sum().item())
+            entropy_sum += float(entropy.sum().item())
+            total += int(probabilities.shape[0])
+            if max_batches is not None and batch_index + 1 >= max_batches:
+                break
+    denominator = max(total, 1)
+    return {
+        "target_train_mean_confidence": float(confidence_sum / denominator),
+        "target_train_mean_entropy": float(entropy_sum / denominator),
+    }
+
+
 def _evaluate_domain_accuracies(
     model,
     loaders,
@@ -469,6 +600,46 @@ def _collect_loader_outputs(
         "labels": labels_array,
         "predictions": predictions_array,
         "domains": domains_array,
+    }
+
+
+def _evaluate_target_metrics(
+    model,
+    loader,
+    device,
+    *,
+    domain_name: str,
+    max_batches: int | None = None,
+    non_blocking: bool = False,
+) -> dict[str, Any]:
+    """Compute target-side accuracy metrics independently of analysis export."""
+
+    from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix
+
+    target_chunk = _collect_loader_outputs(
+        model,
+        loader,
+        device,
+        domain_name=domain_name,
+        max_batches=max_batches,
+        non_blocking=non_blocking,
+    )
+    labels = target_chunk["labels"]
+    predictions = target_chunk["predictions"]
+    if len(labels) == 0:
+        return {
+            "target_eval_acc": 0.0,
+            "target_eval_balanced_acc": 0.0,
+            "target_confusion_matrix": [],
+        }
+
+    target_accuracy = float(accuracy_score(labels, predictions))
+    target_balanced_accuracy = float(balanced_accuracy_score(labels, predictions))
+    target_confusion = confusion_matrix(labels, predictions, labels=list(range(29)))
+    return {
+        "target_eval_acc": target_accuracy,
+        "target_eval_balanced_acc": target_balanced_accuracy,
+        "target_confusion_matrix": target_confusion.tolist(),
     }
 
 
@@ -619,6 +790,7 @@ def run_deep_experiment(
     selected_source_eval_acc = 0.0
     selected_target_eval_acc = 0.0
     selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
+    selection_weights = runtime.get("selection_weights", {})
     best_selection_score = float("-inf")
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
@@ -628,6 +800,7 @@ def run_deep_experiment(
     early_stopping_min_delta = float(runtime.get("early_stopping_min_delta", 0.0))
     early_stopping_min_epochs = max(int(runtime.get("early_stopping_min_epochs", 0)), 0)
     early_stopping_metric = str(runtime.get("early_stopping_metric", "source_eval")).strip().lower()
+    early_stopping_weights = runtime.get("early_stopping_weights", selection_weights)
     early_stopping_best_score = float("-inf")
     early_stopping_bad_epochs = 0
     early_stopped = False
@@ -699,11 +872,19 @@ def run_deep_experiment(
             max_batches=evaluation_max_batches,
             non_blocking=transfer_non_blocking,
         )
+        target_proxy_metrics = _evaluate_unlabeled_target_proxy(
+            model,
+            prepared_data.target_train_loader,
+            device,
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+        )
         summary = _mean_metrics(epoch_metrics)
         summary["epoch"] = epoch_index + 1
         summary["acc_source_train"] = float(source_train_acc)
         summary["acc_source_eval"] = float(source_eval_acc)
         summary["target_eval_acc"] = float(target_eval_acc)
+        summary.update(target_proxy_metrics)
         history.append(summary)
         if show_progress:
             _emit_epoch_summary(
@@ -714,8 +895,12 @@ def run_deep_experiment(
                 summary=summary,
             )
 
-        selection_score = float(source_eval_acc)
-        if selection_mode != "final" and selection_score > best_selection_score:
+        selection_score = _resolve_metric_score(
+            summary,
+            selection_mode,
+            weights=selection_weights,
+        )
+        if selection_mode != "final" and selection_score is not None and selection_score > best_selection_score:
             best_selection_score = selection_score
             selected_epoch = epoch_index + 1
             selected_state_dict = {
@@ -724,7 +909,11 @@ def run_deep_experiment(
             }
 
         if early_stopping_patience is not None:
-            stop_score = _resolve_summary_metric(summary, early_stopping_metric)
+            stop_score = _resolve_metric_score(
+                summary,
+                early_stopping_metric,
+                weights=early_stopping_weights,
+            )
             if stop_score is not None:
                 if stop_score > early_stopping_best_score + early_stopping_min_delta:
                     early_stopping_best_score = stop_score

@@ -84,10 +84,23 @@ def _load_analysis_payload(artifact_path: Path):
         ) from exc
 
 
-def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
+def _titleize_setting_name(setting_name: str) -> str:
+    return setting_name.replace("_", "-").title()
+
+
+def export_mean_bar_chart(
+    rows: list[dict],
+    output_path: Path,
+    *,
+    setting_name: str | None = None,
+) -> None:
     np, plt, _ = _runtime_dependencies()
+    subset = [row for row in rows if setting_name is None or row["setting"] == setting_name]
+    if not subset:
+        return
+
     grouped: dict[str, list[float]] = {}
-    for row in rows:
+    for row in subset:
         grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
 
     methods = sorted(grouped)
@@ -98,7 +111,10 @@ def export_mean_bar_chart(rows: list[dict], output_path: Path) -> None:
     plt.xticks(np.arange(len(methods)), methods, rotation=20)
     plt.ylabel("Accuracy")
     plt.ylim(0, 1.0)
-    plt.title("Method Mean Target Accuracy")
+    if setting_name is None:
+        plt.title("Method Mean Target Accuracy")
+    else:
+        plt.title(f"{_titleize_setting_name(setting_name)} Mean Target Accuracy")
     _save_figure(output_path)
 
 
@@ -162,9 +178,7 @@ def _balanced_sample_indices(source_count: int, target_count: int, *, max_points
     return source_indices, target_indices
 
 
-def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
-    np, plt, _ = _runtime_dependencies()
-    payload = _load_analysis_payload(artifact_path)
+def _sample_analysis_payload(payload):
     source_embeddings = payload["source_embeddings"]
     source_labels = payload["source_labels"]
     source_domains = payload["source_domains"].astype(str)
@@ -176,28 +190,76 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
         len(source_embeddings),
         len(target_embeddings),
     )
-    source_embeddings = source_embeddings[source_indices]
-    source_labels = source_labels[source_indices]
-    source_domains = source_domains[source_indices]
-    target_embeddings = target_embeddings[target_indices]
-    target_labels = target_labels[target_indices]
-    target_domains = target_domains[target_indices]
+    return {
+        "source_embeddings": source_embeddings[source_indices],
+        "source_labels": source_labels[source_indices],
+        "source_domains": source_domains[source_indices],
+        "target_embeddings": target_embeddings[target_indices],
+        "target_labels": target_labels[target_indices],
+        "target_domains": target_domains[target_indices],
+    }
+
+
+def _domain_group_labels(source_domains, target_domains):
+    np, _, _ = _runtime_dependencies()
+    source_unique = list(dict.fromkeys(str(domain) for domain in source_domains.tolist()))
+    target_unique = list(dict.fromkeys(str(domain) for domain in target_domains.tolist()))
+    show_individual_domains = len(source_unique) > 1 or len(target_unique) > 1
+    if not show_individual_domains:
+        source_labels = np.asarray(["source"] * len(source_domains))
+        target_labels = np.asarray(["target"] * len(target_domains))
+        return np.concatenate([source_labels, target_labels])
+
+    source_labels = np.asarray([f"source:{domain}" for domain in source_domains])
+    target_labels = np.asarray([f"target:{domain}" for domain in target_domains])
+    return np.concatenate([source_labels, target_labels])
+
+
+def _format_domain_label(label: str) -> str:
+    if ":" not in label:
+        return label
+    role, domain = label.split(":", maxsplit=1)
+    return f"{role} ({domain})"
+
+
+def _plot_domain_embedding(embedding_2d, domain_groups, *, axis=None) -> None:
+    _, plt, _ = _runtime_dependencies()
+    target_axis = axis if axis is not None else plt.gca()
+    unique_labels = list(dict.fromkeys(str(label) for label in domain_groups.tolist()))
+    cmap_name = "tab10" if len(unique_labels) <= 10 else "tab20"
+    cmap = plt.get_cmap(cmap_name, max(len(unique_labels), 1))
+    for index, label in enumerate(unique_labels):
+        mask = domain_groups == label
+        marker = "^" if str(label).startswith("target") else "o"
+        target_axis.scatter(
+            embedding_2d[mask, 0],
+            embedding_2d[mask, 1],
+            s=16,
+            alpha=0.68,
+            marker=marker,
+            color=cmap(index),
+            label=_format_domain_label(str(label)),
+        )
+
+
+def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
+    np, plt, _ = _runtime_dependencies()
+    payload = _load_analysis_payload(artifact_path)
+    sampled = _sample_analysis_payload(payload)
+    source_embeddings = sampled["source_embeddings"]
+    source_labels = sampled["source_labels"]
+    source_domains = sampled["source_domains"]
+    target_embeddings = sampled["target_embeddings"]
+    target_labels = sampled["target_labels"]
+    target_domains = sampled["target_domains"]
 
     features = np.concatenate([source_embeddings, target_embeddings], axis=0)
     label_values = np.concatenate([source_labels, target_labels], axis=0)
-    domain_flags = np.array(["source"] * len(source_embeddings) + ["target"] * len(target_embeddings))
+    domain_groups = _domain_group_labels(source_domains, target_domains)
     embedding_2d = _fit_tsne(features)
 
     plt.figure(figsize=(6, 5))
-    for domain_name in ["source", "target"]:
-        mask = domain_flags == domain_name
-        plt.scatter(
-            embedding_2d[mask, 0],
-            embedding_2d[mask, 1],
-            s=14,
-            alpha=0.65,
-            label=domain_name,
-        )
+    _plot_domain_embedding(embedding_2d, domain_groups)
     plt.legend()
     plt.title("Domain Fusion t-SNE")
     plt.xlabel("t-SNE-1")
@@ -250,26 +312,13 @@ def export_domain_comparison_figure(
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     for axis, artifact_path in zip(axes, [left_artifact, right_artifact]):
         payload = _load_analysis_payload(artifact_path)
-        source_embeddings = payload["source_embeddings"]
-        target_embeddings = payload["target_embeddings"]
-        source_indices, target_indices = _balanced_sample_indices(
-            len(source_embeddings),
-            len(target_embeddings),
-        )
-        source_embeddings = source_embeddings[source_indices]
-        target_embeddings = target_embeddings[target_indices]
+        sampled = _sample_analysis_payload(payload)
+        source_embeddings = sampled["source_embeddings"]
+        target_embeddings = sampled["target_embeddings"]
         features = np.concatenate([source_embeddings, target_embeddings], axis=0)
-        domain_flags = np.array(["source"] * len(source_embeddings) + ["target"] * len(target_embeddings))
+        domain_groups = _domain_group_labels(sampled["source_domains"], sampled["target_domains"])
         embedding_2d = _fit_tsne(features)
-        for domain_name in ["source", "target"]:
-            mask = domain_flags == domain_name
-            axis.scatter(
-                embedding_2d[mask, 0],
-                embedding_2d[mask, 1],
-                s=14,
-                alpha=0.65,
-                label=domain_name,
-            )
+        _plot_domain_embedding(embedding_2d, domain_groups, axis=axis)
         method_name = str(payload["method_name"][0]) if "method_name" in payload else artifact_path.parent.name
         scenario_id = str(payload["scenario_id"][0]) if "scenario_id" in payload else artifact_path.parent.name
         axis.set_title(f"{method_name.upper()} ({scenario_id})")
@@ -293,7 +342,13 @@ def export_summary_figures(results_dir: Path, output_dir: Path) -> None:
 
     _ensure_dir(output_dir)
     export_mean_bar_chart(rows, output_dir / "method_mean_accuracy.png")
-    export_setting_heatmap(rows, "single_source", output_dir / "single_source_heatmap.png")
+    for setting_name in sorted(set(str(row["setting"]) for row in rows)):
+        export_mean_bar_chart(
+            rows,
+            output_dir / f"{setting_name}_method_mean_accuracy.png",
+            setting_name=setting_name,
+        )
+        export_setting_heatmap(rows, setting_name, output_dir / f"{setting_name}_heatmap.png")
 
 
 def _resolve_summary_output_dir(results_dir: Path, output_dir: Path | None) -> Path:
