@@ -8,12 +8,23 @@ tracking:
 
 runtime:
   dry_run: false
-  save_checkpoint: false
+  save_checkpoint: true
   save_analysis: true
   disable_cudnn: false
   cudnn_benchmark: false
   num_workers: 0
   pin_memory: false
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.002
+  early_stopping_min_epochs: 20
 
 protocol_override:
   setting: single_source
@@ -24,3 +35,4 @@ protocol_override:
 
 notes:
   - Representative task for confusion-matrix style inspection.
+  - Saves checkpoint and full analysis artifacts for report reuse.

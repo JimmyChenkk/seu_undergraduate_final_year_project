@@ -59,6 +59,7 @@ def build_run_review(
 ) -> dict[str, Any]:
     """Build a lightweight advisory summary for one run."""
 
+    result = result_payload.get("result", {})
     metrics = extract_core_metrics(result_payload)
     source_train_acc = metrics["source_train_acc"]
     source_eval_acc = metrics["source_eval_acc"]
@@ -123,6 +124,18 @@ def build_run_review(
         "scenario_id": result_payload.get("scenario_id"),
         "setting": result_payload.get("setting"),
         "metrics": metrics,
+        "selection": {
+            "selected_epoch": result.get("selected_epoch"),
+            "model_selection": result.get("model_selection"),
+            "model_selection_weights": result.get("model_selection_weights"),
+            "selected_model_selection_score": result.get("selected_model_selection_score"),
+            "selected_target_train_mean_confidence": result.get("selected_target_train_mean_confidence"),
+            "selected_target_train_mean_entropy": result.get("selected_target_train_mean_entropy"),
+            "early_stopped": result.get("early_stopped"),
+            "early_stopping_metric": result.get("early_stopping_metric"),
+            "early_stopping_weights": result.get("early_stopping_weights"),
+            "early_stopping_best_score": result.get("early_stopping_best_score"),
+        },
         "gaps": {
             "source_train_minus_eval": generalization_gap,
             "source_eval_minus_target_eval": transfer_gap,

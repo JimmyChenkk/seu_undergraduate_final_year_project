@@ -115,8 +115,16 @@ bash scripts/train.sh \
   configs/method/dann.yaml \
   configs/experiment/benchmark_single_source.yaml
 
-# 运行默认的小规模批量实验
+# 运行默认的 quick_debug 批量实验（2 场景 x 6 方法 = 12 runs）
 bash scripts/run_small_scale_round.sh
+
+# 预览默认 quick_debug 计划而不启动训练
+bash scripts/run_small_scale_round.sh --plan-only
+
+# 预览 benchmark_72 计划（12 设置 x 6 方法 = 72 runs）
+bash scripts/run_small_scale_round.sh \
+  --experiment-config configs/experiment/benchmark_72.yaml \
+  --plan-only
 
 # 只跑指定方法和场景做 smoke test
 bash scripts/run_small_scale_round.sh \
@@ -137,9 +145,14 @@ bash scripts/export_figures.sh runs
   `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`。
 - 数据配置默认入口为 `configs/data/te_da.yaml`。
 - 常用实验配置位于 `configs/experiment/`，包括：
-  `benchmark_single_source.yaml`、`autonomous_small_scale.yaml`、`full_36_fcn_aggressive_5090.yaml`、`report_s2_t5.yaml`、`report_s4_t1.yaml`。
-- `run_small_scale_round.sh` 默认会批量运行以下场景：
-  `mode1->mode4`、`mode4->mode1`、`mode2->mode5`、`mode5->mode2`、`mode3->mode6`、`mode6->mode3`。
+  `benchmark_single_source.yaml`、`quick_debug.yaml`、`benchmark_72.yaml`、`report_s2_t5.yaml`、`report_s4_t1.yaml`。
+- `run_small_scale_round.sh` 默认读取 experiment 配置里的 `automation` 计划。
+- 默认 `quick_debug` 计划会批量运行以下场景：
+  `mode1->mode4`、`mode4->mode1`。
+- `benchmark_72.yaml` 定义了当前阶段的 72-run 基准计划：
+  6 个代表性单源设置 + 6 个五源到单目标设置，再与 6 种方法做笛卡尔展开。
+- 各方法的基础参数保留在 `configs/method/*.yaml`；当前阶段的单独调参入口放在 experiment 配置里的 `method_overrides`。
+- 当前默认早停 / 选模策略使用 `hybrid_source_eval_inverse_entropy`，即将 `source_eval` 与目标域无标签熵代理融合；`source_eval` 仍保留为诊断指标。
 
 ## Git 追踪说明
 

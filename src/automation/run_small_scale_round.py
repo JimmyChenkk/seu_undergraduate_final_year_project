@@ -1,4 +1,4 @@
-"""Run the default small-scale single-source DA sweep."""
+"""Run config-driven quick-debug or benchmark batch plans."""
 
 from __future__ import annotations
 
@@ -7,21 +7,11 @@ from copy import deepcopy
 import importlib.util
 from pathlib import Path
 import subprocess
-import sys
 import tempfile
-from typing import Iterable
+from typing import Any, Iterable
 
 from src.utils.run_layout import build_timestamp
 
-
-DEFAULT_METHODS = [
-    "source_only",
-    "coral",
-    "dan",
-    "dann",
-    "cdan",
-    "deepjdot",
-]
 
 ALL_MODES = [
     "mode1",
@@ -32,18 +22,9 @@ ALL_MODES = [
     "mode6",
 ]
 
-DEFAULT_SCENES = [
-    ("mode1", "mode4"),
-    ("mode4", "mode1"),
-    ("mode2", "mode5"),
-    ("mode5", "mode2"),
-    ("mode3", "mode6"),
-    ("mode6", "mode3"),
-]
-
 
 class AutomationDependencyError(RuntimeError):
-    """Raised when the small-scale automation entrypoint is missing YAML support."""
+    """Raised when the batch automation entrypoint is missing YAML support."""
 
 
 def _import_yaml():
@@ -58,27 +39,50 @@ def _import_yaml():
     return yaml
 
 
-def _load_yaml(path: Path) -> dict:
+def _load_yaml(path: Path) -> dict[str, Any]:
     yaml = _import_yaml()
     with path.open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle)
     return payload or {}
 
 
-def _save_yaml(path: Path, payload: dict) -> None:
+def _save_yaml(path: Path, payload: dict[str, Any]) -> None:
     yaml = _import_yaml()
     path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
+
+
+def _validate_domain(domain_name: str) -> str:
+    normalized = str(domain_name).strip()
+    if normalized not in ALL_MODES:
+        raise ValueError(f"Unsupported domain in automation plan: {domain_name}")
+    return normalized
 
 
 def _parse_scene_tokens(scene_tokens: Iterable[str]) -> list[tuple[str, str]]:
     parsed = []
     for token in scene_tokens:
-        normalized = token.replace(":", "->")
+        normalized = str(token).replace(":", "->")
         if "->" not in normalized:
             raise ValueError(f"Invalid scene token: {token}")
         source_domain, target_domain = [item.strip() for item in normalized.split("->", maxsplit=1)]
+        source_domain = _validate_domain(source_domain)
+        target_domain = _validate_domain(target_domain)
+        if source_domain == target_domain:
+            raise ValueError(f"Automation scene must use different source and target domains: {token}")
         parsed.append((source_domain, target_domain))
     return parsed
+
+
+def _build_single_source_settings(scene_tokens: Iterable[str]) -> list[dict[str, object]]:
+    return [
+        {
+            "setting": "single_source",
+            "source_domains": [source_domain],
+            "target_domain": target_domain,
+            "label": f"{source_domain}_to_{target_domain}",
+        }
+        for source_domain, target_domain in _parse_scene_tokens(scene_tokens)
+    ]
 
 
 def _build_all_directed_scenes() -> list[tuple[str, str]]:
@@ -90,35 +94,167 @@ def _build_all_directed_scenes() -> list[tuple[str, str]]:
     ]
 
 
-def _build_all_multisource_target_settings() -> list[dict[str, object]]:
+def _normalize_multisource_targets(targets: Any) -> list[str]:
+    if targets in (None, False):
+        return []
+    if targets is True:
+        return list(ALL_MODES)
+
+    raw_items = [targets] if isinstance(targets, str) else list(targets)
+    normalized_targets: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        token = str(item).strip()
+        if not token:
+            continue
+        if token.lower() in {"all", "*"}:
+            for domain_name in ALL_MODES:
+                if domain_name not in seen:
+                    seen.add(domain_name)
+                    normalized_targets.append(domain_name)
+            continue
+        domain_name = _validate_domain(token)
+        if domain_name not in seen:
+            seen.add(domain_name)
+            normalized_targets.append(domain_name)
+    return normalized_targets
+
+
+def _build_multisource_target_settings(target_domains: Iterable[str]) -> list[dict[str, object]]:
     settings: list[dict[str, object]] = []
-    for target_domain in ALL_MODES:
-        source_domains = [domain for domain in ALL_MODES if domain != target_domain]
+    for target_domain in target_domains:
+        resolved_target = _validate_domain(target_domain)
+        source_domains = [domain for domain in ALL_MODES if domain != resolved_target]
         settings.append(
             {
                 "setting": "multi_source",
                 "source_domains": source_domains,
-                "target_domain": target_domain,
-                "label": f"{'-'.join(source_domains)}_to_{target_domain}",
+                "target_domain": resolved_target,
+                "label": f"{'-'.join(source_domains)}_to_{resolved_target}",
             }
         )
     return settings
 
 
+def _automation_section(experiment_payload: dict[str, Any]) -> dict[str, Any]:
+    automation = experiment_payload.get("automation", {})
+    if not isinstance(automation, dict):
+        return {}
+    return automation
+
+
+def _discover_method_names() -> list[str]:
+    return sorted(path.stem for path in Path("configs/method").glob("*.yaml"))
+
+
+def resolve_method_names(
+    experiment_payload: dict[str, Any],
+    cli_methods: list[str] | None,
+) -> list[str]:
+    if cli_methods is not None:
+        methods = [str(item).strip() for item in cli_methods if str(item).strip()]
+    else:
+        configured_methods = _automation_section(experiment_payload).get("methods", [])
+        if isinstance(configured_methods, list):
+            methods = [str(item).strip() for item in configured_methods if str(item).strip()]
+        else:
+            methods = []
+
+    if not methods:
+        methods = _discover_method_names()
+    if not methods:
+        raise ValueError("No methods resolved for automation.")
+    return methods
+
+
+def resolve_scene_settings(
+    experiment_payload: dict[str, Any],
+    cli_scenes: list[str] | None,
+    *,
+    all_scenes: bool,
+    include_multisource_targets: bool,
+) -> list[dict[str, object]]:
+    automation = _automation_section(experiment_payload)
+
+    if all_scenes:
+        scene_settings = _build_single_source_settings(
+            [f"{source}->{target}" for source, target in _build_all_directed_scenes()]
+        )
+    elif cli_scenes is not None:
+        scene_settings = _build_single_source_settings(cli_scenes)
+    else:
+        configured_scenes = automation.get("single_source_scenes", [])
+        if isinstance(configured_scenes, list) and configured_scenes:
+            scene_settings = _build_single_source_settings(configured_scenes)
+        else:
+            protocol = experiment_payload.get("protocol_override", {})
+            source_domains = protocol.get("source_domains", [])
+            target_domain = protocol.get("target_domain")
+            if len(source_domains) == 1 and target_domain:
+                scene_settings = _build_single_source_settings(
+                    [f"{source_domains[0]}->{target_domain}"]
+                )
+            else:
+                scene_settings = []
+
+    multisource_targets = (
+        list(ALL_MODES)
+        if include_multisource_targets
+        else _normalize_multisource_targets(automation.get("multisource_targets", []))
+    )
+    scene_settings.extend(_build_multisource_target_settings(multisource_targets))
+
+    if not scene_settings:
+        raise ValueError(
+            "No automation scenes resolved. Configure automation.single_source_scenes or "
+            "automation.multisource_targets, or pass --scenes/--all-scenes."
+        )
+    return scene_settings
+
+
+def build_run_plan(
+    experiment_payload: dict[str, Any],
+    *,
+    cli_methods: list[str] | None = None,
+    cli_scenes: list[str] | None = None,
+    all_scenes: bool = False,
+    include_multisource_targets: bool = False,
+) -> dict[str, Any]:
+    methods = resolve_method_names(experiment_payload, cli_methods)
+    scene_settings = resolve_scene_settings(
+        experiment_payload,
+        cli_scenes,
+        all_scenes=all_scenes,
+        include_multisource_targets=include_multisource_targets,
+    )
+    runs = [
+        {
+            "method_name": method_name,
+            "setting": str(scene["setting"]),
+            "source_domains": [str(item) for item in scene["source_domains"]],
+            "target_domain": str(scene["target_domain"]),
+            "label": str(scene["label"]),
+        }
+        for scene in scene_settings
+        for method_name in methods
+    ]
+    return {
+        "methods": methods,
+        "scene_settings": scene_settings,
+        "runs": runs,
+    }
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the default small-scale DA sweep.")
+    parser = argparse.ArgumentParser(description="Run the configured DA batch plan.")
     parser.add_argument("--data-config", type=Path, default=Path("configs/data/te_da.yaml"))
     parser.add_argument(
         "--experiment-config",
         type=Path,
-        default=Path("configs/experiment/autonomous_small_scale.yaml"),
+        default=Path("configs/experiment/quick_debug.yaml"),
     )
-    parser.add_argument("--methods", nargs="*", default=DEFAULT_METHODS)
-    parser.add_argument(
-        "--scenes",
-        nargs="*",
-        default=[f"{source}->{target}" for source, target in DEFAULT_SCENES],
-    )
+    parser.add_argument("--methods", nargs="*", default=None)
+    parser.add_argument("--scenes", nargs="*", default=None)
     parser.add_argument(
         "--all-scenes",
         action="store_true",
@@ -129,6 +265,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also run the 6 five-source-to-one-target benchmark settings.",
     )
+    parser.add_argument(
+        "--plan-only",
+        action="store_true",
+        help="Only print the resolved run plan without launching training.",
+    )
     parser.add_argument("--batch-root-name", type=str, default=None)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -137,83 +278,76 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     base_experiment = _load_yaml(args.experiment_config)
-    scene_settings: list[dict[str, object]]
-    if args.all_scenes:
-        scene_settings = [
-            {
-                "setting": "single_source",
-                "source_domains": [source_domain],
-                "target_domain": target_domain,
-                "label": f"{source_domain}_to_{target_domain}",
-            }
-            for source_domain, target_domain in _build_all_directed_scenes()
-        ]
-    else:
-        scene_settings = [
-            {
-                "setting": "single_source",
-                "source_domains": [source_domain],
-                "target_domain": target_domain,
-                "label": f"{source_domain}_to_{target_domain}",
-            }
-            for source_domain, target_domain in _parse_scene_tokens(args.scenes)
-        ]
-    if args.include_multisource_targets:
-        scene_settings.extend(_build_all_multisource_target_settings())
-    batch_root_name = args.batch_root_name or f"{build_timestamp()}_full_run"
+    plan = build_run_plan(
+        base_experiment,
+        cli_methods=args.methods,
+        cli_scenes=args.scenes,
+        all_scenes=args.all_scenes,
+        include_multisource_targets=args.include_multisource_targets,
+    )
+    methods = plan["methods"]
+    scene_settings = plan["scene_settings"]
+    run_plan = plan["runs"]
+    experiment_name = str(base_experiment.get("experiment_name", "batch_run"))
+    print(
+        f"Planned {len(run_plan)} runs from {len(scene_settings)} settings x {len(methods)} methods "
+        f"using {args.experiment_config}."
+    )
+    if args.plan_only:
+        for run in run_plan:
+            print(
+                f"{run['method_name']}: {','.join(run['source_domains'])} -> "
+                f"{run['target_domain']} ({run['setting']})"
+            )
+        return
 
-    with tempfile.TemporaryDirectory(prefix="tep_small_scale_") as temp_dir:
+    batch_root_name = args.batch_root_name or f"{build_timestamp()}_{experiment_name}"
+
+    with tempfile.TemporaryDirectory(prefix="tep_batch_plan_") as temp_dir:
         temp_root = Path(temp_dir)
-        for scene in scene_settings:
-            setting_name = str(scene["setting"])
-            source_domains = [str(item) for item in scene["source_domains"]]
-            target_domain = str(scene["target_domain"])
-            scene_label = str(scene["label"])
-            for method_name in args.methods:
-                method_config_path = Path("configs/method") / f"{method_name}.yaml"
-                if not method_config_path.exists():
-                    raise FileNotFoundError(f"Method config not found: {method_config_path}")
+        for run in run_plan:
+            method_name = str(run["method_name"])
+            method_config_path = Path("configs/method") / f"{method_name}.yaml"
+            if not method_config_path.exists():
+                raise FileNotFoundError(f"Method config not found: {method_config_path}")
 
-                experiment_payload = deepcopy(base_experiment)
-                experiment_payload["experiment_name"] = (
-                    f"{base_experiment.get('experiment_name', 'autonomous_small_scale')}_{scene_label}"
-                )
-                experiment_payload.setdefault("tracking", {})
-                experiment_payload["tracking"]["batch_root_name"] = batch_root_name
-                experiment_payload.setdefault("runtime", {})
-                if args.dry_run:
-                    experiment_payload["runtime"]["dry_run"] = True
-                experiment_payload["runtime"].setdefault("save_analysis", True)
-                experiment_payload.setdefault("protocol_override", {})
-                experiment_payload["protocol_override"].update(
-                    {
-                        "setting": setting_name,
-                        "source_domains": source_domains,
-                        "target_domain": target_domain,
-                        "preferred_fold": "Fold 1",
-                    }
-                )
+            experiment_payload = deepcopy(base_experiment)
+            experiment_payload["experiment_name"] = f"{experiment_name}_{run['label']}"
+            experiment_payload.setdefault("tracking", {})
+            experiment_payload["tracking"]["batch_root_name"] = batch_root_name
+            experiment_payload.setdefault("runtime", {})
+            if args.dry_run:
+                experiment_payload["runtime"]["dry_run"] = True
+            experiment_payload["runtime"].setdefault("save_checkpoint", True)
+            experiment_payload["runtime"].setdefault("save_analysis", True)
+            experiment_payload.setdefault("protocol_override", {})
+            experiment_payload["protocol_override"].update(
+                {
+                    "setting": str(run["setting"]),
+                    "source_domains": [str(item) for item in run["source_domains"]],
+                    "target_domain": str(run["target_domain"]),
+                    "preferred_fold": "Fold 1",
+                }
+            )
 
-                temp_experiment_path = temp_root / f"{method_name}_{scene_label}.yaml"
-                _save_yaml(temp_experiment_path, experiment_payload)
-                # Reuse the stable shell wrapper so automation and one-off runs share
-                # the same environment setup (conda activation, MPL cache, etc.).
-                command = [
-                    "bash",
-                    "scripts/train.sh",
-                    str(args.data_config),
-                    str(method_config_path),
-                    str(temp_experiment_path),
-                    "--batch-root-name",
-                    batch_root_name,
-                ]
-                completed = subprocess.run(command, check=False)
-                if completed.returncode != 0:
-                    raise SystemExit(
-                        "Small-scale round stopped at "
-                        f"{method_name} on {scene_label} "
-                        f"(exit code {completed.returncode})."
-                    )
+            temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"
+            _save_yaml(temp_experiment_path, experiment_payload)
+            command = [
+                "bash",
+                "scripts/train.sh",
+                str(args.data_config),
+                str(method_config_path),
+                str(temp_experiment_path),
+                "--batch-root-name",
+                batch_root_name,
+            ]
+            completed = subprocess.run(command, check=False)
+            if completed.returncode != 0:
+                raise SystemExit(
+                    "Batch round stopped at "
+                    f"{method_name} on {run['label']} "
+                    f"(exit code {completed.returncode})."
+                )
 
     print(f"Batch results written under runs/{batch_root_name}")
     print(f"Comparison summary expected at runs/{batch_root_name}/comparison_summary/")

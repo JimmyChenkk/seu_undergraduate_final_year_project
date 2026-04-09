@@ -7,6 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 import importlib.util
 import json
+import math
 from pathlib import Path
 import random
 import sys
@@ -139,6 +140,16 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
             "epochs_completed": result.get("epochs_completed"),
             "early_stopped": result.get("early_stopped"),
         },
+        "selection": {
+            "model_selection": result.get("model_selection"),
+            "model_selection_weights": result.get("model_selection_weights"),
+            "selected_model_selection_score": result.get("selected_model_selection_score"),
+            "selected_target_train_mean_confidence": result.get("selected_target_train_mean_confidence"),
+            "selected_target_train_mean_entropy": result.get("selected_target_train_mean_entropy"),
+            "early_stopping_metric": result.get("early_stopping_metric"),
+            "early_stopping_weights": result.get("early_stopping_weights"),
+            "early_stopping_best_score": result.get("early_stopping_best_score"),
+        },
         "figure_paths": result_payload.get("figure_paths"),
     }
 
@@ -206,6 +217,12 @@ def _mean_metric(metrics: dict[str, list[float]], key: str) -> float | None:
     if not values:
         return None
     return float(sum(values) / len(values))
+
+
+def _normalize_metric_weights(weights: Any) -> dict[str, float]:
+    if not isinstance(weights, dict):
+        return {}
+    return {str(key): float(value) for key, value in weights.items()}
 
 
 def _resolve_metric_score(
@@ -790,17 +807,20 @@ def run_deep_experiment(
     selected_source_eval_acc = 0.0
     selected_target_eval_acc = 0.0
     selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
-    selection_weights = runtime.get("selection_weights", {})
+    selection_weights = _normalize_metric_weights(runtime.get("selection_weights", {}))
     best_selection_score = float("-inf")
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
+    selected_summary: dict[str, float] | None = None
     early_stopping_patience = runtime.get("early_stopping_patience")
     if early_stopping_patience is not None:
         early_stopping_patience = max(int(early_stopping_patience), 1)
     early_stopping_min_delta = float(runtime.get("early_stopping_min_delta", 0.0))
     early_stopping_min_epochs = max(int(runtime.get("early_stopping_min_epochs", 0)), 0)
     early_stopping_metric = str(runtime.get("early_stopping_metric", "source_eval")).strip().lower()
-    early_stopping_weights = runtime.get("early_stopping_weights", selection_weights)
+    early_stopping_weights = _normalize_metric_weights(
+        runtime.get("early_stopping_weights", selection_weights)
+    )
     early_stopping_best_score = float("-inf")
     early_stopping_bad_epochs = 0
     early_stopped = False
@@ -900,9 +920,15 @@ def run_deep_experiment(
             selection_mode,
             weights=selection_weights,
         )
+        summary["model_selection_metric"] = selection_mode
+        if selection_weights:
+            summary["model_selection_weights"] = deepcopy(selection_weights)
+        if selection_score is not None:
+            summary["model_selection_score"] = float(selection_score)
         if selection_mode != "final" and selection_score is not None and selection_score > best_selection_score:
             best_selection_score = selection_score
             selected_epoch = epoch_index + 1
+            selected_summary = deepcopy(summary)
             selected_state_dict = {
                 key: value.detach().cpu().clone()
                 for key, value in model.state_dict().items()
@@ -914,6 +940,11 @@ def run_deep_experiment(
                 early_stopping_metric,
                 weights=early_stopping_weights,
             )
+            summary["early_stopping_metric"] = early_stopping_metric
+            if early_stopping_weights:
+                summary["early_stopping_weights"] = deepcopy(early_stopping_weights)
+            if stop_score is not None:
+                summary["early_stopping_score"] = float(stop_score)
             if stop_score is not None:
                 if stop_score > early_stopping_best_score + early_stopping_min_delta:
                     early_stopping_best_score = stop_score
@@ -936,6 +967,9 @@ def run_deep_experiment(
                         patience=early_stopping_patience,
                     )
                     break
+
+    if selected_summary is None and history:
+        selected_summary = deepcopy(history[-1])
 
     if selection_mode != "final" and selected_state_dict is not None:
         model.load_state_dict(selected_state_dict)
@@ -987,12 +1021,34 @@ def run_deep_experiment(
         "selected_source_train_acc": float(selected_source_train_acc),
         "selected_source_eval_acc": float(selected_source_eval_acc),
         "selected_target_eval_acc": float(selected_target_eval_acc),
+        "selected_target_train_mean_confidence": (
+            None
+            if selected_summary is None or selected_summary.get("target_train_mean_confidence") is None
+            else float(selected_summary["target_train_mean_confidence"])
+        ),
+        "selected_target_train_mean_entropy": (
+            None
+            if selected_summary is None or selected_summary.get("target_train_mean_entropy") is None
+            else float(selected_summary["target_train_mean_entropy"])
+        ),
         "selected_epoch": int(selected_epoch),
         "model_selection": selection_mode,
+        "model_selection_weights": deepcopy(selection_weights),
+        "selected_model_selection_score": (
+            None
+            if selected_summary is None or selected_summary.get("model_selection_score") is None
+            else float(selected_summary["model_selection_score"])
+        ),
+        "model_selection_best_score": (
+            None if selection_mode == "final" or best_selection_score == float("-inf") else float(best_selection_score)
+        ),
         "epochs_requested": int(epochs),
         "epochs_completed": int(len(history)),
         "early_stopped": bool(early_stopped),
         "early_stopping_metric": early_stopping_metric if early_stopping_patience is not None else None,
+        "early_stopping_weights": (
+            deepcopy(early_stopping_weights) if early_stopping_patience is not None else None
+        ),
         "early_stopping_patience": int(early_stopping_patience) if early_stopping_patience is not None else None,
         "early_stopping_min_delta": float(early_stopping_min_delta) if early_stopping_patience is not None else None,
         "early_stopping_min_epochs": int(early_stopping_min_epochs) if early_stopping_patience is not None else None,
@@ -1081,6 +1137,10 @@ def main() -> None:
     data_payload = load_yaml(args.data_config)
     method_payload = load_yaml(args.method_config)
     experiment_payload = load_yaml(args.experiment_config)
+    experiment_payload, method_payload = apply_method_overrides(
+        experiment_payload,
+        method_payload,
+    )
     method_name = str(method_payload.get("method_name", "")).lower()
     ensure_dependencies(method_name, experiment_payload)
 

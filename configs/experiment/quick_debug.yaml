@@ -1,4 +1,4 @@
-experiment_name: benchmark_single_source
+experiment_name: quick_debug
 seed: 42
 device: cuda
 output_dir: runs
@@ -28,14 +28,35 @@ runtime:
   early_stopping_min_delta: 0.002
   early_stopping_min_epochs: 20
 
+automation:
+  methods:
+    - source_only
+    - coral
+    - dan
+    - dann
+    - cdan
+    - deepjdot
+  single_source_scenes:
+    - mode1->mode4
+    - mode4->mode1
+  multisource_targets: []
+
+method_overrides:
+  source_only: {}
+  coral: {}
+  dan: {}
+  dann: {}
+  cdan: {}
+  deepjdot: {}
+
 protocol_override:
   setting: single_source
   source_domains:
     - mode1
-  target_domain: mode2
+  target_domain: mode4
   preferred_fold: Fold 1
 
 notes:
-  - First reproducible single-source benchmark slice.
-  - Uses the hybrid source-eval plus inverse-entropy proxy for model selection and early stopping.
-  - Uses conservative CUDA defaults to avoid aggressive autotune and pinned-memory transfers by default.
+  - Quick debug config for the current phase.
+  - Expands to 2 representative single-source scenes x 6 methods = 12 runs.
+  - Keep per-method tuning in method_overrides instead of hard-coding plans in automation code.

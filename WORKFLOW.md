@@ -23,7 +23,7 @@
 
 ## 2.1 默认自主循环
 
-1. Round 1：先对 `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot` 跑首轮小规模 sweep。
+1. Round 1：先按 `quick_debug` 计划对 `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot` 跑首轮小规模 sweep，即 `mode1 -> mode4`、`mode4 -> mode1` 两个场景共 `12` 次运行。
 2. Round 2：Codex 自己读取 `result.json`、`review.json`、混淆矩阵和两张 t-SNE，针对共享问题或高价值方法修改代码或配置后复跑。
 3. Round 3：在同一组简单场景上确认优化是否稳定，不扩方法、不扩场景。
 4. 默认人工检查点：首轮 sweep 完整，且至少完成 `1` 轮针对性优化复跑。
@@ -46,11 +46,14 @@
 ## 3. 默认实验边界
 
 - 单轮默认规模：`1 个方法 x 1 个场景 x 1 个 backbone x 1 个 fold`。
-- 默认先沿用现有配置中的 epoch；是否统一放大到 `80 epoch`，等首轮结果稳定后再定。
+- 当前阶段默认有两级训练模式：
+  - `quick_debug`：`mode1 -> mode4`、`mode4 -> mode1` 两个单源场景，共 `2` 个设置 x `6` 个方法 = `12` runs。
+  - `benchmark_72`：`mode1 -> mode4`、`mode4 -> mode1`、`mode2 -> mode5`、`mode5 -> mode2`、`mode3 -> mode6`、`mode6 -> mode3` 六个单源设置，加上 `6` 个五源到单目标设置，共 `12` 个设置 x `6` 个方法 = `72` runs。
+- 默认先沿用现有配置中的 epoch，并允许通过 experiment 配置里的 `method_overrides` 为每个方法单独调参。
 - 默认方法：`source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`。
-- 默认首轮简单场景：`mode1 -> mode4`、`mode4 -> mode1`、`mode2 -> mode5`、`mode5 -> mode2`、`mode3 -> mode6`、`mode6 -> mode3`。
+- 默认首轮简单场景：`mode1 -> mode4`、`mode4 -> mode1`。
 - 默认代表性报告场景：`mode2 -> mode5`、`mode4 -> mode1`。
-- 未经批准不要直接做：全量 `30` 场景 sweep、多方法并发长时间 CUDA 任务、明显扩大 `runs/` 体量的批量实验。
+- 未经批准不要直接做：超出当前 `benchmark_72` 定义的额外全量 `30` 有向单源 sweep、多方法并发长时间 CUDA 任务、明显扩大 `runs/` 体量的批量实验。
 
 ## 4. 输出与检查点
 
@@ -61,7 +64,7 @@
 - 批量父目录下包含：若干 `timestamp_method_scenario_backbone_fold/` 子目录，以及 `comparison_summary/` 目录；汇总表和对比图默认写到 `comparison_summary/tables/`、`comparison_summary/figures/`。
 - 单次运行默认自动补齐：`tables/result.json`、`tables/review.json`、`figures/confusion_matrix.png`、`figures/tsne_domain.png`、`figures/tsne_class.png`。
 - 批量运行默认自动补齐：`comparison_summary/tables/comparison.json`、`comparison_summary/tables/comparison.md`、`comparison_summary/tables/round_review.json`。
-- 默认不保存 checkpoint，默认保留分析产物，即保持 `save_checkpoint: false`、`save_analysis: true`。
+- 默认保存 checkpoint，也默认保留分析产物，即保持 `save_checkpoint: true`、`save_analysis: true`。
 - 每次新方法首次跑通、新场景首次跑通、准备扩量、准备整理报告或提交 Git 前，都要先停下来检查。
 - 每个检查点至少展示：
   - 关键指标 JSON
@@ -79,6 +82,13 @@
 4. 再看混淆矩阵是否更接近对角线主导。
 5. 再看 `tsne_domain` 是否体现域融合。
 6. 再看 `tsne_class` 是否体现类别分散且清晰可分。
+
+## 4.2 当前早停与选模约定
+
+- 无监督领域自适应的 early stopping / model selection 没有统一的学术标准；这本身是一个专门研究问题。
+- 当前 benchmark 阶段默认使用 `hybrid_source_eval_inverse_entropy`，即以 `source_eval` 和目标域无标签熵代理的加权组合作为选模与提前停止依据。
+- 当前默认权重为：`source_eval = 0.7`、`target_entropy = 0.3`。
+- `source_eval_acc` 继续保留并优先展示，但不再作为唯一的提前停止标准。
 
 ## 5. 工作区目录、文件与 Git 规则
 
@@ -116,8 +126,8 @@
 | --- | --- |
 | `configs/data/te_da.yaml` | 数据路径与协议基础配置 |
 | `configs/experiment/benchmark_single_source.yaml` | 单源 benchmark 主实验配置 |
-| `configs/experiment/autonomous_small_scale.yaml` | 默认自主小规模 sweep 配置 |
-| `configs/experiment/full_36_fcn_aggressive_5090.yaml` | 当前全量单源加多源主跑配置 |
+| `configs/experiment/quick_debug.yaml` | 当前阶段默认 quick-debug 计划配置 |
+| `configs/experiment/benchmark_72.yaml` | 当前阶段默认 72-run benchmark 配置 |
 | `configs/experiment/report_s2_t5.yaml` | 代表性报告场景配置 |
 | `configs/experiment/report_s4_t1.yaml` | 代表性报告场景配置 |
 | `configs/method/source_only.yaml` | source-only 方法配置 |
