@@ -151,7 +151,8 @@ bash scripts/export_figures.sh runs
   `mode1->mode4`、`mode4->mode1`。
 - `benchmark_72.yaml` 定义了当前阶段的 72-run 基准计划：
   6 个代表性单源设置 + 6 个五源到单目标设置，再与 6 种方法做笛卡尔展开。
-- 各方法的基础参数保留在 `configs/method/*.yaml`；当前阶段的单独调参入口放在 experiment 配置里的 `method_overrides`。
+- 各方法的基础参数保留在 `configs/method/*.yaml`；如果某个方法需要默认的运行时策略（例如专属选模 / 早停指标），可在方法配置里声明 `runtime_defaults`，再由 experiment 配置显式覆盖。
+- 当前阶段的实验级单独调参入口仍放在 experiment 配置里的 `method_overrides`，其优先级高于方法里的 `runtime_defaults`。
 - 当前默认早停 / 选模策略使用 `hybrid_source_eval_inverse_entropy`，即将 `source_eval` 与目标域无标签熵代理融合；`source_eval` 仍保留为诊断指标。
 
 ## Git 追踪说明

@@ -104,6 +104,30 @@ def apply_method_overrides(
     return merged_experiment, merged_method
 
 
+def apply_method_runtime_defaults(
+    experiment_payload: dict[str, Any],
+    method_payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply optional method-owned defaults for experiment runtime settings.
+
+    Method configs may declare ``runtime_defaults`` for method-specific
+    model-selection or early-stopping behavior. Experiment configs still own the
+    final runtime policy, so explicit experiment-level values override these
+    defaults, and ``method_overrides`` can still override both.
+    """
+
+    runtime_defaults = method_payload.get("runtime_defaults", {})
+    if not isinstance(runtime_defaults, dict):
+        return deepcopy(experiment_payload)
+
+    merged_experiment = deepcopy(experiment_payload)
+    merged_experiment["runtime"] = deep_merge_dict(
+        runtime_defaults,
+        merged_experiment.get("runtime", {}),
+    )
+    return merged_experiment
+
+
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1137,6 +1161,10 @@ def main() -> None:
     data_payload = load_yaml(args.data_config)
     method_payload = load_yaml(args.method_config)
     experiment_payload = load_yaml(args.experiment_config)
+    experiment_payload = apply_method_runtime_defaults(
+        experiment_payload,
+        method_payload,
+    )
     experiment_payload, method_payload = apply_method_overrides(
         experiment_payload,
         method_payload,

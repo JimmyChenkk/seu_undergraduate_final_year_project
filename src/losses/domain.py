@@ -381,17 +381,28 @@ class ConditionalDomainAdversarialLoss(nn.Module):
 
         conditioned_source = self.map(features_source, probabilities_source)
         conditioned_target = self.map(features_target, probabilities_target)
-        weights_source = None
-        weights_target = None
-        if self.entropy_conditioning:
-            weights_source = self._normalized_entropy_weight(probabilities_source)
-            weights_target = self._normalized_entropy_weight(probabilities_target)
-
-        return domain_adversarial_loss(
-            conditioned_source,
-            conditioned_target,
-            discriminator=self.domain_discriminator,
-            grl=self.grl,
-            weights_source=weights_source,
-            weights_target=weights_target,
+        conditioned = torch.cat([conditioned_source, conditioned_target], dim=0)
+        logits_domain = self.domain_discriminator(self.grl(conditioned))
+        labels_domain = torch.cat(
+            [
+                torch.ones(features_source.shape[0], device=logits_domain.device, dtype=logits_domain.dtype),
+                torch.zeros(features_target.shape[0], device=logits_domain.device, dtype=logits_domain.dtype),
+            ],
+            dim=0,
         )
+
+        weights = None
+        if self.entropy_conditioning:
+            probabilities = torch.cat([probabilities_source, probabilities_target], dim=0)
+            weights = self._normalized_entropy_weight(probabilities).to(
+                device=logits_domain.device,
+                dtype=logits_domain.dtype,
+            )
+
+        loss_domain = F.binary_cross_entropy_with_logits(
+            logits_domain,
+            labels_domain,
+            weight=weights,
+        )
+        accuracy_domain = _binary_accuracy_from_logits(logits_domain, labels_domain)
+        return loss_domain, accuracy_domain

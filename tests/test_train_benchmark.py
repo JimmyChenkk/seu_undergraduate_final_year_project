@@ -1,12 +1,70 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import unittest
 
 from src.evaluation.review import build_run_review
-from src.trainers.train_benchmark import _resolve_metric_score, apply_method_overrides
+from src.trainers.train_benchmark import (
+    _resolve_metric_score,
+    apply_method_overrides,
+    apply_method_runtime_defaults,
+)
 
 
 class TrainBenchmarkTests(unittest.TestCase):
+    def test_apply_method_runtime_defaults_sets_runtime_without_overriding_experiment(self) -> None:
+        experiment_payload = {
+            "runtime": {
+                "model_selection": "hybrid_source_eval_inverse_entropy",
+                "show_progress": True,
+            },
+            "tracking": {"batch_root_name": "quick_debug"},
+        }
+        method_payload = {
+            "method_name": "cdan",
+            "runtime_defaults": {
+                "model_selection": "target_confidence",
+                "early_stopping_metric": "target_confidence",
+                "selection_weights": {"target_confidence": 1.0},
+            },
+        }
+
+        experiment_copy = deepcopy(experiment_payload)
+        merged_experiment = apply_method_runtime_defaults(experiment_payload, method_payload)
+
+        self.assertEqual(merged_experiment["runtime"]["model_selection"], "hybrid_source_eval_inverse_entropy")
+        self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_weights"],
+            {"target_confidence": 1.0},
+        )
+        self.assertTrue(merged_experiment["runtime"]["show_progress"])
+        self.assertEqual(merged_experiment["tracking"]["batch_root_name"], "quick_debug")
+        self.assertEqual(experiment_payload, experiment_copy)
+
+    def test_method_overrides_can_override_method_runtime_defaults(self) -> None:
+        experiment_payload = {
+            "runtime": {"show_progress": True},
+            "method_overrides": {
+                "cdan": {
+                    "runtime": {"model_selection": "source_eval"},
+                },
+            },
+        }
+        method_payload = {
+            "method_name": "cdan",
+            "runtime_defaults": {
+                "model_selection": "target_confidence",
+                "early_stopping_metric": "target_confidence",
+            },
+        }
+
+        merged_experiment = apply_method_runtime_defaults(experiment_payload, method_payload)
+        merged_experiment, _ = apply_method_overrides(merged_experiment, method_payload)
+
+        self.assertEqual(merged_experiment["runtime"]["model_selection"], "source_eval")
+        self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
+
     def test_apply_method_overrides_merges_runtime_and_method_sections(self) -> None:
         experiment_payload = {
             "runtime": {"show_progress": True},
