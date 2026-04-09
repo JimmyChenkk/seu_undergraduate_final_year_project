@@ -125,11 +125,8 @@
 | 文件 | 作用 |
 | --- | --- |
 | `configs/data/te_da.yaml` | 数据路径与协议基础配置 |
-| `configs/experiment/benchmark_single_source.yaml` | 单源 benchmark 主实验配置 |
 | `configs/experiment/quick_debug.yaml` | 当前阶段默认 quick-debug 计划配置 |
 | `configs/experiment/benchmark_72.yaml` | 当前阶段默认 72-run benchmark 配置 |
-| `configs/experiment/report_s2_t5.yaml` | 代表性报告场景配置 |
-| `configs/experiment/report_s4_t1.yaml` | 代表性报告场景配置 |
 | `configs/method/source_only.yaml` | source-only 方法配置 |
 | `configs/method/coral.yaml` | CORAL 方法配置 |
 | `configs/method/dan.yaml` | DAN 方法配置 |

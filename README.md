@@ -107,13 +107,13 @@ bash scripts/build_benchmark.sh configs/data/te_da.yaml
 bash scripts/train.sh \
   configs/data/te_da.yaml \
   configs/method/source_only.yaml \
-  configs/experiment/benchmark_single_source.yaml
+  configs/experiment/quick_debug.yaml
 
 # 例如改成 DANN / CDAN / DeepJDOT
 bash scripts/train.sh \
   configs/data/te_da.yaml \
   configs/method/dann.yaml \
-  configs/experiment/benchmark_single_source.yaml
+  configs/experiment/quick_debug.yaml
 
 # 运行默认的 quick_debug 批量实验（2 场景 x 6 方法 = 12 runs）
 bash scripts/run_small_scale_round.sh
@@ -145,7 +145,7 @@ bash scripts/export_figures.sh runs
   `source_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`。
 - 数据配置默认入口为 `configs/data/te_da.yaml`。
 - 常用实验配置位于 `configs/experiment/`，包括：
-  `benchmark_single_source.yaml`、`quick_debug.yaml`、`benchmark_72.yaml`、`report_s2_t5.yaml`、`report_s4_t1.yaml`。
+  `quick_debug.yaml`、`benchmark_72.yaml`。
 - `run_small_scale_round.sh` 默认读取 experiment 配置里的 `automation` 计划。
 - 默认 `quick_debug` 计划会批量运行以下场景：
   `mode1->mode4`、`mode4->mode1`。
