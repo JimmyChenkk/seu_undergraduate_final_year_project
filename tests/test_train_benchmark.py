@@ -26,6 +26,7 @@ class TrainBenchmarkTests(unittest.TestCase):
                 "model_selection": "target_confidence",
                 "early_stopping_metric": "target_confidence",
                 "selection_weights": {"target_confidence": 1.0},
+                "selection_params": {"confidence_floor": 0.7},
             },
         }
 
@@ -37,6 +38,10 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(
             merged_experiment["runtime"]["selection_weights"],
             {"target_confidence": 1.0},
+        )
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_params"],
+            {"confidence_floor": 0.7},
         )
         self.assertTrue(merged_experiment["runtime"]["show_progress"])
         self.assertEqual(merged_experiment["tracking"]["batch_root_name"], "quick_debug")
@@ -64,6 +69,48 @@ class TrainBenchmarkTests(unittest.TestCase):
 
         self.assertEqual(merged_experiment["runtime"]["model_selection"], "source_eval")
         self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
+
+    def test_runtime_metric_dicts_replace_instead_of_union_merging(self) -> None:
+        experiment_payload = {
+            "runtime": {
+                "selection_weights": {"source_eval": 0.7, "target_entropy": 0.3},
+                "selection_params": {"entropy_floor": 0.5},
+            },
+            "method_overrides": {
+                "cdan": {
+                    "runtime": {
+                        "selection_weights": {
+                            "source_eval": 1.0,
+                            "entropy_shortfall": 1.0,
+                            "domain_gap": 1.0,
+                        },
+                        "selection_params": {
+                            "entropy_floor": 0.5,
+                            "domain_confusion_target": 0.5,
+                        },
+                    },
+                },
+            },
+        }
+        method_payload = {"method_name": "cdan"}
+
+        merged_experiment, _ = apply_method_overrides(experiment_payload, method_payload)
+
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_weights"],
+            {
+                "source_eval": 1.0,
+                "entropy_shortfall": 1.0,
+                "domain_gap": 1.0,
+            },
+        )
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_params"],
+            {
+                "entropy_floor": 0.5,
+                "domain_confusion_target": 0.5,
+            },
+        )
 
     def test_apply_method_overrides_merges_runtime_and_method_sections(self) -> None:
         experiment_payload = {
@@ -122,6 +169,44 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertIsNotNone(later_score)
         self.assertGreater(later_score, early_score)
 
+    def test_entropy_guard_metric_can_penalize_overconfident_adversarial_epoch(self) -> None:
+        weights = {
+            "source_eval": 1.0,
+            "entropy_shortfall": 1.0,
+            "domain_gap": 1.0,
+        }
+        params = {
+            "entropy_floor": 0.5,
+            "domain_confusion_target": 0.5,
+        }
+        earlier_epoch = {
+            "acc_source_eval": 0.84,
+            "target_train_mean_entropy": 0.59,
+            "acc_domain": 0.67,
+        }
+        later_overconfident_epoch = {
+            "acc_source_eval": 0.89,
+            "target_train_mean_entropy": 0.16,
+            "acc_domain": 0.67,
+        }
+
+        earlier_score = _resolve_metric_score(
+            earlier_epoch,
+            "hybrid_source_eval_entropy_guard_domain_gap",
+            weights=weights,
+            params=params,
+        )
+        later_score = _resolve_metric_score(
+            later_overconfident_epoch,
+            "hybrid_source_eval_entropy_guard_domain_gap",
+            weights=weights,
+            params=params,
+        )
+
+        self.assertIsNotNone(earlier_score)
+        self.assertIsNotNone(later_score)
+        self.assertGreater(earlier_score, later_score)
+
     def test_review_payload_keeps_selection_metadata(self) -> None:
         result_payload = {
             "method_name": "dann",
@@ -130,14 +215,16 @@ class TrainBenchmarkTests(unittest.TestCase):
             "run_root": "runs/example",
             "result": {
                 "selected_epoch": 15,
-                "model_selection": "hybrid_source_eval_inverse_entropy",
-                "model_selection_weights": {"source_eval": 0.7, "target_entropy": 0.3},
+                "model_selection": "hybrid_source_eval_entropy_guard_domain_gap",
+                "model_selection_weights": {"source_eval": 1.0, "entropy_shortfall": 1.0, "domain_gap": 1.0},
+                "model_selection_params": {"entropy_floor": 0.5, "domain_confusion_target": 0.5},
                 "selected_model_selection_score": 0.42,
                 "selected_target_train_mean_confidence": 0.9,
                 "selected_target_train_mean_entropy": 0.2,
                 "early_stopped": True,
-                "early_stopping_metric": "hybrid_source_eval_inverse_entropy",
-                "early_stopping_weights": {"source_eval": 0.7, "target_entropy": 0.3},
+                "early_stopping_metric": "hybrid_source_eval_entropy_guard_domain_gap",
+                "early_stopping_weights": {"source_eval": 1.0, "entropy_shortfall": 1.0, "domain_gap": 1.0},
+                "early_stopping_params": {"entropy_floor": 0.5, "domain_confusion_target": 0.5},
                 "early_stopping_best_score": 0.42,
                 "selected_source_train_acc": 0.8,
                 "selected_source_eval_acc": 0.75,
@@ -157,8 +244,9 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(review["selection"]["selected_epoch"], 15)
         self.assertEqual(
             review["selection"]["model_selection"],
-            "hybrid_source_eval_inverse_entropy",
+            "hybrid_source_eval_entropy_guard_domain_gap",
         )
+        self.assertEqual(review["selection"]["model_selection_params"]["entropy_floor"], 0.5)
         self.assertEqual(review["selection"]["selected_target_train_mean_entropy"], 0.2)
 
 

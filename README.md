@@ -139,6 +139,89 @@ bash scripts/eval.sh runs
 bash scripts/export_figures.sh runs
 ```
 
+## 当前架构流程
+
+```mermaid
+flowchart TD
+  subgraph CLI[CLI 与批量入口]
+    cli0[用户命令]
+    cli1[scripts/inspect_raw_data.py]
+    cli2[scripts/build_benchmark.sh]
+    cli3[scripts/train.sh]
+    cli4[scripts/run_small_scale_round.sh]
+    cli5[scripts/eval.sh / export_figures.sh]
+  end
+
+  subgraph CFG[配置层]
+    cfg1[configs/data/*.yaml]
+    cfg2[configs/method/*.yaml]
+    cfg2a[method.runtime_defaults]
+    cfg3[configs/experiment/*.yaml]
+    cfg3a[experiment.runtime]
+    cfg3b[experiment.method_overrides]
+    cfg3c[experiment.automation / protocol_override]
+  end
+
+  subgraph DATA[数据层]
+    data1[data/raw/*.pickle]
+    data2[data/benchmark/manifest.json]
+    data3[TEDADatasetConfig]
+    data4[TEDADatasetInterface / prepare_benchmark_data]
+  end
+
+  subgraph TRAIN[训练与选模核心]
+    train1[src/trainers/train_benchmark.py]
+    train2[先合并 runtime_defaults]
+    train3[再应用 method_overrides]
+    train4[build_method + backbone + losses]
+    train5[src/trainers/selection_metrics.py]
+    train6[epoch loop + validation proxies + checkpoint selection]
+  end
+
+  subgraph OUT[输出层]
+    out1[runs/<batch>/<run>/artifacts checkpoints figures tables]
+    out2[result.json / review.json]
+    out3[comparison_summary + heatmap + markdown tables]
+  end
+
+  cli0 --> cli1
+  cli0 --> cli2
+  cli0 --> cli3
+  cli0 --> cli4
+  cli0 --> cli5
+
+  data1 --> cli1 --> data2
+  cfg1 --> cli2 --> data2
+
+  cli4 --> cli3
+  cfg1 --> data3 --> data4
+  data2 --> data3
+
+  cfg2 --> cfg2a --> train2
+  cfg3 --> cfg3a --> train2
+  train2 --> train3
+  cfg3b --> train3
+  cfg1 --> train1
+  cfg3c --> train1
+  train3 --> train1
+  data4 --> train1
+
+  train1 --> train4
+  train1 --> train5
+  train4 --> train6
+  train5 --> train6
+  train6 --> out1
+  train6 --> out2
+
+  cli5 --> out3
+  out2 --> out3
+```
+
+- 配置优先级是：`configs/method/*.yaml` 里的 `runtime_defaults` < `configs/experiment/*.yaml` 里的显式 `runtime` < experiment 里的 `method_overrides`。
+- 对 `selection_weights`、`selection_params`、`early_stopping_weights`、`early_stopping_params` 这几类 metric 配置，后层覆盖前层时采用“整块替换”，避免残留旧 metric 的键。
+- `selection_metrics.py` 维护可注册的选模 / 早停 score；主训练循环只负责在每个 epoch 产出 summary，然后统一调用 registry。
+- 批量脚本只负责展开 `automation` 计划，不在脚本里硬编码方法特判。
+
 ## 方法与配置
 
 - 当前提供的方法配置位于 `configs/method/`：
@@ -153,7 +236,9 @@ bash scripts/export_figures.sh runs
   6 个代表性单源设置 + 6 个五源到单目标设置，再与 6 种方法做笛卡尔展开。
 - 各方法的基础参数保留在 `configs/method/*.yaml`；如果某个方法需要默认的运行时策略（例如专属选模 / 早停指标），可在方法配置里声明 `runtime_defaults`，再由 experiment 配置显式覆盖。
 - 当前阶段的实验级单独调参入口仍放在 experiment 配置里的 `method_overrides`，其优先级高于方法里的 `runtime_defaults`。
-- 当前默认早停 / 选模策略使用 `hybrid_source_eval_inverse_entropy`，即将 `source_eval` 与目标域无标签熵代理融合；`source_eval` 仍保留为诊断指标。
+- 当前默认早停 / 选模策略仍使用 `hybrid_source_eval_inverse_entropy`，即将 `source_eval` 与目标域无标签熵代理融合；`source_eval` 仍保留为诊断指标。
+- 如果某个注册 metric 还需要额外标量参数，可以在 experiment 或 method 的 `runtime_defaults` 里通过 `selection_params` / `early_stopping_params` 传入，而权重项继续放在 `selection_weights` / `early_stopping_weights`。
+- 目前内置的 `hybrid_source_eval_entropy_guard_domain_gap` 适合 adversarial DA 方法：当目标域熵已经异常偏低、但域判别准确率离理想混淆点还较远时，会惩罚这类过度自信 checkpoint。
 
 ## Git 追踪说明
 

@@ -12,6 +12,24 @@ optimization:
   weight_decay: 0.0
   max_grad_norm: 5.0
 
+runtime_defaults:
+  model_selection: hybrid_source_eval_entropy_guard_domain_gap
+  early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+  selection_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  selection_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+  early_stopping_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  early_stopping_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+
 loss:
   name: conditional_domain_adversarial
   adaptation_weight: 0.2
@@ -29,4 +47,5 @@ loss:
 
 notes:
   - CDAN baseline with randomized multilinear conditioning, entropy weighting, and warm-start GRL.
+  - Defaults to an entropy-guarded adversarial selection metric to avoid over-confident checkpoints while domain confusion remains incomplete.
   - Uses a slightly stronger adaptation weight for the TEP 29-class setting.

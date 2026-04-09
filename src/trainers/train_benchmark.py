@@ -14,6 +14,7 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from src.evaluation.review import build_run_review, save_review
+from src.trainers.selection_metrics import resolve_selection_metric
 from src.utils.run_layout import build_run_layout
 
 if TYPE_CHECKING:
@@ -67,6 +68,26 @@ def deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str,
     return merged
 
 
+def merge_runtime_config(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Merge runtime config while replacing metric-config leaf dicts wholesale."""
+
+    replace_keys = {
+        "selection_weights",
+        "selection_params",
+        "early_stopping_weights",
+        "early_stopping_params",
+    }
+    merged = deepcopy(base)
+    for key, value in override.items():
+        if key in replace_keys and isinstance(value, dict):
+            merged[key] = deepcopy(value)
+        elif isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge_dict(merged[key], value)
+        else:
+            merged[key] = deepcopy(value)
+    return merged
+
+
 def apply_method_overrides(
     experiment_payload: dict[str, Any],
     method_payload: dict[str, Any],
@@ -92,10 +113,16 @@ def apply_method_overrides(
                     merged_method[section_name] = deepcopy(section_value)
                 continue
             if section_name in {"runtime", "tracking", "protocol_override"}:
-                merged_experiment[section_name] = deep_merge_dict(
-                    merged_experiment.get(section_name, {}),
-                    section_value,
-                )
+                if section_name == "runtime":
+                    merged_experiment[section_name] = merge_runtime_config(
+                        merged_experiment.get(section_name, {}),
+                        section_value,
+                    )
+                else:
+                    merged_experiment[section_name] = deep_merge_dict(
+                        merged_experiment.get(section_name, {}),
+                        section_value,
+                    )
             else:
                 merged_method[section_name] = deep_merge_dict(
                     merged_method.get(section_name, {}),
@@ -121,7 +148,7 @@ def apply_method_runtime_defaults(
         return deepcopy(experiment_payload)
 
     merged_experiment = deepcopy(experiment_payload)
-    merged_experiment["runtime"] = deep_merge_dict(
+    merged_experiment["runtime"] = merge_runtime_config(
         runtime_defaults,
         merged_experiment.get("runtime", {}),
     )
@@ -167,11 +194,13 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
         "selection": {
             "model_selection": result.get("model_selection"),
             "model_selection_weights": result.get("model_selection_weights"),
+            "model_selection_params": result.get("model_selection_params"),
             "selected_model_selection_score": result.get("selected_model_selection_score"),
             "selected_target_train_mean_confidence": result.get("selected_target_train_mean_confidence"),
             "selected_target_train_mean_entropy": result.get("selected_target_train_mean_entropy"),
             "early_stopping_metric": result.get("early_stopping_metric"),
             "early_stopping_weights": result.get("early_stopping_weights"),
+            "early_stopping_params": result.get("early_stopping_params"),
             "early_stopping_best_score": result.get("early_stopping_best_score"),
         },
         "figure_paths": result_payload.get("figure_paths"),
@@ -249,64 +278,27 @@ def _normalize_metric_weights(weights: Any) -> dict[str, float]:
     return {str(key): float(value) for key, value in weights.items()}
 
 
+def _normalize_metric_params(params: Any) -> dict[str, float]:
+    if not isinstance(params, dict):
+        return {}
+    return {str(key): float(value) for key, value in params.items()}
+
+
 def _resolve_metric_score(
     summary: dict[str, float],
     metric_name: str,
     *,
     weights: dict[str, float] | None = None,
+    params: dict[str, float] | None = None,
 ) -> float | None:
     """Resolve one score-to-maximize from epoch summary metrics."""
 
-    normalized = str(metric_name).strip().lower()
-    aliases = {
-        "best_source_train": "source_train",
-        "best_source_eval": "source_eval",
-        "best_target_eval": "target_eval",
-        "best_target_eval_oracle": "target_eval",
-        "best_target_confidence": "target_confidence",
-        "lowest_target_entropy": "target_entropy",
-        "min_target_entropy": "target_entropy",
-        "best_hybrid_source_eval_target_confidence": "hybrid_source_eval_target_confidence",
-        "best_hybrid_source_eval_inverse_entropy": "hybrid_source_eval_inverse_entropy",
-    }
-    normalized = aliases.get(normalized, normalized)
-    metric_map = {
-        "source_train": "acc_source_train",
-        "source_eval": "acc_source_eval",
-        "target_eval": "target_eval_acc",
-        "target_confidence": "target_train_mean_confidence",
-        "target_entropy": "target_train_mean_entropy",
-    }
-    if normalized in metric_map:
-        value = summary.get(metric_map[normalized])
-        if value is None:
-            return None
-        score = float(value)
-        if normalized == "target_entropy":
-            score = -score
-        return score
-
-    if normalized == "hybrid_source_eval_target_confidence":
-        source_eval = summary.get("acc_source_eval")
-        target_confidence = summary.get("target_train_mean_confidence")
-        if source_eval is None or target_confidence is None:
-            return None
-        resolved_weights = weights or {}
-        source_weight = float(resolved_weights.get("source_eval", 0.7))
-        target_weight = float(resolved_weights.get("target_confidence", 0.3))
-        return source_weight * float(source_eval) + target_weight * float(target_confidence)
-
-    if normalized == "hybrid_source_eval_inverse_entropy":
-        source_eval = summary.get("acc_source_eval")
-        target_entropy = summary.get("target_train_mean_entropy")
-        if source_eval is None or target_entropy is None:
-            return None
-        resolved_weights = weights or {}
-        source_weight = float(resolved_weights.get("source_eval", 0.7))
-        entropy_weight = float(resolved_weights.get("target_entropy", 0.3))
-        return source_weight * float(source_eval) - entropy_weight * float(target_entropy)
-
-    raise KeyError(f"Unsupported metric for model selection / early stopping: {metric_name}")
+    return resolve_selection_metric(
+        summary,
+        metric_name,
+        weights=weights,
+        params=params,
+    )
 
 
 def _emit_early_stop_notice(
@@ -832,6 +824,7 @@ def run_deep_experiment(
     selected_target_eval_acc = 0.0
     selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
     selection_weights = _normalize_metric_weights(runtime.get("selection_weights", {}))
+    selection_params = _normalize_metric_params(runtime.get("selection_params", {}))
     best_selection_score = float("-inf")
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
@@ -844,6 +837,9 @@ def run_deep_experiment(
     early_stopping_metric = str(runtime.get("early_stopping_metric", "source_eval")).strip().lower()
     early_stopping_weights = _normalize_metric_weights(
         runtime.get("early_stopping_weights", selection_weights)
+    )
+    early_stopping_params = _normalize_metric_params(
+        runtime.get("early_stopping_params", selection_params)
     )
     early_stopping_best_score = float("-inf")
     early_stopping_bad_epochs = 0
@@ -943,10 +939,13 @@ def run_deep_experiment(
             summary,
             selection_mode,
             weights=selection_weights,
+            params=selection_params,
         )
         summary["model_selection_metric"] = selection_mode
         if selection_weights:
             summary["model_selection_weights"] = deepcopy(selection_weights)
+        if selection_params:
+            summary["model_selection_params"] = deepcopy(selection_params)
         if selection_score is not None:
             summary["model_selection_score"] = float(selection_score)
         if selection_mode != "final" and selection_score is not None and selection_score > best_selection_score:
@@ -963,10 +962,13 @@ def run_deep_experiment(
                 summary,
                 early_stopping_metric,
                 weights=early_stopping_weights,
+                params=early_stopping_params,
             )
             summary["early_stopping_metric"] = early_stopping_metric
             if early_stopping_weights:
                 summary["early_stopping_weights"] = deepcopy(early_stopping_weights)
+            if early_stopping_params:
+                summary["early_stopping_params"] = deepcopy(early_stopping_params)
             if stop_score is not None:
                 summary["early_stopping_score"] = float(stop_score)
             if stop_score is not None:
@@ -1058,6 +1060,7 @@ def run_deep_experiment(
         "selected_epoch": int(selected_epoch),
         "model_selection": selection_mode,
         "model_selection_weights": deepcopy(selection_weights),
+        "model_selection_params": deepcopy(selection_params),
         "selected_model_selection_score": (
             None
             if selected_summary is None or selected_summary.get("model_selection_score") is None
@@ -1072,6 +1075,9 @@ def run_deep_experiment(
         "early_stopping_metric": early_stopping_metric if early_stopping_patience is not None else None,
         "early_stopping_weights": (
             deepcopy(early_stopping_weights) if early_stopping_patience is not None else None
+        ),
+        "early_stopping_params": (
+            deepcopy(early_stopping_params) if early_stopping_patience is not None else None
         ),
         "early_stopping_patience": int(early_stopping_patience) if early_stopping_patience is not None else None,
         "early_stopping_min_delta": float(early_stopping_min_delta) if early_stopping_patience is not None else None,

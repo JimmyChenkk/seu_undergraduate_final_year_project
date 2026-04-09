@@ -57,7 +57,24 @@ method_overrides:
   coral: {}
   dan: {}
   dann: {}
-  cdan: {}
+  cdan:
+    runtime:
+      model_selection: hybrid_source_eval_entropy_guard_domain_gap
+      early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+      selection_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      selection_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+      early_stopping_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      early_stopping_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
   deepjdot: {}
 
 protocol_override:
@@ -71,3 +88,4 @@ notes:
   - Benchmark config for the current phase.
   - Expands to 6 representative single-source settings plus 6 five-source-to-one-target settings.
   - The current benchmark narrative reports 12 settings x 6 methods = 72 runs.
+  - CDAN currently opts into an entropy-guarded adversarial selection metric via method_overrides.

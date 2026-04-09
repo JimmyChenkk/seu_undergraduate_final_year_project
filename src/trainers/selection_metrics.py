@@ -1,0 +1,173 @@
+"""Registry-backed checkpoint-selection and early-stopping metrics."""
+
+from __future__ import annotations
+
+from typing import Callable
+
+
+MetricResolver = Callable[
+    [dict[str, float], dict[str, float], dict[str, float]],
+    float | None,
+]
+
+_SELECTION_METRICS: dict[str, MetricResolver] = {}
+
+
+def register_selection_metric(*names: str) -> Callable[[MetricResolver], MetricResolver]:
+    """Register one metric resolver under one or more case-insensitive names."""
+
+    normalized_names = [str(name).strip().lower() for name in names if str(name).strip()]
+    if not normalized_names:
+        raise ValueError("Selection metrics require at least one non-empty name.")
+
+    def decorator(func: MetricResolver) -> MetricResolver:
+        for name in normalized_names:
+            _SELECTION_METRICS[name] = func
+        return func
+
+    return decorator
+
+
+def list_selection_metrics() -> tuple[str, ...]:
+    """Return the currently registered metric names."""
+
+    return tuple(sorted(_SELECTION_METRICS))
+
+
+def resolve_selection_metric(
+    summary: dict[str, float],
+    metric_name: str,
+    *,
+    weights: dict[str, float] | None = None,
+    params: dict[str, float] | None = None,
+) -> float | None:
+    """Resolve one score-to-maximize from epoch summary metrics."""
+
+    normalized = str(metric_name).strip().lower()
+    resolver = _SELECTION_METRICS.get(normalized)
+    if resolver is None:
+        raise KeyError(
+            "Unsupported metric for model selection / early stopping: "
+            + metric_name
+            + ". Registered metrics: "
+            + ", ".join(list_selection_metrics())
+        )
+    return resolver(summary, weights or {}, params or {})
+
+
+@register_selection_metric("source_train", "best_source_train")
+def _metric_source_train(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del weights, params
+    value = summary.get("acc_source_train")
+    return None if value is None else float(value)
+
+
+@register_selection_metric("source_eval", "best_source_eval")
+def _metric_source_eval(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del weights, params
+    value = summary.get("acc_source_eval")
+    return None if value is None else float(value)
+
+
+@register_selection_metric("target_eval", "best_target_eval", "best_target_eval_oracle")
+def _metric_target_eval(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del weights, params
+    value = summary.get("target_eval_acc")
+    return None if value is None else float(value)
+
+
+@register_selection_metric("target_confidence", "best_target_confidence")
+def _metric_target_confidence(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del weights, params
+    value = summary.get("target_train_mean_confidence")
+    return None if value is None else float(value)
+
+
+@register_selection_metric("target_entropy", "lowest_target_entropy", "min_target_entropy")
+def _metric_target_entropy(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del weights, params
+    value = summary.get("target_train_mean_entropy")
+    return None if value is None else -float(value)
+
+
+@register_selection_metric("hybrid_source_eval_target_confidence")
+def _metric_hybrid_source_eval_target_confidence(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del params
+    source_eval = summary.get("acc_source_eval")
+    target_confidence = summary.get("target_train_mean_confidence")
+    if source_eval is None or target_confidence is None:
+        return None
+    source_weight = float(weights.get("source_eval", 0.7))
+    target_weight = float(weights.get("target_confidence", 0.3))
+    return source_weight * float(source_eval) + target_weight * float(target_confidence)
+
+
+@register_selection_metric("hybrid_source_eval_inverse_entropy")
+def _metric_hybrid_source_eval_inverse_entropy(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    del params
+    source_eval = summary.get("acc_source_eval")
+    target_entropy = summary.get("target_train_mean_entropy")
+    if source_eval is None or target_entropy is None:
+        return None
+    source_weight = float(weights.get("source_eval", 0.7))
+    entropy_weight = float(weights.get("target_entropy", 0.3))
+    return source_weight * float(source_eval) - entropy_weight * float(target_entropy)
+
+
+@register_selection_metric("hybrid_source_eval_entropy_guard_domain_gap")
+def _metric_hybrid_source_eval_entropy_guard_domain_gap(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    """Penalize low target entropy more when domain alignment is still weak.
+
+    This is useful for adversarial DA methods that can become over-confident on
+    target predictions while the domain discriminator is still far from the
+    desired confusion point.
+    """
+
+    source_eval = summary.get("acc_source_eval")
+    target_entropy = summary.get("target_train_mean_entropy")
+    domain_accuracy = summary.get("acc_domain")
+    if source_eval is None or target_entropy is None or domain_accuracy is None:
+        return None
+
+    source_weight = float(weights.get("source_eval", 1.0))
+    entropy_shortfall_weight = float(weights.get("entropy_shortfall", 1.0))
+    domain_gap_weight = float(weights.get("domain_gap", 1.0))
+    entropy_floor = float(params.get("entropy_floor", 0.5))
+    domain_confusion_target = float(params.get("domain_confusion_target", 0.5))
+
+    entropy_shortfall = max(0.0, entropy_floor - float(target_entropy))
+    domain_gap = abs(float(domain_accuracy) - domain_confusion_target)
+    penalty = entropy_shortfall_weight * entropy_shortfall * domain_gap_weight * domain_gap
+    return source_weight * float(source_eval) - penalty
