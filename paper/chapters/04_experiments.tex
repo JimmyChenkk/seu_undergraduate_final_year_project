@@ -45,9 +45,9 @@ DeepJDOT & 0.6196 & 0.0685 \\
 进一步比较每个具体场景中的相对变化可以发现，CORAL、DAN、DANN 和 DeepJDOT 在已完成的六组代表性单源场景中均优于 Source Only，说明引入域对齐机制对于 TEP 跨工况故障诊断是必要且有效的。CDAN 在四组场景中优于 Source Only，但在 \texttt{mode4$\rightarrow$mode1} 和 \texttt{mode6$\rightarrow$mode3} 两组场景中的优势并不稳定，表明条件对齐策略在当前实现下仍对场景分布和训练配置较为敏感。
 
 \subsection{分场景观察}
-从已完成场景的最好结果来看，\texttt{mode3$\rightarrow$mode6}、\texttt{mode2$\rightarrow$mode5} 与 \texttt{mode5$\rightarrow$mode2} 三组场景中，DAN 与 DANN 表现相对更强，目标域准确率已达到约 0.80 以上；在 \texttt{mode1$\rightarrow$mode4} 这一较难场景中，CDAN 的目标域准确率达到了 0.8126，显著高于 Source Only 的 0.3608，体现出条件化对齐在复杂类别结构迁移中仍具有潜力。另一方面，DeepJDOT 的平均收益相对有限，说明最优传输类方法在当前时序故障诊断任务上还需要进一步优化代价构造与训练稳定性。
+从已完成场景的最好结果来看，DAN 与 DANN 在若干代表性迁移方向上表现相对更强。例如，从 mode3 迁移到 mode6、从 mode2 迁移到 mode5，以及从 mode5 迁移到 mode2 这三组场景的目标域准确率均已达到约 0.80 以上；在较难的 mode1 迁移到 mode4 场景中，CDAN 的目标域准确率达到了 0.8126，显著高于 Source Only 的 0.3608，体现出条件化对齐在复杂类别结构迁移中仍具有潜力。另一方面，DeepJDOT 的平均收益相对有限，说明最优传输类方法在当前时序故障诊断任务上还需要进一步优化代价构造与训练稳定性。
 
-已完成的多源到单目标场景结果也反映出一个重要现象：当源域信息更加充分时，Source Only 本身已经能够达到较高的目标域准确率，例如当前已完成的 \texttt{mode2-mode3-mode4-mode5-mode6$\rightarrow$mode1} 场景中，Source Only 已达到 0.7586，而 CORAL 进一步提升到了 0.8241。这说明多源信息融合本身是一个值得继续深入的方向，但同时也提示单纯依靠更多源域数据并不能完全替代更细粒度的类条件对齐机制。
+已完成的多源到单目标场景结果也反映出一个重要现象：当源域信息更加充分时，Source Only 本身已经能够达到较高的目标域准确率。以目标域 \texttt{mode1} 的五源迁移场景为例，Source Only 已达到 0.7586，而 CORAL 进一步提升到了 0.8241。这说明多源信息融合本身是一个值得继续深入的方向，但同时也提示单纯依靠更多源域数据并不能完全替代更细粒度的类条件对齐机制。
 
 \section{结果分析与改进动机}
 \subsection{当前 benchmark 揭示的主要问题}
