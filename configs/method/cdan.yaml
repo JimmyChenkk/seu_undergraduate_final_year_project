@@ -15,8 +15,17 @@ optimization:
 loss:
   name: conditional_domain_adversarial
   adaptation_weight: 0.1
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
   grl_lambda: 1.0
+  grl_warm_start: true
+  grl_max_iters: 1000
+  randomized: false
   randomized_dim: 256
+  entropy_conditioning: true
+  domain_hidden_dim: 256
+  domain_num_hidden_layers: 2
 
 notes:
-  - Proposal-aligned CDAN baseline for representative TEP-UDA scenes.
+  - CDAN baseline with multilinear conditioning, entropy weighting, and warm-start GRL.

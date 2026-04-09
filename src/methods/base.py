@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 import torch
 from torch import nn
@@ -16,6 +17,41 @@ class MethodStepOutput:
 
     loss: torch.Tensor
     metrics: dict[str, float]
+
+
+class AdaptationWeightScheduler:
+    """Warm-start scheduler for domain-alignment losses."""
+
+    def __init__(
+        self,
+        *,
+        base_weight: float,
+        schedule: str = "constant",
+        max_steps: int = 1000,
+        alpha: float = 10.0,
+    ) -> None:
+        self.base_weight = float(base_weight)
+        self.schedule = str(schedule).strip().lower()
+        self.max_steps = max(int(max_steps), 1)
+        self.alpha = float(alpha)
+        self.step_num = 0
+        self.last_weight = self.base_weight if self.schedule == "constant" else 0.0
+
+    def _factor(self) -> float:
+        if self.schedule in {"constant", "none"}:
+            return 1.0
+
+        progress = min(self.step_num / float(self.max_steps), 1.0)
+        if self.schedule in {"linear", "ramp"}:
+            return progress
+        if self.schedule in {"warm_start", "sigmoid", "dann"}:
+            return 2.0 / (1.0 + math.exp(-self.alpha * progress)) - 1.0
+        raise KeyError(f"Unsupported adaptation schedule: {self.schedule}")
+
+    def step(self) -> float:
+        self.step_num += 1
+        self.last_weight = self.base_weight * self._factor()
+        return self.last_weight
 
 
 class SingleSourceMethodBase(nn.Module):

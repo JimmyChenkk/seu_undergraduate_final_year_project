@@ -2,30 +2,11 @@
 
 from __future__ import annotations
 
-import math
-
-import torch
-from torch import nn
 import torch.nn.functional as F
 
-from src.losses import DomainDiscriminator, GradientReverseLayer
+from src.losses import ConditionalDomainAdversarialLoss, DomainDiscriminator, GradientReverseLayer, WarmStartGradientReverseLayer
 
-from .base import MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
-
-
-class RandomizedMultiLinearMap(nn.Module):
-    """Lower-dimensional randomized conditioning map used for stable CDAN training."""
-
-    def __init__(self, feature_dim: int, num_classes: int, output_dim: int = 1024) -> None:
-        super().__init__()
-        self.output_dim = output_dim
-        self.register_buffer("rf", torch.randn(feature_dim, output_dim))
-        self.register_buffer("rg", torch.randn(num_classes, output_dim))
-
-    def forward(self, features: torch.Tensor, probabilities: torch.Tensor) -> torch.Tensor:
-        projected_features = features @ self.rf
-        projected_probabilities = probabilities @ self.rg
-        return (projected_features * projected_probabilities) / math.sqrt(float(self.output_dim))
+from .base import AdaptationWeightScheduler, MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
 
 
 class CDANMethod(SingleSourceMethodBase):
@@ -38,11 +19,20 @@ class CDANMethod(SingleSourceMethodBase):
         *,
         num_classes: int,
         adaptation_weight: float = 0.5,
+        adaptation_schedule: str = "constant",
+        adaptation_max_steps: int = 1000,
+        adaptation_schedule_alpha: float = 10.0,
         grl_lambda: float = 1.0,
+        grl_warm_start: bool = True,
+        grl_max_iters: int = 1000,
         dropout: float = 0.1,
         classifier_hidden_dim: int = 128,
         in_channels: int = 34,
+        randomized: bool = False,
         randomized_dim: int = 1024,
+        entropy_conditioning: bool = True,
+        domain_hidden_dim: int | None = None,
+        domain_num_hidden_layers: int = 2,
         input_length: int = 600,
         backbone_name: str = "fcn",
         backbone_kwargs: dict | None = None,
@@ -56,15 +46,37 @@ class CDANMethod(SingleSourceMethodBase):
             backbone_name=backbone_name,
             backbone_kwargs=backbone_kwargs,
         )
-        self.adaptation_weight = adaptation_weight
-        self.grl = GradientReverseLayer(lambda_=grl_lambda)
-        conditioned_dim = randomized_dim
-        self.discriminator = DomainDiscriminator(
-            conditioned_dim,
-            hidden_dim=max(256, self.encoder.out_dim),
-            dropout=dropout,
+        self.alignment_scheduler = AdaptationWeightScheduler(
+            base_weight=adaptation_weight,
+            schedule=adaptation_schedule,
+            max_steps=adaptation_max_steps,
+            alpha=adaptation_schedule_alpha,
         )
-        self.map = RandomizedMultiLinearMap(self.encoder.out_dim, num_classes, output_dim=randomized_dim)
+        conditioned_dim = randomized_dim if randomized else self.encoder.out_dim * num_classes
+        if grl_warm_start:
+            grl = WarmStartGradientReverseLayer(
+                alpha=adaptation_schedule_alpha,
+                lo=0.0,
+                hi=grl_lambda,
+                max_iters=grl_max_iters,
+                auto_step=True,
+            )
+        else:
+            grl = GradientReverseLayer(lambda_=grl_lambda)
+        self.domain_adv = ConditionalDomainAdversarialLoss(
+            domain_discriminator=DomainDiscriminator(
+                conditioned_dim,
+                hidden_dim=domain_hidden_dim or max(256, self.encoder.out_dim),
+                dropout=dropout,
+                num_hidden_layers=domain_num_hidden_layers,
+            ),
+            feature_dim=self.encoder.out_dim,
+            num_classes=num_classes,
+            entropy_conditioning=entropy_conditioning,
+            randomized=randomized,
+            randomized_dim=randomized_dim,
+            grl=grl,
+        )
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
         source_x, source_y = self.merge_source_batches(source_batches)
@@ -72,34 +84,15 @@ class CDANMethod(SingleSourceMethodBase):
         logits_source, features_source = self.forward(source_x)
         logits_target, features_target = self.forward(target_x)
 
-        probabilities_source = F.softmax(logits_source, dim=1).detach()
-        probabilities_target = F.softmax(logits_target, dim=1).detach()
-
-        conditioned_source = self.map(features_source, probabilities_source)
-        conditioned_target = self.map(features_target, probabilities_target)
-
-        adv_source = self.grl(conditioned_source)
-        adv_target = self.grl(conditioned_target)
-        logits_domain_source = self.discriminator(adv_source)
-        logits_domain_target = self.discriminator(adv_target)
-
-        labels_source = torch.ones_like(logits_domain_source)
-        labels_target = torch.zeros_like(logits_domain_target)
-        loss_domain_source = F.binary_cross_entropy_with_logits(logits_domain_source, labels_source)
-        loss_domain_target = F.binary_cross_entropy_with_logits(logits_domain_target, labels_target)
-        loss_domain = 0.5 * (loss_domain_source + loss_domain_target)
-
         loss_cls = F.cross_entropy(logits_source, source_y)
-        loss_total = loss_cls + self.adaptation_weight * loss_domain
-
-        with torch.no_grad():
-            predictions_source = (torch.sigmoid(logits_domain_source) >= 0.5).float()
-            predictions_target = (torch.sigmoid(logits_domain_target) >= 0.5).float()
-            correct = (predictions_source == labels_source).float().sum() + (
-                predictions_target == labels_target
-            ).float().sum()
-            total = labels_source.numel() + labels_target.numel()
-            domain_acc = float(correct / max(total, 1))
+        loss_domain, domain_acc = self.domain_adv(
+            logits_source,
+            features_source,
+            logits_target,
+            features_target,
+        )
+        current_weight = self.alignment_scheduler.step()
+        loss_total = loss_cls + current_weight * loss_domain
 
         return MethodStepOutput(
             loss=loss_total,
@@ -107,7 +100,9 @@ class CDANMethod(SingleSourceMethodBase):
                 "loss_total": float(loss_total.item()),
                 "loss_cls": float(loss_cls.item()),
                 "loss_alignment": float(loss_domain.item()),
+                "lambda_alignment": current_weight,
                 "acc_source": accuracy_from_logits(logits_source, source_y),
                 "acc_domain": domain_acc,
+                "grl_coeff": float(getattr(self.domain_adv.grl, "last_coeff", 1.0)),
             },
         )

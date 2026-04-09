@@ -14,9 +14,12 @@ optimization:
 loss:
   name: deepjdot
   adaptation_weight: 1.0
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
   reg_dist: 0.1
   reg_cl: 1.0
+  normalize_feature_cost: true
 
 notes:
-  - GPU-friendly DeepJDOT baseline using minibatch OT on torch tensors.
-  - Active OT baseline for the current autonomous sweep setup.
+  - DeepJDOT baseline with normalized feature transport cost and warm-start alignment weight.

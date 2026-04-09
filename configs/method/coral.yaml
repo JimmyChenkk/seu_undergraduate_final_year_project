@@ -14,6 +14,11 @@ optimization:
 loss:
   name: coral
   adaptation_weight: 0.5
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
+  align_mean: true
+  normalize_covariance: true
 
 notes:
-  - Deep CORAL single-source baseline.
+  - Deep CORAL baseline with warm-start alignment weight and normalized covariance matching.
