@@ -17,9 +17,9 @@
 \begin{abstract}[zh]
 工业过程故障诊断对于保障生产安全、降低非计划停机损失和提升过程运行可靠性具有重要意义。随着流程工业工况日益复杂，基于数据驱动的故障诊断方法得到了广泛应用。然而，在不同操作条件、不同负载水平或不同时间阶段下采集到的过程数据往往存在明显的分布偏移，导致仅依赖源域标注数据训练得到的模型在目标域上的诊断性能显著下降。围绕这一问题，本文以 Tennessee Eastman Process Domain Adaptation 数据集为研究对象，面向单源到单目标的无监督领域自适应故障诊断场景，构建了一个面向 benchmark 复现与方法比较的实验工作流。
 
-本文结合当前项目实现，完成了数据勘察、基准元数据构建、训练评估、结果汇总与图表导出等基础模块，并在统一的一维卷积特征提取骨干网络下实现了 Source Only、CORAL、DAN、DANN、CDAN 与 DeepJDOT 等代表性方法。针对流程工业时序信号的特点，本文对域内标准化、固定折划分、目标域无标签训练、目标域测试评估等关键环节进行了统一约定，同时设计了准确率、平衡准确率、混淆矩阵与特征可视化等评价方式，以支持后续对不同领域自适应方法迁移效果的系统分析。
+本文结合当前项目实现，完成了数据勘察、基准元数据构建、训练评估、结果汇总与图表导出等基础模块，并在统一的一维卷积特征提取骨干网络下实现了 Source Only、CORAL、DAN、DANN、CDAN 与 DeepJDOT 等代表性方法。针对流程工业时序信号的特点，本文对域内标准化、固定折划分、目标域无标签训练、目标域测试评估等关键环节进行了统一约定，同时设计了准确率、平衡准确率、混淆矩阵与特征可视化等评价方式，以支撑不同领域自适应方法迁移效果的系统分析。基于六组代表性单源场景以及部分多源场景的 benchmark 对比结果可以看到，相较于 Source Only，分布对齐和对抗式方法在目标域上普遍能够获得明显提升，其中 DAN 与 DANN 的平均表现较为突出，但不同场景间仍存在稳定性差异和类别混叠现象。
 
-当前阶段的工作重点在于完成论文整体结构搭建与实验基线实现，为后续开展多场景对比实验、误差分析与方法改进奠定基础。本文的研究有助于形成一个较为规范、可复现、便于扩展的流程工业领域自适应故障诊断实验框架。
+在上述 benchmark 分析基础上，本文进一步提出一种原型引导的类条件对齐改进思路，通过结合源域类别原型、高置信目标域伪标签与全局域对齐损失，在保持训练可行性的同时增强跨域同类聚合能力。尽管全量场景统计和改进方法实验结果仍有待进一步补充，本文已经完成了论文整体结构、实验基线与改进方法设计，并形成了一个较为规范、可复现、便于扩展的流程工业领域自适应故障诊断实验框架。
 
 \keywords{流程工业故障诊断, 领域自适应, 迁移学习, Tennessee Eastman Process, 基准复现}
 \end{abstract}
@@ -27,9 +27,11 @@
 \begin{abstract}[en]
 Industrial fault diagnosis is essential for production safety, reduction of unplanned downtime, and reliable process operation. With increasingly complex operating conditions in process industries, data-driven diagnosis methods have become widely adopted. However, process data collected under different operating modes, load levels, or time periods usually exhibit evident distribution shifts, which makes a model trained only with labeled source-domain data generalize poorly to a target domain. To address this issue, this thesis focuses on the Tennessee Eastman Process Domain Adaptation dataset and builds a benchmark-oriented workflow for single-source to single-target unsupervised domain adaptation in industrial fault diagnosis.
 
-Based on the current project implementation, the thesis organizes the full pipeline including data inspection, benchmark metadata construction, model training, evaluation, result aggregation, and figure export. Under a unified one-dimensional convolutional backbone, several representative methods have been implemented for comparison, including Source Only, CORAL, DAN, DANN, CDAN, and DeepJDOT. To make later experiments comparable and reproducible, this work defines a consistent protocol covering domain-wise normalization, fixed fold splitting, unlabeled target-domain adaptation, and target-domain evaluation. It also prepares multiple analysis views such as accuracy, balanced accuracy, confusion matrices, and feature visualization.
+Based on the current project implementation, the thesis organizes the full pipeline including data inspection, benchmark metadata construction, model training, evaluation, result aggregation, and figure export. Under a unified one-dimensional convolutional backbone, several representative methods have been implemented for comparison, including Source Only, CORAL, DAN, DANN, CDAN, and DeepJDOT. To make the benchmark comparable and reproducible, this work defines a consistent protocol covering domain-wise normalization, fixed fold splitting, unlabeled target-domain adaptation, and target-domain evaluation. It also prepares multiple analysis views such as accuracy, balanced accuracy, confusion matrices, and feature visualization.
 
-At the current stage, the main focus is to establish a complete thesis structure and a reproducible experimental baseline, which will support subsequent multi-scenario comparisons, error analysis, and further method improvement. The study aims to provide a practical and extensible experimental foundation for domain adaptation based fault diagnosis in process industries.
+Based on six representative single-source scenarios together with part of the multi-source settings, the benchmark results show that, compared with the Source Only baseline, distribution-alignment and adversarial methods generally provide clear gains on the target domain, while DAN and DANN demonstrate stronger average performance among the completed scenes. At the same time, the benchmark also reveals remaining issues such as scenario sensitivity, class confusion, and unstable conditional alignment.
+
+Based on these observations, the thesis further formulates a prototype-guided class-conditional adaptation strategy, which combines source prototypes, high-confidence target pseudo labels, and global domain alignment to improve cross-domain intra-class compactness. Although the full-scenario statistics and final validation of the improved method still need to be supplemented, the current draft already establishes a complete manuscript structure, a reproducible benchmark baseline, and a concrete method design for subsequent implementation and evaluation.
 
 {\sloppy
 \keywords{Industrial Fault Diagnosis, Domain Adaptation, Transfer Learning, Tennessee Eastman Process, Benchmark Reproduction}\par}
