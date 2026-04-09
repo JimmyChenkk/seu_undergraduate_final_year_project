@@ -222,22 +222,70 @@ def _format_domain_label(label: str) -> str:
     return f"{role} ({domain})"
 
 
+def _domain_visual_styles(labels: list[str]) -> dict[str, dict[str, str]]:
+    """Assign high-contrast domain styles with warm colors for source and cool colors for target."""
+
+    source_palette = (
+        "#D55E00",  # vermillion
+        "#E69F00",  # orange
+        "#CC79A7",  # reddish purple
+        "#9C755F",  # brown
+        "#F28E2B",  # amber
+        "#FF9DA7",  # light coral
+    )
+    target_palette = (
+        "#0072B2",  # blue
+        "#009E73",  # bluish green
+        "#56B4E9",  # sky blue
+        "#4E79A7",  # steel blue
+        "#76B7B2",  # teal
+        "#59A14F",  # green
+    )
+    fallback_palette = (
+        "#5F6B6D",
+        "#B07AA1",
+        "#BAB0AC",
+    )
+
+    style_map: dict[str, dict[str, str]] = {}
+    source_index = 0
+    target_index = 0
+    fallback_index = 0
+    for label in labels:
+        normalized = str(label)
+        if normalized.startswith("source"):
+            color = source_palette[source_index % len(source_palette)]
+            marker = "o"
+            source_index += 1
+        elif normalized.startswith("target"):
+            color = target_palette[target_index % len(target_palette)]
+            marker = "^"
+            target_index += 1
+        else:
+            color = fallback_palette[fallback_index % len(fallback_palette)]
+            marker = "o"
+            fallback_index += 1
+        style_map[normalized] = {"color": color, "marker": marker}
+    return style_map
+
+
 def _plot_domain_embedding(embedding_2d, domain_groups, *, axis=None) -> None:
     _, plt, _ = _runtime_dependencies()
     target_axis = axis if axis is not None else plt.gca()
     unique_labels = list(dict.fromkeys(str(label) for label in domain_groups.tolist()))
-    cmap_name = "tab10" if len(unique_labels) <= 10 else "tab20"
-    cmap = plt.get_cmap(cmap_name, max(len(unique_labels), 1))
-    for index, label in enumerate(unique_labels):
+    style_map = _domain_visual_styles(unique_labels)
+    for label in unique_labels:
         mask = domain_groups == label
-        marker = "^" if str(label).startswith("target") else "o"
+        style = style_map[str(label)]
         target_axis.scatter(
             embedding_2d[mask, 0],
             embedding_2d[mask, 1],
-            s=16,
-            alpha=0.68,
-            marker=marker,
-            color=cmap(index),
+            s=20,
+            alpha=0.82,
+            marker=style["marker"],
+            color=style["color"],
+            edgecolors="#F7F7F7",
+            linewidths=0.35,
             label=_format_domain_label(str(label)),
         )
 
