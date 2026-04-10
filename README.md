@@ -219,6 +219,7 @@ flowchart TD
 
 - 配置优先级是：`configs/method/*.yaml` 里的 `runtime_defaults` < `configs/experiment/*.yaml` 里的显式 `runtime` < experiment 里的 `method_overrides`。
 - 对 `selection_weights`、`selection_params`、`early_stopping_weights`、`early_stopping_params` 这几类 metric 配置，后层覆盖前层时采用“整块替换”，避免残留旧 metric 的键。
+- 如果某个方法在激进加速配置下不稳定，也应优先通过 `method_overrides.<method>.runtime` 覆盖 `cudnn_benchmark / num_workers / pin_memory / persistent_workers / non_blocking_transfers`，而不是在训练代码里写特判。
 - `selection_metrics.py` 维护可注册的选模 / 早停 score；主训练循环只负责在每个 epoch 产出 summary，然后统一调用 registry。
 - 批量脚本只负责展开 `automation` 计划，不在脚本里硬编码方法特判。
 

@@ -52,7 +52,11 @@ class TrainBenchmarkTests(unittest.TestCase):
             "runtime": {"show_progress": True},
             "method_overrides": {
                 "cdan": {
-                    "runtime": {"model_selection": "source_eval"},
+                    "runtime": {
+                        "model_selection": "source_eval",
+                        "num_workers": 0,
+                        "cudnn_benchmark": False,
+                    },
                 },
             },
         }
@@ -61,6 +65,8 @@ class TrainBenchmarkTests(unittest.TestCase):
             "runtime_defaults": {
                 "model_selection": "target_confidence",
                 "early_stopping_metric": "target_confidence",
+                "num_workers": 8,
+                "cudnn_benchmark": True,
             },
         }
 
@@ -69,6 +75,8 @@ class TrainBenchmarkTests(unittest.TestCase):
 
         self.assertEqual(merged_experiment["runtime"]["model_selection"], "source_eval")
         self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
+        self.assertEqual(merged_experiment["runtime"]["num_workers"], 0)
+        self.assertFalse(merged_experiment["runtime"]["cudnn_benchmark"])
 
     def test_runtime_metric_dicts_replace_instead_of_union_merging(self) -> None:
         experiment_payload = {

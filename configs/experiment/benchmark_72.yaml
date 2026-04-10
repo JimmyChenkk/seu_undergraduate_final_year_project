@@ -59,6 +59,11 @@ method_overrides:
   dann: {}
   cdan:
     runtime:
+      cudnn_benchmark: false
+      num_workers: 0
+      pin_memory: false
+      persistent_workers: false
+      non_blocking_transfers: false
       model_selection: hybrid_source_eval_entropy_guard_domain_gap
       early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
       selection_weights:
