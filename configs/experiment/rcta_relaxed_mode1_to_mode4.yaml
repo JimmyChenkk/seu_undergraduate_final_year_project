@@ -1,0 +1,56 @@
+experiment_name: rcta_relaxed_mode1_to_mode4
+seed: 42
+device: cuda
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  num_workers: 0
+  pin_memory: false
+  show_progress: false
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.002
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - rcta
+  single_source_scenes:
+    - mode1->mode4
+  multisource_targets: []
+
+method_overrides:
+  rcta:
+    loss:
+      gate_score_floor: 0.45
+      gate_accept_ratio_start: 0.3
+      gate_accept_ratio_end: 0.85
+      pseudo_label_weight: 0.25
+      prototype_weight: 0.05
+      consistency_weight: 0.05
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode4
+  preferred_fold: Fold 1
+
+notes:
+  - Relaxed RCTA probe for mode1->mode4.
+  - Uses looser reliability gating and lighter auxiliary regularization to increase target supervision coverage.
