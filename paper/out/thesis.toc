@@ -11,67 +11,68 @@
 \contentsline {chapter}{\numberline {第二章\hspace {.3em}}相关基础与文献综述}{4}{chapter.2}%
 \contentsline {section}{\numberline {2.1}流程工业故障诊断方法概述}{4}{section.2.1}%
 \contentsline {subsection}{\numberline {2.1.1}基于机理模型的方法}{4}{subsection.2.1.1}%
-\contentsline {subsection}{\numberline {2.1.2}基于多元统计的方法}{4}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.2}基于机器学习的方法}{4}{subsection.2.1.2}%
 \contentsline {subsection}{\numberline {2.1.3}基于深度学习的方法}{4}{subsection.2.1.3}%
 \contentsline {section}{\numberline {2.2}领域自适应理论基础}{5}{section.2.2}%
 \contentsline {subsection}{\numberline {2.2.1}迁移学习与领域自适应定义}{5}{subsection.2.2.1}%
 \contentsline {subsection}{\numberline {2.2.2}单源无监督领域自适应设定}{5}{subsection.2.2.2}%
 \contentsline {subsection}{\numberline {2.2.3}全局对齐与类条件对齐}{5}{subsection.2.2.3}%
-\contentsline {section}{\numberline {2.3}TEP 多工况故障诊断研究现状}{6}{section.2.3}%
-\contentsline {subsection}{\numberline {2.3.1}TEP 过程与故障类别}{6}{subsection.2.3.1}%
-\contentsline {subsection}{\numberline {2.3.2}多工况分布偏移特点}{6}{subsection.2.3.2}%
-\contentsline {subsection}{\numberline {2.3.3}现有迁移诊断方法评述}{6}{subsection.2.3.3}%
-\contentsline {section}{\numberline {2.4}本章小结}{6}{section.2.4}%
-\contentsline {chapter}{\numberline {第三章\hspace {.3em}}问题定义与 Benchmark 实验平台}{7}{chapter.3}%
-\contentsline {section}{\numberline {3.1}任务定义与符号说明}{7}{section.3.1}%
-\contentsline {subsection}{\numberline {3.1.1}输入输出定义}{7}{subsection.3.1.1}%
-\contentsline {subsection}{\numberline {3.1.2}源域与目标域定义}{7}{subsection.3.1.2}%
-\contentsline {subsection}{\numberline {3.1.3}优化目标}{7}{subsection.3.1.3}%
-\contentsline {section}{\numberline {3.2}数据集与预处理流程}{7}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}数据组织与工况划分}{7}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}时序样本构造与标签设置}{8}{subsection.3.2.2}%
-\contentsline {subsection}{\numberline {3.2.3}归一化与折划分策略}{8}{subsection.3.2.3}%
-\contentsline {section}{\numberline {3.3}Benchmark 实验平台设计}{8}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}统一训练流程}{8}{subsection.3.3.1}%
-\contentsline {subsection}{\numberline {3.3.2}统一评估流程}{8}{subsection.3.3.2}%
-\contentsline {subsection}{\numberline {3.3.3}结果管理与可视化模块}{8}{subsection.3.3.3}%
-\contentsline {section}{\numberline {3.4}评价指标与对比设置}{8}{section.3.4}%
-\contentsline {section}{\numberline {3.5}本章小结}{9}{section.3.5}%
-\contentsline {chapter}{\numberline {第四章\hspace {.3em}}基线方法复现与 Benchmark 结果分析}{10}{chapter.4}%
-\contentsline {section}{\numberline {4.1}实验目的与设置}{10}{section.4.1}%
-\contentsline {section}{\numberline {4.2}FCN 骨干网络与 Source Only 基线}{10}{section.4.2}%
-\contentsline {section}{\numberline {4.3}基线方法复现说明}{10}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}分布对齐基线}{10}{subsection.4.3.1}%
-\contentsline {subsection}{\numberline {4.3.2}对抗式基线}{11}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}最优传输基线}{11}{subsection.4.3.3}%
-\contentsline {section}{\numberline {4.4}Benchmark 结果}{11}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}代表性单源场景的平均结果}{11}{subsection.4.4.1}%
-\contentsline {subsection}{\numberline {4.4.2}分场景观察}{11}{subsection.4.4.2}%
-\contentsline {section}{\numberline {4.5}结果分析与改进动机}{12}{section.4.5}%
-\contentsline {subsection}{\numberline {4.5.1}当前 benchmark 揭示的主要问题}{12}{subsection.4.5.1}%
-\contentsline {subsection}{\numberline {4.5.2}对创新方法设计的启示}{12}{subsection.4.5.2}%
-\contentsline {section}{\numberline {4.6}本章小结}{13}{section.4.6}%
-\contentsline {chapter}{\numberline {第五章\hspace {.3em}}原型引导的类条件对齐方法设计}{14}{chapter.5}%
-\contentsline {section}{\numberline {5.1}方法设计动机}{14}{section.5.1}%
-\contentsline {section}{\numberline {5.2}改进方法总体框架}{14}{section.5.2}%
-\contentsline {section}{\numberline {5.3}源域类别原型构建}{15}{section.5.3}%
-\contentsline {section}{\numberline {5.4}目标域高置信伪标签筛选}{15}{section.5.4}%
-\contentsline {section}{\numberline {5.5}原型引导的类条件约束}{16}{section.5.5}%
-\contentsline {subsection}{\numberline {5.5.1}原型一致性损失}{16}{subsection.5.5.1}%
-\contentsline {subsection}{\numberline {5.5.2}类中心对齐损失}{16}{subsection.5.5.2}%
-\contentsline {subsection}{\numberline {5.5.3}目标域伪标签监督项}{16}{subsection.5.5.3}%
-\contentsline {section}{\numberline {5.6}整体优化目标与训练流程}{16}{section.5.6}%
-\contentsline {section}{\numberline {5.7}实验验证方案}{17}{section.5.7}%
-\contentsline {subsection}{\numberline {5.7.1}与基线方法的总体比较}{17}{subsection.5.7.1}%
-\contentsline {subsection}{\numberline {5.7.2}消融实验设计}{17}{subsection.5.7.2}%
-\contentsline {subsection}{\numberline {5.7.3}重点分析指标}{17}{subsection.5.7.3}%
-\contentsline {section}{\numberline {5.8}本章小结}{18}{section.5.8}%
-\contentsline {chapter}{\numberline {第六章\hspace {.3em}}总结与展望}{19}{chapter.6}%
-\contentsline {section}{\numberline {6.1}全文工作总结}{19}{section.6.1}%
-\contentsline {section}{\numberline {6.2}主要结论}{19}{section.6.2}%
-\contentsline {section}{\numberline {6.3}不足与未来展望}{19}{section.6.3}%
-\contentsline {chapter}{参考文献}{20}{chapter*.5}%
-\contentsline {chapter}{\numberline {附录A\hspace {.3em}}实验配置与补充材料}{21}{appendix.A}%
-\contentsline {section}{\numberline {A.1}附录说明}{21}{section.A.1}%
-\contentsline {section}{\numberline {A.2}附录扩展说明}{21}{section.A.2}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{22}{appendix*.6}%
+\contentsline {section}{\numberline {2.3}TEP 数据集与跨工况迁移诊断研究}{6}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}TEP 过程与故障诊断任务}{6}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}TEP 领域自适应数据集简介}{6}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}多工况分布偏移与迁移诊断研究评述}{6}{subsection.2.3.3}%
+\contentsline {section}{\numberline {2.4}本章小结}{7}{section.2.4}%
+\contentsline {chapter}{\numberline {第三章\hspace {.3em}}问题定义、数据集与实验设定}{8}{chapter.3}%
+\contentsline {section}{\numberline {3.1}任务定义与符号说明}{8}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}问题描述}{8}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}域定义与符号约定}{8}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}优化目标}{8}{subsection.3.1.3}%
+\contentsline {section}{\numberline {3.2}数据集与域划分}{8}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}TEP 领域自适应数据集}{8}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}迁移任务构造}{8}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}输入表示与预处理策略}{9}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}时序样本表示}{9}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}归一化与数据划分}{9}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}统一实验设定}{9}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}共享骨干网络与对比方法}{9}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}训练与评估协议}{9}{subsection.3.4.2}%
+\contentsline {section}{\numberline {3.5}评价指标与模型选择}{9}{section.3.5}%
+\contentsline {section}{\numberline {3.6}本章小结}{10}{section.3.6}%
+\contentsline {chapter}{\numberline {第四章\hspace {.3em}}基线方法与实验结果分析}{11}{chapter.4}%
+\contentsline {section}{\numberline {4.1}实验设置}{11}{section.4.1}%
+\contentsline {section}{\numberline {4.2}共享骨干网络与 Source Only 基线}{11}{section.4.2}%
+\contentsline {section}{\numberline {4.3}对比方法}{11}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}分布对齐方法}{11}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}对抗式方法}{12}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}最优传输方法}{12}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}实验结果与现象分析}{12}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}代表性单源场景的总体结果}{12}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}分场景结果分析}{13}{subsection.4.4.2}%
+\contentsline {section}{\numberline {4.5}讨论与方法启示}{13}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}当前结果揭示的主要问题}{13}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.2}对第五章方法设计的启示}{13}{subsection.4.5.2}%
+\contentsline {section}{\numberline {4.6}本章小结}{14}{section.4.6}%
+\contentsline {chapter}{\numberline {第五章\hspace {.3em}}可靠性门控的类条件时序自适应方法设计}{15}{chapter.5}%
+\contentsline {section}{\numberline {5.1}方法设计动机}{15}{section.5.1}%
+\contentsline {section}{\numberline {5.2}方法总体框架}{15}{section.5.2}%
+\contentsline {section}{\numberline {5.3}类别原型建模}{16}{section.5.3}%
+\contentsline {section}{\numberline {5.4}目标域可靠伪标签筛选}{16}{section.5.4}%
+\contentsline {section}{\numberline {5.5}类条件对齐与一致性约束}{17}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}原型吸引损失}{17}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}原型分离约束}{17}{subsection.5.5.2}%
+\contentsline {subsection}{\numberline {5.5.3}一致性监督项}{17}{subsection.5.5.3}%
+\contentsline {section}{\numberline {5.6}整体优化目标与训练策略}{17}{section.5.6}%
+\contentsline {section}{\numberline {5.7}实验验证方案}{18}{section.5.7}%
+\contentsline {subsection}{\numberline {5.7.1}与基线方法的总体比较}{18}{subsection.5.7.1}%
+\contentsline {subsection}{\numberline {5.7.2}消融实验设计}{18}{subsection.5.7.2}%
+\contentsline {subsection}{\numberline {5.7.3}重点分析指标}{18}{subsection.5.7.3}%
+\contentsline {section}{\numberline {5.8}本章小结}{19}{section.5.8}%
+\contentsline {chapter}{\numberline {第六章\hspace {.3em}}总结与展望}{20}{chapter.6}%
+\contentsline {section}{\numberline {6.1}全文工作总结}{20}{section.6.1}%
+\contentsline {section}{\numberline {6.2}主要结论}{20}{section.6.2}%
+\contentsline {section}{\numberline {6.3}不足与未来展望}{20}{section.6.3}%
+\contentsline {chapter}{参考文献}{21}{chapter*.5}%
+\contentsline {chapter}{\numberline {附录A\hspace {.3em}}实验补充材料}{22}{appendix.A}%
+\contentsline {section}{\numberline {A.1}附录说明}{22}{section.A.1}%
+\contentsline {section}{\numberline {A.2}可补充材料安排}{22}{section.A.2}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{23}{appendix*.6}%
