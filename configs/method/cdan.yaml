@@ -42,10 +42,12 @@ loss:
   randomized: true
   randomized_dim: 256
   entropy_conditioning: true
+  mcc_weight: 0.0
+  mcc_temperature: 2.0
   domain_hidden_dim: 256
   domain_num_hidden_layers: 2
 
 notes:
-  - CDAN baseline with randomized multilinear conditioning, entropy weighting, and warm-start GRL.
+  - CDAN baseline with randomized multilinear conditioning, entropy weighting, warm-start GRL, and an optional MCC target regularizer.
   - Defaults to an entropy-guarded adversarial selection metric to avoid over-confident checkpoints while domain confusion remains incomplete.
   - Uses a slightly stronger adaptation weight for the TEP 29-class setting.

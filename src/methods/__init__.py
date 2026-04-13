@@ -49,6 +49,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             randomized=bool(loss.get("randomized", False)),
             randomized_dim=int(loss.get("randomized_dim", 1024)),
             entropy_conditioning=bool(loss.get("entropy_conditioning", True)),
+            mcc_weight=float(loss.get("mcc_weight", 0.0)),
+            mcc_temperature=float(loss.get("mcc_temperature", 2.0)),
             domain_hidden_dim=(
                 None if loss.get("domain_hidden_dim") is None else int(loss.get("domain_hidden_dim"))
             ),

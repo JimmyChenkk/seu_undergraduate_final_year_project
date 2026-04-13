@@ -24,6 +24,25 @@ def entropy(probabilities: torch.Tensor, reduction: str = "none") -> torch.Tenso
     return values
 
 
+class MinimumClassConfusionLoss(nn.Module):
+    """Target-side class confusion regularizer from MCC."""
+
+    def __init__(self, temperature: float = 2.0) -> None:
+        super().__init__()
+        if temperature <= 0:
+            raise ValueError("MCC temperature must be positive.")
+        self.temperature = float(temperature)
+
+    def forward(self, logits: torch.Tensor) -> torch.Tensor:
+        batch_size, num_classes = logits.shape
+        probabilities = F.softmax(logits / self.temperature, dim=1)
+        entropy_weight = 1.0 + torch.exp(-entropy(probabilities).detach())
+        entropy_weight = (batch_size * entropy_weight / entropy_weight.sum().clamp_min(_EPSILON)).unsqueeze(dim=1)
+        class_confusion = (probabilities * entropy_weight).transpose(0, 1).mm(probabilities)
+        class_confusion = class_confusion / class_confusion.sum(dim=1, keepdim=True).clamp_min(_EPSILON)
+        return (class_confusion.sum() - torch.trace(class_confusion)) / float(max(num_classes, 1))
+
+
 def _covariance_matrix(features: torch.Tensor) -> torch.Tensor:
     centered = features - features.mean(dim=0, keepdim=True)
     return centered.t().mm(centered) / max(features.shape[0] - 1, 1)
@@ -85,17 +104,26 @@ def _update_index_matrix(
 ) -> torch.Tensor:
     index_matrix = torch.zeros((2 * batch_size, 2 * batch_size), device=device, dtype=dtype)
     if linear:
-        index_matrix[:batch_size, :batch_size] = 1.0 / float(batch_size)
-        index_matrix[batch_size:, batch_size:] = 1.0 / float(batch_size)
-        index_matrix[:batch_size, batch_size:] = -1.0 / float(batch_size)
-        index_matrix[batch_size:, :batch_size] = -1.0 / float(batch_size)
+        for i in range(batch_size):
+            source_i = i
+            source_j = (i + 1) % batch_size
+            target_i = source_i + batch_size
+            target_j = source_j + batch_size
+            weight = 1.0 / float(batch_size)
+            index_matrix[source_i, source_j] = weight
+            index_matrix[target_i, target_j] = weight
+            index_matrix[source_i, target_j] = -weight
+            index_matrix[source_j, target_i] = -weight
         return index_matrix
 
     if batch_size > 1:
-        diagonal_mask = ~torch.eye(batch_size, dtype=torch.bool, device=device)
         intra_weight = 1.0 / float(batch_size * (batch_size - 1))
-        index_matrix[:batch_size, :batch_size][diagonal_mask] = intra_weight
-        index_matrix[batch_size:, batch_size:][diagonal_mask] = intra_weight
+        for i in range(batch_size):
+            for j in range(batch_size):
+                if i == j:
+                    continue
+                index_matrix[i, j] = intra_weight
+                index_matrix[i + batch_size, j + batch_size] = intra_weight
     cross_weight = -1.0 / float(batch_size * batch_size)
     index_matrix[:batch_size, batch_size:] = cross_weight
     index_matrix[batch_size:, :batch_size] = cross_weight
@@ -112,7 +140,7 @@ class MultipleKernelMaximumMeanDiscrepancy(nn.Module):
 
     def forward(self, source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         batch_size = min(source.shape[0], target.shape[0])
-        if batch_size == 0:
+        if batch_size <= 1:
             return torch.zeros((), device=source.device, dtype=source.dtype)
 
         source = source[:batch_size]
@@ -127,8 +155,8 @@ class MultipleKernelMaximumMeanDiscrepancy(nn.Module):
         kernel_matrix = sum(kernel(features) for kernel in self.kernels)
         loss = (kernel_matrix * index_matrix).sum()
         if self.linear:
-            return loss / max(batch_size - 1, 1)
-        return loss + 2.0 / float(max(batch_size - 1, 1))
+            return loss
+        return loss + 2.0 / float(batch_size - 1)
 
 
 def multiple_kernel_mmd(

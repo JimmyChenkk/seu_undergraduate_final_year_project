@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import torch
 import torch.nn.functional as F
 
-from src.losses import ConditionalDomainAdversarialLoss, DomainDiscriminator, GradientReverseLayer, WarmStartGradientReverseLayer
+from src.losses import (
+    ConditionalDomainAdversarialLoss,
+    DomainDiscriminator,
+    GradientReverseLayer,
+    MinimumClassConfusionLoss,
+    WarmStartGradientReverseLayer,
+)
 
 from .base import AdaptationWeightScheduler, MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
 
@@ -31,6 +38,8 @@ class CDANMethod(SingleSourceMethodBase):
         randomized: bool = False,
         randomized_dim: int = 1024,
         entropy_conditioning: bool = True,
+        mcc_weight: float = 0.0,
+        mcc_temperature: float = 2.0,
         domain_hidden_dim: int | None = None,
         domain_num_hidden_layers: int = 2,
         input_length: int = 600,
@@ -77,6 +86,8 @@ class CDANMethod(SingleSourceMethodBase):
             randomized_dim=randomized_dim,
             grl=grl,
         )
+        self.mcc_weight = float(mcc_weight)
+        self.mcc = MinimumClassConfusionLoss(mcc_temperature) if self.mcc_weight > 0 else None
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
         source_x, source_y = self.merge_source_batches(source_batches)
@@ -91,8 +102,13 @@ class CDANMethod(SingleSourceMethodBase):
             logits_target,
             features_target,
         )
+        loss_mcc = (
+            self.mcc(logits_target)
+            if self.mcc is not None
+            else torch.zeros((), device=logits_source.device, dtype=logits_source.dtype)
+        )
         current_weight = self.alignment_scheduler.step()
-        loss_total = loss_cls + current_weight * loss_domain
+        loss_total = loss_cls + current_weight * loss_domain + self.mcc_weight * loss_mcc
 
         return MethodStepOutput(
             loss=loss_total,
@@ -100,7 +116,9 @@ class CDANMethod(SingleSourceMethodBase):
                 "loss_total": float(loss_total.item()),
                 "loss_cls": float(loss_cls.item()),
                 "loss_alignment": float(loss_domain.item()),
+                "loss_mcc": float(loss_mcc.item()),
                 "lambda_alignment": current_weight,
+                "lambda_mcc": self.mcc_weight,
                 "acc_source": accuracy_from_logits(logits_source, source_y),
                 "acc_domain": domain_acc,
                 "grl_coeff": float(getattr(self.domain_adv.grl, "last_coeff", 1.0)),
