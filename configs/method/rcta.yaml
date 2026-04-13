@@ -35,13 +35,19 @@ loss:
     consistency: 1.0
     proto_sim: 1.0
   gate_score_floor: 0.55
+  gate_score_floor_start: 0.35
+  gate_score_floor_end: 0.55
+  gate_score_floor_schedule_steps: 1200
   gate_accept_ratio_start: 0.2
   gate_accept_ratio_end: 0.7
   gate_curriculum_steps: 1000
   pseudo_label_weight: 0.2
+  pseudo_warmup_steps: 1200
   prototype_weight: 0.1
+  prototype_start_step: 800
   prototype_separation_weight: 0.1
   consistency_weight: 0.1
+  consistency_start_step: 400
   prototype_momentum: 0.9
   prototype_separation_margin: 0.2
   augment:

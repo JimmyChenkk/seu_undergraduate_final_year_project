@@ -118,13 +118,23 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             teacher_temperature=float(loss.get("teacher_temperature", 1.5)),
             reliability_weights=loss.get("reliability_weights", {}),
             gate_score_floor=float(loss.get("gate_score_floor", 0.55)),
+            gate_score_floor_start=(
+                None if loss.get("gate_score_floor_start") is None else float(loss.get("gate_score_floor_start"))
+            ),
+            gate_score_floor_end=(
+                None if loss.get("gate_score_floor_end") is None else float(loss.get("gate_score_floor_end"))
+            ),
+            gate_score_floor_schedule_steps=int(loss.get("gate_score_floor_schedule_steps", 1000)),
             gate_accept_ratio_start=float(loss.get("gate_accept_ratio_start", 0.2)),
             gate_accept_ratio_end=float(loss.get("gate_accept_ratio_end", 0.7)),
             gate_curriculum_steps=int(loss.get("gate_curriculum_steps", 1000)),
             pseudo_label_weight=float(loss.get("pseudo_label_weight", 0.2)),
+            pseudo_warmup_steps=int(loss.get("pseudo_warmup_steps", 0)),
             prototype_weight=float(loss.get("prototype_weight", 0.1)),
+            prototype_start_step=int(loss.get("prototype_start_step", 0)),
             prototype_separation_weight=float(loss.get("prototype_separation_weight", 0.1)),
             consistency_weight=float(loss.get("consistency_weight", 0.1)),
+            consistency_start_step=int(loss.get("consistency_start_step", 0)),
             prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
             prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
             augment_kwargs={

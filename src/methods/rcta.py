@@ -120,13 +120,21 @@ class _ReliabilityGate:
         progress = min(max(float(step_num), 0.0) / float(self.curriculum_steps), 1.0)
         return self.accept_ratio_start + (self.accept_ratio_end - self.accept_ratio_start) * progress
 
-    def select(self, scores: torch.Tensor, pseudo_labels: torch.Tensor, step_num: int) -> tuple[torch.Tensor, float]:
+    def select(
+        self,
+        scores: torch.Tensor,
+        pseudo_labels: torch.Tensor,
+        step_num: int,
+        *,
+        score_floor_override: float | None = None,
+    ) -> tuple[torch.Tensor, float]:
         selected = torch.zeros_like(scores, dtype=torch.bool)
         ratio = self.curriculum_ratio(step_num)
         if ratio <= 0:
             return selected, ratio
 
-        floor_mask = scores >= self.score_floor
+        score_floor = self.score_floor if score_floor_override is None else float(score_floor_override)
+        floor_mask = scores >= score_floor
         for class_id in torch.unique(pseudo_labels):
             class_indices = torch.nonzero((pseudo_labels == class_id) & floor_mask, as_tuple=False).squeeze(1)
             if class_indices.numel() == 0:
@@ -281,13 +289,19 @@ class RCTAMethod(SingleSourceMethodBase):
         teacher_temperature: float = 1.5,
         reliability_weights: dict[str, float] | None = None,
         gate_score_floor: float = 0.55,
+        gate_score_floor_start: float | None = None,
+        gate_score_floor_end: float | None = None,
+        gate_score_floor_schedule_steps: int = 1000,
         gate_accept_ratio_start: float = 0.2,
         gate_accept_ratio_end: float = 0.7,
         gate_curriculum_steps: int = 1000,
         pseudo_label_weight: float = 0.2,
+        pseudo_warmup_steps: int = 0,
         prototype_weight: float = 0.1,
+        prototype_start_step: int = 0,
         prototype_separation_weight: float = 0.1,
         consistency_weight: float = 0.1,
+        consistency_start_step: int = 0,
         prototype_momentum: float = 0.9,
         prototype_separation_margin: float = 0.2,
         augment_kwargs: dict[str, Any] | None = None,
@@ -304,11 +318,18 @@ class RCTAMethod(SingleSourceMethodBase):
         self.teacher_ema_decay = min(max(float(teacher_ema_decay), 0.0), 0.9999)
         self.teacher_temperature = max(float(teacher_temperature), _EPSILON)
         self.pseudo_label_weight = float(pseudo_label_weight)
+        self.pseudo_warmup_steps = max(int(pseudo_warmup_steps), 0)
         self.prototype_weight = float(prototype_weight)
+        self.prototype_start_step = max(int(prototype_start_step), 0)
         self.prototype_separation_weight = float(prototype_separation_weight)
         self.consistency_weight = float(consistency_weight)
+        self.consistency_start_step = max(int(consistency_start_step), 0)
         self.prototype_momentum = min(max(float(prototype_momentum), 0.0), 0.9999)
         self.prototype_separation_margin = float(prototype_separation_margin)
+
+        self.gate_score_floor_start = float(gate_score_floor if gate_score_floor_start is None else gate_score_floor_start)
+        self.gate_score_floor_end = float(gate_score_floor if gate_score_floor_end is None else gate_score_floor_end)
+        self.gate_score_floor_schedule_steps = max(int(gate_score_floor_schedule_steps), 1)
 
         weights = {
             "cal_conf": 1.0,
@@ -459,6 +480,20 @@ class RCTAMethod(SingleSourceMethodBase):
         total_weight = weights.sum().clamp_min(_EPSILON)
         return (values * weights).sum() / total_weight
 
+    def _scheduled_gate_score_floor(self, step_num: int) -> float:
+        progress = min(max(float(step_num), 0.0) / float(self.gate_score_floor_schedule_steps), 1.0)
+        return self.gate_score_floor_start + (self.gate_score_floor_end - self.gate_score_floor_start) * progress
+
+    def _ramp_weight(self, base_weight: float, step_num: int, start_step: int) -> float:
+        if base_weight <= 0:
+            return 0.0
+        if step_num < start_step:
+            return 0.0
+        if self.pseudo_warmup_steps <= 0:
+            return base_weight
+        progress = min(max(float(step_num - start_step), 0.0) / float(self.pseudo_warmup_steps), 1.0)
+        return base_weight * progress
+
     def _prototype_attraction_loss(
         self,
         features: torch.Tensor,
@@ -585,10 +620,13 @@ class RCTAMethod(SingleSourceMethodBase):
             + self.reliability_weights["consistency"] * consistency_score.detach()
             + self.reliability_weights["proto_sim"] * proto_similarity
         ).clamp(0.0, 1.0)
+        current_step = int(self.step_num.item())
+        scheduled_gate_floor = self._scheduled_gate_score_floor(current_step)
         gate_mask, curriculum_ratio = self.gate.select(
             reliability_score.detach(),
             pseudo_labels.detach(),
-            int(self.step_num.item()),
+            current_step,
+            score_floor_override=scheduled_gate_floor,
         )
 
         loss_cls = F.cross_entropy(logits_source, source_y)
@@ -646,13 +684,17 @@ class RCTAMethod(SingleSourceMethodBase):
         ).sum(dim=1)
         loss_consistency = self._weighted_mean(consistency_values, reliability_score.detach())
 
+        lambda_pseudo = self._ramp_weight(self.pseudo_label_weight, current_step, 0)
+        lambda_prototype = self._ramp_weight(self.prototype_weight, current_step, self.prototype_start_step)
+        lambda_consistency = self._ramp_weight(self.consistency_weight, current_step, self.consistency_start_step)
+
         total_loss = (
             loss_cls
             + align_metrics["lambda_alignment"] * loss_alignment
             + self.mcc_weight * loss_mcc
-            + self.pseudo_label_weight * loss_pseudo
-            + self.prototype_weight * loss_prototype
-            + self.consistency_weight * loss_consistency
+            + lambda_pseudo * loss_pseudo
+            + lambda_prototype * loss_prototype
+            + lambda_consistency * loss_consistency
         )
 
         self._cached_source_features = features_source.detach().clone()
@@ -673,13 +715,14 @@ class RCTAMethod(SingleSourceMethodBase):
             "loss_prototype_separation": float(loss_proto_separation.item()),
             "lambda_alignment": float(align_metrics["lambda_alignment"]),
             "lambda_mcc": float(self.mcc_weight),
-            "lambda_pseudo": float(self.pseudo_label_weight),
-            "lambda_prototype": float(self.prototype_weight),
-            "lambda_consistency": float(self.consistency_weight),
+            "lambda_pseudo": float(lambda_pseudo),
+            "lambda_prototype": float(lambda_prototype),
+            "lambda_consistency": float(lambda_consistency),
             "acc_source": accuracy_from_logits(logits_source, source_y),
             "gate_mean_score": float(reliability_score.mean().item()),
             "gate_accept_ratio": float(kept_count / batch_size_target),
             "gate_curriculum_ratio": float(curriculum_ratio),
+            "gate_score_floor": float(scheduled_gate_floor),
             "pseudo_label_kept": float(kept_count),
         }
         metrics.update({key: float(value) for key, value in align_metrics.items() if key != "lambda_alignment"})
