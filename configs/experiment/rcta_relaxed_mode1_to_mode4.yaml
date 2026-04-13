@@ -11,9 +11,11 @@ runtime:
   save_checkpoint: true
   save_analysis: true
   disable_cudnn: false
-  cudnn_benchmark: false
-  num_workers: 0
-  pin_memory: false
+  cudnn_benchmark: true
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  non_blocking_transfers: true
   show_progress: false
   model_selection: hybrid_source_eval_inverse_entropy
   early_stopping_metric: hybrid_source_eval_inverse_entropy
