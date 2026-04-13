@@ -260,6 +260,8 @@ flowchart TD
   https://github.com/eddardd/tep-domain-adaptation.git
 - `external/TL-Fault-Diagnosis-Library`：
   https://github.com/Feaxure-fresh/TL-Fault-Diagnosis-Library.git
+- `external/Transfer-Learning-Library`：
+  https://github.com/thuml/Transfer-Learning-Library.git
 - `external/skada`：
   https://github.com/scikit-adaptation/skada.git
 - `refs/algorithms/Deep-Unsupervised-Domain-Adaptation`：
