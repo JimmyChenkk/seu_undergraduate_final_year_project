@@ -132,9 +132,15 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             pseudo_warmup_steps=int(loss.get("pseudo_warmup_steps", 0)),
             prototype_weight=float(loss.get("prototype_weight", 0.1)),
             prototype_start_step=int(loss.get("prototype_start_step", 0)),
+            prototype_warmup_steps=(
+                None if loss.get("prototype_warmup_steps") is None else int(loss.get("prototype_warmup_steps"))
+            ),
             prototype_separation_weight=float(loss.get("prototype_separation_weight", 0.1)),
             consistency_weight=float(loss.get("consistency_weight", 0.1)),
             consistency_start_step=int(loss.get("consistency_start_step", 0)),
+            consistency_warmup_steps=(
+                None if loss.get("consistency_warmup_steps") is None else int(loss.get("consistency_warmup_steps"))
+            ),
             prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
             prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
             augment_kwargs={

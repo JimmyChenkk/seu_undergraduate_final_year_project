@@ -299,9 +299,11 @@ class RCTAMethod(SingleSourceMethodBase):
         pseudo_warmup_steps: int = 0,
         prototype_weight: float = 0.1,
         prototype_start_step: int = 0,
+        prototype_warmup_steps: int | None = None,
         prototype_separation_weight: float = 0.1,
         consistency_weight: float = 0.1,
         consistency_start_step: int = 0,
+        consistency_warmup_steps: int | None = None,
         prototype_momentum: float = 0.9,
         prototype_separation_margin: float = 0.2,
         augment_kwargs: dict[str, Any] | None = None,
@@ -321,9 +323,15 @@ class RCTAMethod(SingleSourceMethodBase):
         self.pseudo_warmup_steps = max(int(pseudo_warmup_steps), 0)
         self.prototype_weight = float(prototype_weight)
         self.prototype_start_step = max(int(prototype_start_step), 0)
+        self.prototype_warmup_steps = (
+            self.pseudo_warmup_steps if prototype_warmup_steps is None else max(int(prototype_warmup_steps), 0)
+        )
         self.prototype_separation_weight = float(prototype_separation_weight)
         self.consistency_weight = float(consistency_weight)
         self.consistency_start_step = max(int(consistency_start_step), 0)
+        self.consistency_warmup_steps = (
+            self.pseudo_warmup_steps if consistency_warmup_steps is None else max(int(consistency_warmup_steps), 0)
+        )
         self.prototype_momentum = min(max(float(prototype_momentum), 0.0), 0.9999)
         self.prototype_separation_margin = float(prototype_separation_margin)
 
@@ -484,14 +492,14 @@ class RCTAMethod(SingleSourceMethodBase):
         progress = min(max(float(step_num), 0.0) / float(self.gate_score_floor_schedule_steps), 1.0)
         return self.gate_score_floor_start + (self.gate_score_floor_end - self.gate_score_floor_start) * progress
 
-    def _ramp_weight(self, base_weight: float, step_num: int, start_step: int) -> float:
+    def _ramp_weight(self, base_weight: float, step_num: int, start_step: int, warmup_steps: int) -> float:
         if base_weight <= 0:
             return 0.0
         if step_num < start_step:
             return 0.0
-        if self.pseudo_warmup_steps <= 0:
+        if warmup_steps <= 0:
             return base_weight
-        progress = min(max(float(step_num - start_step), 0.0) / float(self.pseudo_warmup_steps), 1.0)
+        progress = min(max(float(step_num - start_step), 0.0) / float(warmup_steps), 1.0)
         return base_weight * progress
 
     def _prototype_attraction_loss(
@@ -684,9 +692,19 @@ class RCTAMethod(SingleSourceMethodBase):
         ).sum(dim=1)
         loss_consistency = self._weighted_mean(consistency_values, reliability_score.detach())
 
-        lambda_pseudo = self._ramp_weight(self.pseudo_label_weight, current_step, 0)
-        lambda_prototype = self._ramp_weight(self.prototype_weight, current_step, self.prototype_start_step)
-        lambda_consistency = self._ramp_weight(self.consistency_weight, current_step, self.consistency_start_step)
+        lambda_pseudo = self._ramp_weight(self.pseudo_label_weight, current_step, 0, self.pseudo_warmup_steps)
+        lambda_prototype = self._ramp_weight(
+            self.prototype_weight,
+            current_step,
+            self.prototype_start_step,
+            self.prototype_warmup_steps,
+        )
+        lambda_consistency = self._ramp_weight(
+            self.consistency_weight,
+            current_step,
+            self.consistency_start_step,
+            self.consistency_warmup_steps,
+        )
 
         total_loss = (
             loss_cls

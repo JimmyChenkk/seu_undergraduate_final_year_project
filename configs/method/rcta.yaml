@@ -43,11 +43,13 @@ loss:
   gate_curriculum_steps: 1000
   pseudo_label_weight: 0.2
   pseudo_warmup_steps: 1200
-  prototype_weight: 0.1
-  prototype_start_step: 800
+  prototype_weight: 0.06
+  prototype_start_step: 1200
+  prototype_warmup_steps: 1200
   prototype_separation_weight: 0.1
-  consistency_weight: 0.1
-  consistency_start_step: 400
+  consistency_weight: 0.05
+  consistency_start_step: 800
+  consistency_warmup_steps: 1200
   prototype_momentum: 0.9
   prototype_separation_margin: 0.2
   augment:
