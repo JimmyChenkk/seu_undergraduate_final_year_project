@@ -108,6 +108,11 @@ class SingleSourceMethodBase(nn.Module):
         source_y = torch.cat([y_batch for _, y_batch in source_batches], dim=0)
         return source_x, source_y
 
+    def after_optimizer_step(self) -> dict[str, float]:
+        """Optional post-step hook for methods with EMA or memory updates."""
+
+        return {}
+
 
 def accuracy_from_logits(logits: torch.Tensor, labels: torch.Tensor) -> float:
     """Compute minibatch accuracy."""

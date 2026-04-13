@@ -374,13 +374,22 @@ def _emit_epoch_summary(
     )
 
 
-def ensure_dependencies(method_name: str, experiment_config: dict[str, Any]) -> None:
+def ensure_dependencies(
+    method_name: str,
+    experiment_config: dict[str, Any],
+    method_config: dict[str, Any] | None = None,
+) -> None:
     """Fail early with a concise message when the training stack is missing."""
 
     required = ["numpy", "yaml", "torch", "sklearn"]
     if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
         required.append("matplotlib")
-    if method_name == "deepjdot":
+    requires_ot = method_name == "deepjdot"
+    if method_name == "rcta":
+        base_align = str((method_config or {}).get("loss", {}).get("base_align", "cdan")).strip().lower()
+        requires_ot = base_align == "deepjdot"
+
+    if requires_ot:
         required.append("ot")
 
     missing = [name for name in required if importlib.util.find_spec(name) is None]
@@ -871,8 +880,11 @@ def run_deep_experiment(
             if max_grad_norm is not None and max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
+            post_step_metrics = model.after_optimizer_step()
 
             for key, value in step_output.metrics.items():
+                epoch_metrics[key].append(value)
+            for key, value in post_step_metrics.items():
                 epoch_metrics[key].append(value)
             if show_progress and (
                 step_index == 0
@@ -1176,7 +1188,7 @@ def main() -> None:
         method_payload,
     )
     method_name = str(method_payload.get("method_name", "")).lower()
-    ensure_dependencies(method_name, experiment_payload)
+    ensure_dependencies(method_name, experiment_payload, method_payload)
 
     from src.datasets.te_da_dataset import TEDADatasetConfig
     from src.datasets.te_torch_dataset import prepare_benchmark_data

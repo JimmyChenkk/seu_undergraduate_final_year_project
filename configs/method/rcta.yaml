@@ -1,0 +1,78 @@
+method_name: rcta
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+
+loss:
+  base_align: cdan
+  use_mcc: true
+  mcc_weight: 0.1
+  mcc_temperature: 2.0
+  teacher_ema_decay: 0.99
+  teacher_temperature: 1.5
+  reliability_weights:
+    cal_conf: 1.0
+    inv_entropy: 1.0
+    consistency: 1.0
+    proto_sim: 1.0
+  gate_score_floor: 0.55
+  gate_accept_ratio_start: 0.2
+  gate_accept_ratio_end: 0.7
+  gate_curriculum_steps: 1000
+  pseudo_label_weight: 0.2
+  prototype_weight: 0.1
+  prototype_separation_weight: 0.1
+  consistency_weight: 0.1
+  prototype_momentum: 0.9
+  prototype_separation_margin: 0.2
+  augment:
+    weak_jitter_std: 0.01
+    weak_scaling_std: 0.01
+    strong_jitter_std: 0.02
+    strong_scaling_std: 0.02
+    strong_time_mask_ratio: 0.1
+    strong_channel_dropout_prob: 0.1
+  cdan:
+    adaptation_weight: 0.2
+    adaptation_schedule: warm_start
+    adaptation_max_steps: 1000
+    adaptation_schedule_alpha: 10.0
+    grl_lambda: 1.0
+    grl_warm_start: true
+    grl_max_iters: 1000
+    randomized: true
+    randomized_dim: 256
+    entropy_conditioning: true
+    domain_hidden_dim: 256
+    domain_num_hidden_layers: 2
+  deepjdot:
+    adaptation_weight: 1.0
+    adaptation_schedule: constant
+    adaptation_max_steps: 1000
+    adaptation_schedule_alpha: 10.0
+    reg_dist: 0.1
+    reg_cl: 1.0
+    normalize_feature_cost: true
+
+notes:
+  - RCTA baseline with EMA teacher, reliability-gated pseudo labels, dual prototypes, and conservative temporal consistency.
+  - V1 defaults to a CDAN alignment base while keeping a DeepJDOT branch available through base_align.
