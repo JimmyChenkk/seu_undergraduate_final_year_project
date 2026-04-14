@@ -361,6 +361,7 @@ class RCTAMethod(SingleSourceMethodBase):
         pseudo_label_weight: float = 0.2,
         pseudo_warmup_steps: int = 0,
         pseudo_use_reliability_weighting: bool = True,
+        pseudo_confidence_power: float = 1.0,
         prototype_weight: float = 0.1,
         prototype_start_step: int = 0,
         prototype_warmup_steps: int | None = None,
@@ -368,6 +369,8 @@ class RCTAMethod(SingleSourceMethodBase):
         consistency_weight: float = 0.1,
         consistency_start_step: int = 0,
         consistency_warmup_steps: int | None = None,
+        consistency_gate_only: bool = False,
+        consistency_reliability_power: float = 1.0,
         prototype_momentum: float = 0.9,
         prototype_separation_margin: float = 0.2,
         augment_kwargs: dict[str, Any] | None = None,
@@ -387,6 +390,7 @@ class RCTAMethod(SingleSourceMethodBase):
         self.pseudo_label_weight = float(pseudo_label_weight)
         self.pseudo_warmup_steps = max(int(pseudo_warmup_steps), 0)
         self.pseudo_use_reliability_weighting = bool(pseudo_use_reliability_weighting)
+        self.pseudo_confidence_power = max(float(pseudo_confidence_power), 0.0)
         self.prototype_weight = float(prototype_weight)
         self.prototype_start_step = max(int(prototype_start_step), 0)
         self.prototype_warmup_steps = (
@@ -398,6 +402,8 @@ class RCTAMethod(SingleSourceMethodBase):
         self.consistency_warmup_steps = (
             self.pseudo_warmup_steps if consistency_warmup_steps is None else max(int(consistency_warmup_steps), 0)
         )
+        self.consistency_gate_only = bool(consistency_gate_only)
+        self.consistency_reliability_power = max(float(consistency_reliability_power), 0.0)
         self.prototype_momentum = min(max(float(prototype_momentum), 0.0), 0.9999)
         self.prototype_separation_margin = float(prototype_separation_margin)
 
@@ -701,6 +707,8 @@ class RCTAMethod(SingleSourceMethodBase):
             + self.reliability_weights["consistency"] * consistency_score.detach()
             + self.reliability_weights["proto_sim"] * proto_similarity
         ).clamp(0.0, 1.0)
+        if self.pseudo_confidence_power != 1.0:
+            reliability_score = reliability_score.clamp_min(_EPSILON).pow(self.pseudo_confidence_power).clamp(0.0, 1.0)
         current_step = int(self.step_num.item())
         scheduled_gate_floor = self._scheduled_gate_score_floor(current_step)
         gate_mask, curriculum_ratio = self.gate.select(
@@ -749,7 +757,12 @@ class RCTAMethod(SingleSourceMethodBase):
                 pseudo_weights = reliability_score[gate_mask].detach()
                 loss_pseudo = self._weighted_mean(pseudo_ce_values, pseudo_weights)
             else:
-                loss_pseudo = F.cross_entropy(gated_logits_target_strong, gated_pseudo_labels)
+                pseudo_ce_values = F.cross_entropy(
+                    gated_logits_target_strong,
+                    gated_pseudo_labels,
+                    reduction="none",
+                )
+                loss_pseudo = pseudo_ce_values.mean()
             gated_teacher_features = teacher_features[gate_mask]
             gated_target_proto_features = features_target_align[gate_mask]
         else:
@@ -782,7 +795,13 @@ class RCTAMethod(SingleSourceMethodBase):
             teacher_probabilities,
             reduction="none",
         ).sum(dim=1)
-        loss_consistency = self._weighted_mean(consistency_values, reliability_score.detach())
+        if self.consistency_gate_only:
+            consistency_weights = gate_mask.to(dtype=consistency_values.dtype)
+        else:
+            consistency_weights = reliability_score.detach()
+        if self.consistency_reliability_power != 1.0:
+            consistency_weights = consistency_weights.clamp_min(_EPSILON).pow(self.consistency_reliability_power)
+        loss_consistency = self._weighted_mean(consistency_values, consistency_weights)
 
         lambda_pseudo = self._ramp_weight(self.pseudo_label_weight, current_step, 0, self.pseudo_warmup_steps)
         lambda_prototype = self._ramp_weight(

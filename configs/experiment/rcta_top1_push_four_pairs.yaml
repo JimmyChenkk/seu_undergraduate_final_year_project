@@ -1,4 +1,4 @@
-experiment_name: rcta_top1_push_four_pairs
+experiment_name: rcta_top1_push_six_pairs
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -33,6 +33,8 @@ automation:
   methods:
     - rcta
   single_source_scenes:
+    - mode1->mode4
+    - mode4->mode1
     - mode2->mode5
     - mode5->mode2
     - mode3->mode6
@@ -57,15 +59,18 @@ method_overrides:
       gate_accept_ratio_start: 0.28
       gate_accept_ratio_end: 0.90
       gate_curriculum_steps: 2600
-      pseudo_label_weight: 0.36
-      pseudo_warmup_steps: 700
+      pseudo_label_weight: 0.42
+      pseudo_warmup_steps: 520
       pseudo_use_reliability_weighting: true
-      prototype_weight: 0.06
-      prototype_start_step: 1000
-      prototype_warmup_steps: 1400
-      consistency_weight: 0.08
-      consistency_start_step: 700
-      consistency_warmup_steps: 1400
+      pseudo_confidence_power: 1.35
+      prototype_weight: 0.08
+      prototype_start_step: 800
+      prototype_warmup_steps: 1200
+      consistency_weight: 0.10
+      consistency_start_step: 520
+      consistency_warmup_steps: 1200
+      consistency_gate_only: true
+      consistency_reliability_power: 1.4
       augment:
         weak_jitter_std: 0.005
         weak_scaling_std: 0.005
@@ -76,5 +81,5 @@ method_overrides:
 
 notes:
   - Aggressive TOP1 push with DANN base alignment and stronger pseudo/prototype/consistency coupling.
-  - Four cross-domain directions: 2->5, 5->2, 3->6, 6->3.
+  - Six cross-domain directions: 1->4, 4->1, 2->5, 5->2, 3->6, 6->3.
   - Targeting high transfer performance while keeping source_eval stable via hybrid selection.
