@@ -53,7 +53,7 @@ This file defines soft rules for Codex when working in this workspace.
 - 当某个操作将跨出工作区边界时，也请明确说明。
 
 - If the user provides only a keyword or partial folder/file name, proactively scan the workspace to find the best matching path before asking for clarification.
-- 如果用户只提供关键词或不完整的文件夹/文件名，应先主动扫描工作区寻找最匹配的路径，再询问是否需要澄清。
+- 如果用户只提供关键词或不完整的文件夹/文件名，应先主动扫描工作区寻找最匹配的路径/文件，再询问是否需要澄清。
 
 - If the user asks for a wider-scope action, confirm the consequence before proceeding.
 - 如果用户要求更大范围的操作，请先确认其影响，再继续执行。
