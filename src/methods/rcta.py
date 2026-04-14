@@ -17,6 +17,7 @@ from src.losses import (
     MinimumClassConfusionLoss,
     WarmStartGradientReverseLayer,
     deepjdot_loss,
+    domain_adversarial_loss,
 )
 
 from .base import AdaptationWeightScheduler, MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
@@ -272,6 +273,68 @@ class _DeepJDOTAligner(nn.Module):
         }
 
 
+class _DANNAligner(nn.Module):
+    """DANN alignment branch used inside RCTA."""
+
+    def __init__(
+        self,
+        *,
+        feature_dim: int,
+        adaptation_weight: float,
+        adaptation_schedule: str,
+        adaptation_max_steps: int,
+        adaptation_schedule_alpha: float,
+        grl_lambda: float,
+        grl_warm_start: bool,
+        grl_max_iters: int,
+        domain_hidden_dim: int | None,
+        domain_num_hidden_layers: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        self.scheduler = AdaptationWeightScheduler(
+            base_weight=adaptation_weight,
+            schedule=adaptation_schedule,
+            max_steps=adaptation_max_steps,
+            alpha=adaptation_schedule_alpha,
+        )
+        if grl_warm_start:
+            self.grl = WarmStartGradientReverseLayer(
+                alpha=adaptation_schedule_alpha,
+                lo=0.0,
+                hi=grl_lambda,
+                max_iters=grl_max_iters,
+                auto_step=True,
+            )
+        else:
+            self.grl = GradientReverseLayer(lambda_=grl_lambda)
+        self.discriminator = DomainDiscriminator(
+            feature_dim,
+            hidden_dim=domain_hidden_dim or max(128, feature_dim),
+            dropout=dropout,
+            num_hidden_layers=domain_num_hidden_layers,
+        )
+
+    def forward(
+        self,
+        *,
+        features_source: torch.Tensor,
+        features_target: torch.Tensor,
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        loss_alignment, domain_acc = domain_adversarial_loss(
+            features_source,
+            features_target,
+            discriminator=self.discriminator,
+            grl=self.grl,
+        )
+        current_weight = self.scheduler.step()
+        return loss_alignment, {
+            "lambda_alignment": current_weight,
+            "acc_domain": domain_acc,
+            "grl_coeff": float(getattr(self.grl, "last_coeff", 1.0)),
+        }
+
+
 class RCTAMethod(SingleSourceMethodBase):
     """Reliable class-conditional temporal adaptation for fixed windows."""
 
@@ -308,13 +371,14 @@ class RCTAMethod(SingleSourceMethodBase):
         prototype_separation_margin: float = 0.2,
         augment_kwargs: dict[str, Any] | None = None,
         cdan_kwargs: dict[str, Any] | None = None,
+        dann_kwargs: dict[str, Any] | None = None,
         deepjdot_kwargs: dict[str, Any] | None = None,
         dropout: float = 0.1,
         **kwargs,
     ) -> None:
         super().__init__(num_classes=num_classes, dropout=dropout, **kwargs)
         self.base_align = str(base_align).strip().lower()
-        if self.base_align not in {"cdan", "deepjdot"}:
+        if self.base_align not in {"cdan", "dann", "deepjdot"}:
             raise KeyError(f"Unsupported RCTA base_align: {base_align}")
 
         self.teacher_ema_decay = min(max(float(teacher_ema_decay), 0.0), 0.9999)
@@ -382,6 +446,12 @@ class RCTAMethod(SingleSourceMethodBase):
                 num_classes=num_classes,
                 dropout=dropout,
                 **(cdan_kwargs or {}),
+            )
+        elif self.base_align == "dann":
+            self.aligner = _DANNAligner(
+                feature_dim=feature_dim,
+                dropout=dropout,
+                **(dann_kwargs or {}),
             )
         else:
             self.aligner = _DeepJDOTAligner(**(deepjdot_kwargs or {}))
@@ -600,7 +670,8 @@ class RCTAMethod(SingleSourceMethodBase):
 
         logits_source, features_source = self.forward(source_x)
         weak_target, strong_target = self.augmenter.augment_pair(target_x)
-        logits_target, features_target = self.forward(strong_target)
+        logits_target_align, features_target_align = self.forward(weak_target)
+        logits_target_strong, features_target_strong = self.forward(strong_target)
         teacher_logits, teacher_features = self._teacher_forward(weak_target)
         teacher_probabilities = self._teacher_probabilities(teacher_logits).detach()
         pseudo_labels = teacher_probabilities.argmax(dim=1)
@@ -611,7 +682,7 @@ class RCTAMethod(SingleSourceMethodBase):
             source_batch_active,
         )
 
-        student_probabilities = torch.softmax(logits_target, dim=1)
+        student_probabilities = torch.softmax(logits_target_strong, dim=1)
         cal_conf = teacher_probabilities.max(dim=1).values
         inv_entropy = 1.0 - self._normalized_entropy(teacher_probabilities)
         consistency_score = student_probabilities.gather(1, pseudo_labels.unsqueeze(1)).squeeze(1)
@@ -642,29 +713,38 @@ class RCTAMethod(SingleSourceMethodBase):
             loss_alignment, align_metrics = self.aligner(
                 logits_source=logits_source,
                 features_source=features_source,
-                logits_target=logits_target,
-                features_target=features_target,
+                logits_target=logits_target_align,
+                features_target=features_target_align,
+            )
+        elif self.base_align == "dann":
+            loss_alignment, align_metrics = self.aligner(
+                features_source=features_source,
+                features_target=features_target_align,
             )
         else:
             loss_alignment, align_metrics = self.aligner(
                 source_labels=source_y,
-                logits_target=logits_target,
+                logits_target=logits_target_align,
                 features_source=features_source,
-                features_target=features_target,
+                features_target=features_target_align,
             )
 
-        loss_mcc = self.mcc(logits_target) if self.mcc is not None else _zero(logits_target.device, logits_target.dtype)
+        loss_mcc = (
+            self.mcc(logits_target_align)
+            if self.mcc is not None
+            else _zero(logits_target_align.device, logits_target_align.dtype)
+        )
 
         if gate_mask.any():
-            loss_pseudo = F.cross_entropy(logits_target[gate_mask], pseudo_labels[gate_mask])
+            loss_pseudo = F.cross_entropy(logits_target_strong[gate_mask], pseudo_labels[gate_mask])
             gated_teacher_features = teacher_features[gate_mask]
             gated_pseudo_labels = pseudo_labels[gate_mask]
-            gated_student_features = features_target[gate_mask]
+            gated_target_proto_features = features_target_align[gate_mask]
         else:
-            loss_pseudo = _zero(logits_target.device, logits_target.dtype)
+            loss_pseudo = _zero(logits_target_align.device, logits_target_align.dtype)
             gated_teacher_features = teacher_features[:0]
             gated_pseudo_labels = pseudo_labels[:0]
-            gated_student_features = features_target[:0]
+            gated_target_proto_features = features_target_align[:0]
 
         loss_source_proto = self._prototype_attraction_loss(
             features_source,
@@ -673,7 +753,7 @@ class RCTAMethod(SingleSourceMethodBase):
             prototype_active,
         )
         loss_target_proto = self._prototype_attraction_loss(
-            gated_student_features,
+            gated_target_proto_features,
             gated_pseudo_labels,
             reference_prototypes,
             prototype_active,
@@ -686,7 +766,7 @@ class RCTAMethod(SingleSourceMethodBase):
         )
 
         consistency_values = F.kl_div(
-            torch.log_softmax(logits_target, dim=1),
+            torch.log_softmax(logits_target_strong, dim=1),
             teacher_probabilities,
             reduction="none",
         ).sum(dim=1)

@@ -72,6 +72,16 @@ loss:
     entropy_conditioning: true
     domain_hidden_dim: 256
     domain_num_hidden_layers: 2
+  dann:
+    adaptation_weight: 0.5
+    adaptation_schedule: warm_start
+    adaptation_max_steps: 1000
+    adaptation_schedule_alpha: 10.0
+    grl_lambda: 1.0
+    grl_warm_start: true
+    grl_max_iters: 1000
+    domain_hidden_dim: 256
+    domain_num_hidden_layers: 2
   deepjdot:
     adaptation_weight: 1.0
     adaptation_schedule: constant
@@ -83,4 +93,4 @@ loss:
 
 notes:
   - RCTA baseline with EMA teacher, reliability-gated pseudo labels, dual prototypes, and conservative temporal consistency.
-  - V1 defaults to a CDAN alignment base while keeping a DeepJDOT branch available through base_align.
+  - V1 defaults to a CDAN alignment base while keeping DANN and DeepJDOT branches available through base_align.

@@ -107,6 +107,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
         )
     if method_name == "rcta":
         cdan_loss = loss.get("cdan", {})
+        dann_loss = loss.get("dann", {})
         deepjdot_loss = loss.get("deepjdot", {})
         augment_loss = loss.get("augment", {})
         return RCTAMethod(
@@ -166,6 +167,19 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     None if cdan_loss.get("domain_hidden_dim") is None else int(cdan_loss.get("domain_hidden_dim"))
                 ),
                 "domain_num_hidden_layers": int(cdan_loss.get("domain_num_hidden_layers", 2)),
+            },
+            dann_kwargs={
+                "adaptation_weight": float(dann_loss.get("adaptation_weight", 0.5)),
+                "adaptation_schedule": str(dann_loss.get("adaptation_schedule", "warm_start")),
+                "adaptation_max_steps": int(dann_loss.get("adaptation_max_steps", 1000)),
+                "adaptation_schedule_alpha": float(dann_loss.get("adaptation_schedule_alpha", 10.0)),
+                "grl_lambda": float(dann_loss.get("grl_lambda", 1.0)),
+                "grl_warm_start": bool(dann_loss.get("grl_warm_start", True)),
+                "grl_max_iters": int(dann_loss.get("grl_max_iters", 1000)),
+                "domain_hidden_dim": (
+                    None if dann_loss.get("domain_hidden_dim") is None else int(dann_loss.get("domain_hidden_dim"))
+                ),
+                "domain_num_hidden_layers": int(dann_loss.get("domain_num_hidden_layers", 2)),
             },
             deepjdot_kwargs={
                 "adaptation_weight": float(deepjdot_loss.get("adaptation_weight", 1.0)),

@@ -77,6 +77,17 @@ def _method_config(*, base_align: str = "cdan", gate_score_floor: float = 0.0) -
                 "domain_hidden_dim": 64,
                 "domain_num_hidden_layers": 1,
             },
+            "dann": {
+                "adaptation_weight": 0.5,
+                "adaptation_schedule": "warm_start",
+                "adaptation_max_steps": 8,
+                "adaptation_schedule_alpha": 10.0,
+                "grl_lambda": 1.0,
+                "grl_warm_start": True,
+                "grl_max_iters": 8,
+                "domain_hidden_dim": 64,
+                "domain_num_hidden_layers": 1,
+            },
             "deepjdot": {
                 "adaptation_weight": 0.5,
                 "adaptation_schedule": "constant",
@@ -136,7 +147,7 @@ def _make_prepared_data() -> PreparedBenchmarkData:
 
 class RCTATests(unittest.TestCase):
     def test_build_method_instantiates_rcta_for_both_aligners(self) -> None:
-        for base_align in ("cdan", "deepjdot"):
+        for base_align in ("cdan", "dann", "deepjdot"):
             method = build_method(
                 _method_config(base_align=base_align),
                 num_classes=29,
@@ -195,7 +206,7 @@ class RCTATests(unittest.TestCase):
 
     def test_rcta_smoke_backward_for_cdan_and_deepjdot(self) -> None:
         torch.manual_seed(1)
-        cases = ["cdan"]
+        cases = ["cdan", "dann"]
         if importlib.util.find_spec("ot") is not None:
             cases.append("deepjdot")
 

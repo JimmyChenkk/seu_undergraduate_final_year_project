@@ -1,0 +1,99 @@
+experiment_name: night_compare_easy_pairs
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  non_blocking_transfers: true
+  show_progress: false
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.002
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - source_only
+    - coral
+    - dan
+    - dann
+    - cdan
+    - deepjdot
+    - rcta
+  single_source_scenes:
+    - mode2->mode5
+    - mode3->mode6
+  multisource_targets: []
+
+method_overrides:
+  cdan:
+    runtime:
+      cudnn_benchmark: false
+      num_workers: 0
+      pin_memory: false
+      persistent_workers: false
+      non_blocking_transfers: false
+      model_selection: hybrid_source_eval_entropy_guard_domain_gap
+      early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+      selection_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      selection_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+      early_stopping_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      early_stopping_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+  rcta:
+    runtime:
+      model_selection: hybrid_source_eval_inverse_entropy
+      early_stopping_metric: hybrid_source_eval_inverse_entropy
+      selection_weights:
+        source_eval: 0.8
+        target_entropy: 0.2
+      early_stopping_weights:
+        source_eval: 0.8
+        target_entropy: 0.2
+      early_stopping_patience: 12
+      early_stopping_min_delta: 0.001
+      early_stopping_min_epochs: 20
+    loss:
+      gate_score_floor_start: 0.30
+      gate_score_floor_end: 0.50
+      gate_score_floor_schedule_steps: 1800
+      gate_accept_ratio_start: 0.35
+      gate_accept_ratio_end: 0.80
+      gate_curriculum_steps: 1800
+      pseudo_label_weight: 0.25
+      pseudo_warmup_steps: 800
+      prototype_weight: 0.05
+      prototype_start_step: 1200
+      consistency_weight: 0.05
+      consistency_start_step: 800
+
+notes:
+  - Unified easy-pairs comparison for 6 baselines plus RCTA on mode2->mode5 and mode3->mode6.
+  - Baseline runtime settings follow benchmark_72, while RCTA keeps the validated easy-pairs selection and curriculum settings.
