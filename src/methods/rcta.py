@@ -360,6 +360,7 @@ class RCTAMethod(SingleSourceMethodBase):
         gate_curriculum_steps: int = 1000,
         pseudo_label_weight: float = 0.2,
         pseudo_warmup_steps: int = 0,
+        pseudo_use_reliability_weighting: bool = True,
         prototype_weight: float = 0.1,
         prototype_start_step: int = 0,
         prototype_warmup_steps: int | None = None,
@@ -385,6 +386,7 @@ class RCTAMethod(SingleSourceMethodBase):
         self.teacher_temperature = max(float(teacher_temperature), _EPSILON)
         self.pseudo_label_weight = float(pseudo_label_weight)
         self.pseudo_warmup_steps = max(int(pseudo_warmup_steps), 0)
+        self.pseudo_use_reliability_weighting = bool(pseudo_use_reliability_weighting)
         self.prototype_weight = float(prototype_weight)
         self.prototype_start_step = max(int(prototype_start_step), 0)
         self.prototype_warmup_steps = (
@@ -736,9 +738,19 @@ class RCTAMethod(SingleSourceMethodBase):
         )
 
         if gate_mask.any():
-            loss_pseudo = F.cross_entropy(logits_target_strong[gate_mask], pseudo_labels[gate_mask])
-            gated_teacher_features = teacher_features[gate_mask]
+            gated_logits_target_strong = logits_target_strong[gate_mask]
             gated_pseudo_labels = pseudo_labels[gate_mask]
+            if self.pseudo_use_reliability_weighting:
+                pseudo_ce_values = F.cross_entropy(
+                    gated_logits_target_strong,
+                    gated_pseudo_labels,
+                    reduction="none",
+                )
+                pseudo_weights = reliability_score[gate_mask].detach()
+                loss_pseudo = self._weighted_mean(pseudo_ce_values, pseudo_weights)
+            else:
+                loss_pseudo = F.cross_entropy(gated_logits_target_strong, gated_pseudo_labels)
+            gated_teacher_features = teacher_features[gate_mask]
             gated_target_proto_features = features_target_align[gate_mask]
         else:
             loss_pseudo = _zero(logits_target_align.device, logits_target_align.dtype)
@@ -818,6 +830,9 @@ class RCTAMethod(SingleSourceMethodBase):
             "lambda_consistency": float(lambda_consistency),
             "acc_source": accuracy_from_logits(logits_source, source_y),
             "gate_mean_score": float(reliability_score.mean().item()),
+            "pseudo_kept_mean_reliability": (
+                float(reliability_score[gate_mask].mean().item()) if gate_mask.any() else 0.0
+            ),
             "gate_accept_ratio": float(kept_count / batch_size_target),
             "gate_curriculum_ratio": float(curriculum_ratio),
             "gate_score_floor": float(scheduled_gate_floor),
