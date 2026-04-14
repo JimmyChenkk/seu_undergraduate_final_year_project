@@ -91,24 +91,24 @@ method_overrides:
         inv_entropy: 0.9
         consistency: 1.2
         proto_sim: 1.4
-      gate_score_floor_start: 0.30
-      gate_score_floor_end: 0.50
-      gate_score_floor_schedule_steps: 3200
-      gate_accept_ratio_start: 0.22
-      gate_accept_ratio_end: 0.78
-      gate_curriculum_steps: 3200
-      pseudo_label_weight: 0.30
-      pseudo_warmup_steps: 900
+      gate_score_floor_start: 0.24
+      gate_score_floor_end: 0.58
+      gate_score_floor_schedule_steps: 2400
+      gate_accept_ratio_start: 0.30
+      gate_accept_ratio_end: 0.92
+      gate_curriculum_steps: 2400
+      pseudo_label_weight: 0.42
+      pseudo_warmup_steps: 500
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.20
-      prototype_weight: 0.05
-      prototype_start_step: 1200
-      prototype_warmup_steps: 1500
-      consistency_weight: 0.08
-      consistency_start_step: 900
-      consistency_warmup_steps: 1500
+      pseudo_confidence_power: 1.60
+      prototype_weight: 0.08
+      prototype_start_step: 700
+      prototype_warmup_steps: 1000
+      consistency_weight: 0.12
+      consistency_start_step: 500
+      consistency_warmup_steps: 1000
       consistency_gate_only: true
-      consistency_reliability_power: 1.25
+      consistency_reliability_power: 1.8
       augment:
         weak_jitter_std: 0.005
         weak_scaling_std: 0.005
@@ -126,4 +126,4 @@ protocol_override:
 
 notes:
   - 70-run benchmark: 6 baselines + RCTA over 4 single-source directions and 6 five-source-to-one-target settings.
-  - RCTA keeps a more conservative DANN-based reliability-aware configuration tuned for benchmark stability across 70 runs.
+  - RCTA keeps an aggressive DANN-based reliability-aware configuration for one more high-variance benchmark push.
