@@ -51,24 +51,24 @@ method_overrides:
         inv_entropy: 0.9
         consistency: 1.2
         proto_sim: 1.4
-      gate_score_floor_start: 0.24
-      gate_score_floor_end: 0.52
-      gate_score_floor_schedule_steps: 2600
-      gate_accept_ratio_start: 0.28
-      gate_accept_ratio_end: 0.90
-      gate_curriculum_steps: 2600
-      pseudo_label_weight: 0.42
-      pseudo_warmup_steps: 520
+      gate_score_floor_start: 0.28
+      gate_score_floor_end: 0.56
+      gate_score_floor_schedule_steps: 2800
+      gate_accept_ratio_start: 0.24
+      gate_accept_ratio_end: 0.84
+      gate_curriculum_steps: 2800
+      pseudo_label_weight: 0.38
+      pseudo_warmup_steps: 640
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.35
-      prototype_weight: 0.08
-      prototype_start_step: 800
-      prototype_warmup_steps: 1200
-      consistency_weight: 0.10
-      consistency_start_step: 520
-      consistency_warmup_steps: 1200
+      pseudo_confidence_power: 1.50
+      prototype_weight: 0.07
+      prototype_start_step: 900
+      prototype_warmup_steps: 1300
+      consistency_weight: 0.11
+      consistency_start_step: 640
+      consistency_warmup_steps: 1300
       consistency_gate_only: true
-      consistency_reliability_power: 1.4
+      consistency_reliability_power: 1.6
       augment:
         weak_jitter_std: 0.005
         weak_scaling_std: 0.005
