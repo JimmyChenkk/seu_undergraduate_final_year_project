@@ -1,0 +1,129 @@
+experiment_name: rcta_70_run
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  non_blocking_transfers: true
+  show_progress: false
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.002
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - source_only
+    - coral
+    - dan
+    - dann
+    - cdan
+    - deepjdot
+    - rcta
+  single_source_scenes:
+    - mode2->mode5
+    - mode5->mode2
+    - mode3->mode6
+    - mode6->mode3
+  multisource_targets:
+    - mode1
+    - mode2
+    - mode3
+    - mode4
+    - mode5
+    - mode6
+
+method_overrides:
+  source_only: {}
+  coral: {}
+  dan: {}
+  dann: {}
+  cdan:
+    runtime:
+      cudnn_benchmark: false
+      num_workers: 0
+      pin_memory: false
+      persistent_workers: false
+      non_blocking_transfers: false
+      model_selection: hybrid_source_eval_entropy_guard_domain_gap
+      early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+      selection_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      selection_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+      early_stopping_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      early_stopping_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+  deepjdot: {}
+  rcta:
+    optimization:
+      epochs: 96
+    loss:
+      base_align: dann
+      teacher_temperature: 1.1
+      reliability_weights:
+        cal_conf: 1.6
+        inv_entropy: 0.9
+        consistency: 1.2
+        proto_sim: 1.4
+      gate_score_floor_start: 0.30
+      gate_score_floor_end: 0.50
+      gate_score_floor_schedule_steps: 3200
+      gate_accept_ratio_start: 0.22
+      gate_accept_ratio_end: 0.78
+      gate_curriculum_steps: 3200
+      pseudo_label_weight: 0.30
+      pseudo_warmup_steps: 900
+      pseudo_use_reliability_weighting: true
+      pseudo_confidence_power: 1.20
+      prototype_weight: 0.05
+      prototype_start_step: 1200
+      prototype_warmup_steps: 1500
+      consistency_weight: 0.08
+      consistency_start_step: 900
+      consistency_warmup_steps: 1500
+      consistency_gate_only: true
+      consistency_reliability_power: 1.25
+      augment:
+        weak_jitter_std: 0.005
+        weak_scaling_std: 0.005
+        strong_jitter_std: 0.014
+        strong_scaling_std: 0.014
+        strong_time_mask_ratio: 0.06
+        strong_channel_dropout_prob: 0.05
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode4
+  preferred_fold: Fold 1
+
+notes:
+  - 70-run benchmark: 6 baselines + RCTA over 4 single-source directions and 6 five-source-to-one-target settings.
+  - RCTA keeps a more conservative DANN-based reliability-aware configuration tuned for benchmark stability across 70 runs.
