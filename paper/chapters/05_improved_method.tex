@@ -6,124 +6,218 @@
 基于上述问题，本文提出一种可靠性门控的类条件时序自适应方法（Reliability-Gated Class-Conditional Temporal Adaptation, RCTA）。该方法的核心思想是：利用教师网络生成更平滑的目标域预测，以多因素可靠性评分筛选可用伪标签，并结合类别原型约束与一致性正则，把全局域对齐和类条件迁移有机结合起来，从而提高跨工况故障诊断中的稳定迁移能力。
 
 \section{方法总体框架}
-本文提出的改进方法记为 RCTA。整体框架仍由特征提取器、分类器和域对齐模块三部分组成，其中 FCN 作为共享时序特征提取骨干，以保持与第四章基线比较的一致性。与现有基线相比，RCTA 的主要新增内容包括以下四项：
+设学生网络由编码器 $\phi(\cdot)$ 与分类器 $h(\cdot)$ 构成，教师网络由参数的指数滑动平均（EMA）版本 $\phi_{\mathrm{tea}}(\cdot)$ 和 $h_{\mathrm{tea}}(\cdot)$ 构成。对于一个源域小批量 $\mathcal{B}_s=\{(x_i^s,y_i^s)\}_{i=1}^{m_s}$ 和目标域小批量 $\mathcal{B}_t=\{x_j^t\}_{j=1}^{m_t}$，RCTA 的计算流程可概括为以下步骤。
 
 \begin{enumerate}
-\item 教师网络伪标签估计：利用指数滑动平均教师网络生成更稳定的目标域预测；
-\item 可靠性门控机制：综合置信度、熵、一致性和原型相似度筛选可信目标样本；
-\item 类别原型建模：维护源域与目标域的类别原型，为类条件迁移提供参照；
-\item 类条件与一致性约束：同时强化原型吸引、类别分离和时序一致性。
+\item 对源域样本执行常规前向传播，得到监督分类损失与基础域对齐损失；
+\item 对目标域样本生成弱增强视图和强增强视图，教师网络在弱增强视图上产生平滑伪标签，学生网络在强增强视图上进行一致性学习；
+\item 利用置信度、熵、一致性响应与原型相似度构造目标样本可靠性评分，并通过按类门控策略选择高可靠目标子集；
+\item 基于源域与目标域双原型记忆，对高可靠目标样本和源域样本同时施加原型吸引约束，并加入原型分离项；
+\item 将源域分类损失、基础对齐损失、最小类混淆正则、伪标签损失、原型损失与一致性损失共同组成总损失，配合课程式权重调度进行训练。
 \end{enumerate}
 
-在训练过程中，RCTA 保留现有全局域对齐损失作为基础约束，例如 CDAN 的条件对抗损失或 DANN 的域对抗损失；与此同时，通过可靠目标监督、双域原型和一致性正则进一步增强跨域同类聚合，从而缓解“全局对齐有效但类别边界不清晰”的问题。
+\section{教师网络与时序增强}
+为减轻目标域伪标签的瞬时波动，RCTA 不直接使用学生网络当前时刻的预测作为监督，而是引入教师网络生成更平滑的目标域概率分布。教师参数通过学生参数的指数滑动平均更新：
+\begin{equation}
+\theta_{\mathrm{tea}}\leftarrow
+\mu \theta_{\mathrm{tea}}+(1-\mu)\theta_{\mathrm{stu}},
+\end{equation}
+其中 $\mu$ 为 EMA 衰减系数，当前默认设为 0.99。
+
+对目标域样本 $x_j^t$，本文构造弱增强视图 $\tilde{x}_{j,w}^t$ 与强增强视图 $\tilde{x}_{j,s}^t$。弱增强仅包含轻微抖动与缩放，强增强则进一步加入时间屏蔽和通道 dropout。教师网络在弱增强视图上给出概率分布：
+\begin{equation}
+p_{j}^{tea}=
+\mathrm{softmax}\!\left(
+\frac{h_{\mathrm{tea}}(\phi_{\mathrm{tea}}(\tilde{x}_{j,w}^t))}{T_{tea}}
+\right),
+\end{equation}
+其中 $T_{tea}$ 为教师温度参数；伪标签定义为
+\begin{equation}
+\hat{y}_j^t=\arg\max p_j^{tea}.
+\end{equation}
+当前 aggressive 配置中，$T_{tea}=1.1$，较基础版本更偏向于保留判别性而不过度平滑。
 
 \section{类别原型建模}
-设特征提取器为 $\phi(\cdot)$，分类器为 $h(\cdot)$。对于一个源域小批量 $\mathcal{B}_s=\{(x_i^s,y_i^s)\}_{i=1}^{m_s}$，记其特征表示为
+设学生网络在源域样本上的特征表示为
 \begin{equation}
 f_i^s=\phi(x_i^s).
 \end{equation}
-对于第 $k$ 类故障，本文以该类别样本在特征空间中的均值作为小批量原型：
+对第 $k$ 类样本，源域小批量原型定义为
 \begin{equation}
-\tilde{c}_k=\frac{1}{|\mathcal{B}_s^k|}\sum_{i:y_i^s=k} f_i^s,
+\tilde{c}_{k}^{s}=
+\frac{1}{|\mathcal{B}_{s}^{k}|}
+\sum_{i:y_i^s=k} f_i^s,
 \end{equation}
-其中 $\mathcal{B}_s^k$ 表示当前批中属于第 $k$ 类的样本集合。为了减小单个小批量波动对类别中心的影响，本文采用指数滑动平均方式更新全局原型：
+并在实现中进行单位化处理。为减小单个批次的波动，进一步维护跨批次的源域原型记忆库：
 \begin{equation}
-c_k \leftarrow \mu c_k + (1-\mu)\tilde{c}_k,
+c_{k}^{s}\leftarrow
+\mathrm{Norm}\!\left(
+\beta c_k^s+(1-\beta)\tilde{c}_k^s
+\right),
 \end{equation}
-其中 $\mu \in [0,1)$ 为动量系数。这样得到的源域类别原型一方面能够反映各故障类别的稳定中心，另一方面又能随训练过程逐步更新，作为目标域特征对齐的参照。
+其中 $\beta$ 为原型动量系数，当前默认为 0.9。
+
+对目标域高可靠样本，也构建对应的目标域原型记忆库 $c_k^t$。在实际使用时，参考原型并非简单地等于源域原型，而是由当前源域批原型、源域记忆原型和目标域记忆原型共同形成：
+\begin{equation}
+c_k^{ref}=
+\mathrm{Norm}\!\left(
+\alpha_1 \tilde{c}_k^s+\alpha_2 c_k^s+\alpha_3 c_k^t
+\right).
+\end{equation}
+当前实现中，若某类目标原型尚未建立，则优先使用源域原型；若源域与目标域原型均已存在，则使用二者的归一化和作为参考原型。这样既能保留源域类别中心的稳定性，又允许目标域结构逐步参与原型定义。
 
 \section{目标域可靠伪标签筛选}
-对于目标域小批量 $\mathcal{B}_t=\{x_j^t\}_{j=1}^{m_t}$，记其预测概率为
+对目标域样本，本文不直接让所有伪标签都参与训练，而是为每个样本构造综合可靠性评分。首先定义四个基础分量：
+\begin{align}
+q_j &= \max p_j^{tea},\\
+e_j &= 1-\frac{-\sum_{k=1}^{K}p_{jk}^{tea}\log p_{jk}^{tea}}{\log K},\\
+u_j &= p_{j,\hat{y}_j^t}^{stu},\\
+s_j &= \frac{1+\cos(f_j^{tea},c_{\hat{y}_j^t}^{ref})}{2},
+\end{align}
+其中 $q_j$ 表示教师置信度，$e_j$ 表示逆归一化熵，$u_j$ 表示学生网络在强增强视图上对伪标签类别的响应强度，$s_j$ 表示教师特征与参考原型的相似度。于是可靠性得分定义为
 \begin{equation}
-p_j^{t,\mathrm{tea}}=\mathrm{softmax}\!\left(\frac{h_{\mathrm{tea}}(\phi_{\mathrm{tea}}(x_j^t))}{T_{\mathrm{tea}}}\right),
+r_j=
+\omega_1 q_j+\omega_2 e_j+\omega_3 u_j+\omega_4 s_j,
+\qquad
+\sum_{m=1}^{4}\omega_m=1.
 \end{equation}
-伪标签定义为最大概率对应的类别：
+若需要进一步拉开高低置信样本之间的差距，可引入幂变换
 \begin{equation}
-\hat{y}_j^t=\arg\max p_j^{t,\mathrm{tea}}.
+\tilde{r}_j=(r_j+\varepsilon)^{\gamma},
 \end{equation}
-同时记预测置信度为
+当前 aggressive 配置中 $\gamma=1.6$。
+
+随后，引入两个随训练步数变化的门控课程量。第一个是分数下界：
 \begin{equation}
-q_j^t=\max p_j^{t,\mathrm{tea}}.
+\tau(t)=\tau_{start}
++(\tau_{end}-\tau_{start})\cdot
+\min\left(\frac{t}{T_{\tau}},1\right),
 \end{equation}
-为了降低错误伪标签带来的负迁移风险，本文不直接让所有目标域样本参与类条件训练，而是为每个样本构造综合可靠性评分。除最大预测概率外，还考虑预测熵、学生网络与教师网络之间的一致性，以及目标样本与参考原型之间的相似度。记综合可靠性分数为
+第二个是按类接受比例：
 \begin{equation}
-r_j^t=\alpha_1 q_j^t+\alpha_2(1-e_j^t)+\alpha_3 u_j^t+\alpha_4 s_j^t,
+\rho(t)=\rho_{start}
++(\rho_{end}-\rho_{start})\cdot
+\min\left(\frac{t}{T_{\rho}},1\right).
 \end{equation}
-其中 $e_j^t$ 表示归一化预测熵，$u_j^t$ 表示学生网络对伪标签的响应强度，$s_j^t$ 表示样本特征与对应类别参考原型之间的相似度，$\alpha_1,\alpha_2,\alpha_3,\alpha_4$ 为非负权重且满足和为 1。进一步通过阈值 $\tau$ 选出高可靠目标子集
-\begin{equation}
-\Omega_t=\{j \mid r_j^t > \tau\}.
-\end{equation}
-随着训练进行，阈值和对应损失权重采用渐进式策略，使模型先依赖源域监督和全局对齐获得相对稳定的表示，再逐步利用高可靠目标样本开展更细粒度的类条件迁移。
+与简单的全局阈值不同，本文按照预测类别分别筛选目标样本：对每个预测类别 $k$，先保留满足 $\tilde{r}_j\ge \tau(t)$ 的样本，再选取得分前 $\lceil \rho(t)\cdot n_k\rceil$ 个样本进入高可靠集合 $\Omega_t$。这种按类门控机制能够缓解目标域类别分布不均引发的“头部类别占满伪标签预算”问题。
+
+在当前 aggressive 配置中，门控下界由 0.24 线性上升至 0.58，持续 2400 个优化步；按类接受比例由 0.30 线性上升至 0.92，也持续 2400 个优化步。该设置体现出一种“先保守、后开放”的课程思路：训练初期只利用极少数高可靠样本，训练中后期再逐渐扩大可用目标样本范围。
 
 \section{类条件对齐与一致性约束}
 \subsection{原型吸引损失}
-对于被选中的高置信目标域样本，本文希望其特征尽量接近对应类别的源域原型，因此定义原型一致性损失为
+为了直接强化跨域同类样本聚合，本文对源域样本与高可靠目标域样本同时施加原型吸引约束。对任一样本特征 $f$ 及其对应参考原型 $c^{ref}$，采用余弦距离作为吸引代价：
 \begin{equation}
-\mathcal{L}_{proto}=
-\frac{1}{|\Omega_t|}
-\sum_{j\in\Omega_t}
-\left\|
-\phi(x_j^t)-c_{\hat{y}_j^t}
-\right\|_2^2.
+\ell_{att}(f,c^{ref})=1-\cos(f,c^{ref}).
 \end{equation}
-该项约束的作用是直接缩小目标域特征与源域同类中心的距离，从而增强跨域同类样本的聚合性。
+于是源域与目标域的原型吸引损失分别为
+\begin{align}
+\mathcal{L}_{proto}^{s}&=
+\frac{1}{m_s}\sum_{i=1}^{m_s}
+\left(1-\cos(f_i^s,c_{y_i^s}^{ref})\right),\\
+\mathcal{L}_{proto}^{t}&=
+\frac{1}{|\Omega_t|}\sum_{j\in\Omega_t}
+\left(1-\cos(f_j^t,c_{\hat{y}_j^t}^{ref})\right).
+\end{align}
+这两项约束的作用是直接缩小源域/目标域样本与其类别中心的角距离，从而增强跨域同类样本的聚合性。
 
 \subsection{原型分离约束}
-除增强同类样本聚合外，本文还希望不同类别的参考原型保持足够分离。记参考原型集合为 $\{c_k\}_{k=1}^{K}$，则原型分离损失定义为
+除增强同类样本聚合外，本文还希望不同类别的参考原型保持足够分离。记当前激活的参考原型集合为 $\{c_k^{ref}\}_{k=1}^{K^\prime}$，则原型分离损失定义为
 \begin{equation}
 \mathcal{L}_{sep}=
-\frac{1}{K(K-1)}\sum_{k\neq l}
-\max\left(0,\cos(c_k,c_l)-m\right),
+\frac{1}{|\mathcal{P}|}\sum_{(k,l)\in\mathcal{P}}
+\max\left(0,\cos(c_k^{ref},c_l^{ref})-m\right),
 \end{equation}
-其中 $m$ 为原型间余弦相似度的分离边界。该项约束能够抑制不同类别中心在特征空间中过度靠近，从而减少类间混叠。
+其中 $m$ 为原型间余弦相似度的分离边界，$\mathcal{P}$ 表示所有有效类别对集合。当前实现中 $m=0.2$。该项约束能够抑制不同类别中心在特征空间中过度靠近，从而减少类间混叠。
 
 \subsection{一致性监督项}
-在高可靠目标样本基础上，本文进一步约束学生网络预测与教师网络预测保持一致。设学生网络预测概率为 $p_j^{t,\mathrm{stu}}$，则一致性损失可写为
+在高可靠目标样本基础上，本文进一步约束学生网络预测与教师网络预测保持一致。设学生网络在强增强视图上的预测概率为 $p_j^{stu}$，教师概率为 $p_j^{tea}$，则一致性损失可写为
 \begin{equation}
 \mathcal{L}_{cons}=
-\frac{1}{|\Omega_t|}\sum_{j\in\Omega_t}
-\mathrm{KL}\!\left(p_j^{t,\mathrm{tea}} \,\|\, p_j^{t,\mathrm{stu}}\right).
+\frac{1}{\sum_j w_j}\sum_{j=1}^{m_t}
+w_j\,
+\mathrm{KL}\!\left(p_j^{tea}\,\|\,p_j^{stu}\right),
 \end{equation}
-该项的作用是进一步稳定目标域判别边界，并利用教师网络提供的平滑监督减轻伪标签噪声对训练的扰动。
+其中 $w_j$ 为一致性权重。在默认设置下，$w_j$ 可以取门控掩码，也可以直接取可靠性得分的幂次。当前 aggressive 配置中，一致性损失仅对门控样本启用，并额外使用可靠性指数 1.8 对权重进行强调。该项的作用是进一步稳定目标域判别边界，并利用教师网络提供的平滑监督减轻伪标签噪声对训练的扰动。
 
 \section{整体优化目标与训练策略}
-在保留现有全局域对齐损失 $\mathcal{L}_{global}$ 的基础上，RCTA 的总损失函数可写为
+在保留现有全局域对齐损失的基础上，RCTA 的总损失函数可写为
 \begin{equation}
 \mathcal{L}=
 \mathcal{L}_{cls}^s
-+\lambda_g\mathcal{L}_{global}
-+\lambda_p\mathcal{L}_{proto}
-+\lambda_s\mathcal{L}_{sep}
-+\lambda_c\mathcal{L}_{cons},
++\lambda_{align}(t)\mathcal{L}_{align}
++\lambda_{mcc}\mathcal{L}_{mcc}
++\lambda_{pl}(t)\mathcal{L}_{pl}
++\lambda_{proto}(t)\left(
+\mathcal{L}_{proto}^{s}
++\mathcal{L}_{proto}^{t}
++\lambda_{sep}\mathcal{L}_{sep}
+\right)
++\lambda_{cons}(t)\mathcal{L}_{cons},
 \end{equation}
-其中 $\mathcal{L}_{cls}^s$ 表示源域监督分类损失，$\lambda_g$、$\lambda_p$、$\lambda_s$ 和 $\lambda_c$ 分别为各损失项的权重。训练策略上，本文按照以下方式组织优化：
+其中 $\mathcal{L}_{pl}$ 为高可靠目标样本上的伪标签交叉熵损失，$\mathcal{L}_{align}$ 为基础域对齐损失，$\mathcal{L}_{mcc}$ 为可选的最小类混淆正则项。当前实现中，$\mathcal{L}_{align}$ 可以选为 CDAN、DANN 或 DeepJDOT 分支；在 aggressive 配置下，RCTA 采用 DANN 作为基础对齐分支，即
+\begin{equation}
+\mathcal{L}_{align}=\mathcal{L}_{adv}.
+\end{equation}
+
+为避免目标域伪监督在训练初期过早介入，本文对若干损失项采用线性 warmup 策略。以伪标签权重为例，
+\begin{equation}
+\lambda_{pl}(t)=
+\begin{cases}
+\lambda_{pl}^{max}\cdot \frac{t}{T_{pl}}, & 0\le t<T_{pl},\\
+\lambda_{pl}^{max}, & t\ge T_{pl},
+\end{cases}
+\end{equation}
+原型损失和一致性损失则分别在各自的起始步数之后启动并线性增大。当前 aggressive 配置中，伪标签损失最大权重为 0.42，500 步 warmup；原型损失最大权重为 0.08，从第 700 步开始，1000 步 warmup；一致性损失最大权重为 0.12，从第 500 步开始，1000 步 warmup。
+
+训练策略上，本文按照以下方式组织优化：
 
 \begin{enumerate}
-\item 训练初期主要依赖源域分类损失和全局域对齐损失，先获得较稳定的跨域共享表示；
-\item 随着训练推进，利用教师网络输出和可靠性门控机制筛选可信目标样本；
-\item 在每轮迭代中更新类别原型，并通过原型吸引、原型分离和一致性监督共同约束目标域表示；
-\item 最终在统一实验场景中评估该方法相对基线的目标域性能收益与稳定性变化。
+\item 训练初期主要依赖源域分类损失和基础域对齐损失，先获得较稳定的跨域共享表示；
+\item 随着训练推进，教师网络逐步提供更可靠的目标域预测，可靠性门控机制开始筛选可信目标样本；
+\item 每步更新后同步执行教师网络 EMA 更新，并对源域与目标域原型记忆库进行动量更新；
+\item 在中后期，原型吸引、一致性约束和伪标签监督共同参与训练，进一步强化类条件迁移；
+\item 最终通过统一实验协议评估该方法相对基线的目标域性能收益、源域保持能力和场景稳定性。
 \end{enumerate}
 
-该设计与现有基线方法共享统一骨干网络和基本训练框架，便于在相同实验条件下分析新增机制的有效性。
+\section{与前期调参结果的关系}
+从实验演化路径看，RCTA 并非一次性成形，而是在多个调参批次中逐步稳定下来。较早的 easy-pairs 版本在 mode2$\rightarrow$mode5 和 mode3$\rightarrow$mode6 上分别取得 0.7778 和 0.7858 的目标域准确率；随着“top1 push”“four pairs”和当前 aggressive 配置的逐步迭代，RCTA 在四个代表性单源场景上的结果逐渐提升并趋于稳定。当前 aggressive 配置中，mode2$\rightarrow$mode5 和 mode3$\rightarrow$mode6 分别提升至 0.8542 和 0.8756，表明可靠性门控、课程调度和较强 DANN 基础对齐分支的组合是有效的。
 
-\section{实验验证方案}
-\subsection{与基线方法的总体比较}
-实验验证首先在第四章已经完成的六组代表性单源场景上考察 RCTA 相对于 Source Only、DAN、DANN 和 CDAN 的增益情况；在此基础上，再扩展到全量场景的系统比较中进行补充说明。
+\section{阶段性实验验证}
+\subsection{与基线方法的比较}
+表~\ref{tab:rcta-vs-baselines} 给出了当前已完成四个代表性单源场景中，RCTA 与 Source Only、最强基线之间的对比。可以看到，RCTA 在四个场景上均取得最高目标域准确率，且在每个场景上都优于 Source Only；相对于当场景最强基线，RCTA 仍然保持了 0.5 到 2.6 个百分点不等的额外收益。
 
-\subsection{消融实验设计}
-为了明确各模块贡献，本文设计以下消融版本：
-\begin{enumerate}
-\item 仅保留全局域对齐损失的基线版本；
-\item 全局域对齐 + 原型吸引损失；
-\item 全局域对齐 + 原型吸引 + 原型分离约束；
-\item 全局域对齐 + 原型吸引 + 一致性监督；
-\item 完整版本，即同时加入可靠性门控、原型约束和一致性正则。
-\end{enumerate}
-通过上述逐步叠加方式，可以分析每个模块对目标域性能、训练稳定性和类别区分能力的具体影响。
+\begin{table}[htbp]
+\centering
+\caption{RCTA 与 Source Only 及最强基线的比较}
+\label{tab:rcta-vs-baselines}
+\begin{tabular}{lccccc}
+\hline
+场景 & Source Only & 最强基线 & RCTA & 相对 Source Only 增益 & 相对最强基线增益 \\
+\hline
+mode2$\rightarrow$mode5 & 0.6094 & 0.8299 (DANN) & 0.8542 & +0.2448 & +0.0243 \\
+mode3$\rightarrow$mode6 & 0.7064 & 0.8566 (DANN) & 0.8756 & +0.1693 & +0.0190 \\
+mode5$\rightarrow$mode2 & 0.5203 & 0.8131 (DAN) & 0.8183 & +0.2981 & +0.0053 \\
+mode6$\rightarrow$mode3 & 0.8463 & 0.8618 (DANN) & 0.8877 & +0.0415 & +0.0259 \\
+\hline
+\end{tabular}
+\end{table}
+
+若对 4 个场景求平均，RCTA 的平均目标域准确率为 0.8590，相比 Source Only 平均提升 0.1884，相比最强基线平均进一步提升 0.0186。更重要的是，RCTA 在 4 个场景上的源域评估准确率平均达到 0.9001，未出现明显的“为了对齐而牺牲源域判别能力”的现象。这说明 RCTA 的收益并非来自单纯的决策边界漂移，而更可能来自更有效的类条件结构利用。
+
+\subsection{结果分析}
+结合表~\ref{tab:rcta-vs-baselines}，可以进一步得到以下几点观察。
+
+\paragraph{1. RCTA 对困难方向更有帮助}
+在 mode5$\rightarrow$mode2 场景中，Source Only 仅有 0.5203，而 RCTA 达到 0.8183，提升幅度为 0.2981，是四个场景中最大的绝对增益。这表明当源域与目标域差异较大时，可靠性门控伪标签和原型约束更能体现作用。
+
+\paragraph{2. RCTA 在相对容易方向上也能保持正收益}
+在 mode6$\rightarrow$mode3 场景中，Source Only 已经达到 0.8463，说明该方向天然可迁移性较强。此时若方法设计不当，很容易出现负迁移；然而 RCTA 仍进一步提升至 0.8877，相比最强基线 DANN 也有 0.0259 的增益，说明可靠性门控机制较好地控制了对齐压力。
+
+\paragraph{3. 类条件结构与基础对齐存在互补性}
+当前 aggressive 配置将 DANN 作为基础对齐分支，再叠加伪标签、一致性和原型机制。相比直接使用 DANN，RCTA 在 4 个场景上平均再提升 0.0261 左右，说明“全局对抗对齐 + 可靠类条件约束”的组合优于单独使用任一部分。
 
 \subsection{重点分析指标}
-在验证过程中，除了目标域准确率和平衡准确率外，还将重点关注以下现象：其一，源域准确率是否因为额外对齐约束而出现明显下降；其二，混淆矩阵中易混类别是否得到改善；其三，t-SNE 可视化中跨域同类样本是否比现有基线更加聚合；其四，所提方法在不同迁移方向上的收益是否更加稳定。
+在后续完整验证中，除目标域准确率和平衡准确率外，还将重点关注以下指标与现象：其一，源域准确率是否因为额外对齐约束而出现明显下降；其二，混淆矩阵中易混类别是否得到改善；其三，t-SNE 可视化中跨域同类样本是否比现有基线更加聚合；其四，所提方法在不同迁移方向上的收益是否更加稳定。当前单源四场景结果已经为这些后续分析提供了较好的初步支持，但更完整的结论仍需要等待全量实验与消融实验完成。
 
 \section{本章小结}
-本章在第四章实验结果分析的基础上，进一步给出了一个更具体的创新方向，即可靠性门控的类条件时序自适应方法。该方法尝试把教师网络伪标签、可靠性筛选、类别原型和一致性正则结合起来，以提升跨工况故障诊断中的类条件迁移能力。相较于仅停留在原则层面的改进设想，这一方案已经明确了核心机制、损失函数和验证路径，也为后续实验补充提供了清晰主线。
+本章在第四章基线分析的基础上，给出了可靠性门控的类条件时序自适应方法 RCTA 的完整设计，包括教师网络、时序增强、可靠性门控、双原型记忆、原型约束与一致性正则等关键机制。当前已完成的四个代表性单源场景结果表明，RCTA 在四个场景上均取得最优目标域准确率，验证了该方法设计的可行性。后续工作将继续补充多源场景、消融实验与参数敏感性分析，以进一步完善论文的实验支撑。

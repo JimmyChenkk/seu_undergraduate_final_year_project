@@ -1,7 +1,113 @@
 \chapter{实验补充材料}
 
 \section{附录说明}
-本附录用于放置不便完全写入正文、但对理解实验设置和补充分析仍有参考价值的材料，例如关键超参数表、更多实验结果、补充可视化图和必要的实现说明等。
+本附录用于放置不便完全写入正文、但对理解实验设置和补充分析仍有参考价值的材料，例如关键超参数表、更多实验结果、补充可视化图和必要的实现说明等。由于当前论文写作与实验推进是并行进行的，因此附录也承担“收纳阶段性结果、为后续删减和重排预留素材”的作用。
 
-\section{可补充材料安排}
-当前附录主要用于承接正文未完全展开的补充内容。随着实验结果持续整理，可进一步补充各方法关键超参数表、更多场景结果、附加混淆矩阵与特征可视化，以及必要的实现细节说明。若附录内容较多，也可继续扩展为多个附录文件。
+\section{基线方法关键超参数}
+表~\ref{tab:appendix-baseline-hparams} 给出了当前 6 种基线方法在 aggressive 批次中采用的关键超参数。这些配置由 \texttt{configs/method/*.yaml} 与实验覆盖项共同确定。
+
+\begin{table}[htbp]
+\centering
+\caption{基线方法关键超参数}
+\label{tab:appendix-baseline-hparams}
+\small
+\begin{tabular}{lccc p{6.6cm}}
+\hline
+方法 & epochs & batch size & 学习率 & 关键对齐参数 \\
+\hline
+Source Only & 70 & 32 & $1\times 10^{-4}$ & 无显式对齐项 \\
+CORAL & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{coral}=0.5$，warm-start \\
+DAN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{mmd}=0.05$，5 组高斯核尺度 \\
+DANN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{adv}=0.5$，GRL warm-start，判别器 256$\times$2 \\
+CDAN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{cadv}=0.2$，randomized dim=256，熵保护选择指标 \\
+DeepJDOT & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{ot}=1.0$，$\alpha=0.1$，$\beta=1.0$ \\
+\hline
+\end{tabular}
+\normalsize
+\end{table}
+
+\section{RCTA aggressive 配置摘要}
+表~\ref{tab:appendix-rcta-hparams} 汇总了当前单源四场景中效果最稳定的 RCTA aggressive 配置。该配置同时融合了 DANN 基础对齐、MCC 正则、可靠性门控、双原型记忆与一致性学习。
+
+\begin{table}[htbp]
+\centering
+\caption{RCTA aggressive 配置摘要}
+\label{tab:appendix-rcta-hparams}
+\small
+\begin{tabular}{l p{8.7cm}}
+\hline
+模块 & 配置 \\
+\hline
+训练轮数 & 96 \\
+基础对齐分支 & DANN \\
+MCC 正则 & $\lambda_{mcc}=0.1$，temperature=2.0 \\
+教师网络 & EMA decay=0.99，teacher temperature=1.1 \\
+可靠性权重 & cal\_conf=1.6，inv\_entropy=0.9，consistency=1.2，proto\_sim=1.4 \\
+分数下界课程 & 0.24 $\rightarrow$ 0.58，持续 2400 steps \\
+按类接受比例课程 & 0.30 $\rightarrow$ 0.92，持续 2400 steps \\
+伪标签损失 & 最大权重 0.42，warmup 500 steps，可靠性加权，power=1.6 \\
+原型损失 & 最大权重 0.08，start step=700，warmup 1000 steps \\
+一致性损失 & 最大权重 0.12，start step=500，warmup 1000 steps \\
+一致性门控 & 仅对 gate 内样本启用，reliability power=1.8 \\
+数据增强 & 弱增强：轻微抖动/缩放；强增强：抖动、缩放、时间屏蔽、通道 dropout \\
+\hline
+\end{tabular}
+\normalsize
+\end{table}
+
+\section{当前已完成四个单源场景的完整结果}
+表~\ref{tab:appendix-single-source-full} 给出当前 aggressive 批次中 4 个已完成单源场景的完整结果，包括源域训练准确率、源域评估准确率、目标域准确率、目标域平衡准确率和最终选择 epoch。该表可直接作为正文删减前的完整原始材料。
+
+\begin{table}[htbp]
+\centering
+\caption{当前已完成四个单源场景的完整结果}
+\label{tab:appendix-single-source-full}
+\scriptsize
+\begin{tabular}{lcccccc}
+\hline
+方法 & 场景 & 源域训练准确率 & 源域评估准确率 & 目标域准确率 & 目标域平衡准确率 & 选择 epoch \\
+\hline
+Source Only & mode2$\rightarrow$mode5 & 0.8845 & 0.8889 & 0.6094 & 0.6116 & 70 \\
+CORAL & mode2$\rightarrow$mode5 & 0.8661 & 0.8571 & 0.6875 & 0.6871 & 69 \\
+DAN & mode2$\rightarrow$mode5 & 0.8494 & 0.8536 & 0.8177 & 0.8190 & 68 \\
+DANN & mode2$\rightarrow$mode5 & 0.8525 & 0.8519 & 0.8299 & 0.8310 & 69 \\
+CDAN & mode2$\rightarrow$mode5 & 0.8661 & 0.8713 & 0.8177 & 0.8190 & 70 \\
+DeepJDOT & mode2$\rightarrow$mode5 & 0.7853 & 0.7813 & 0.7135 & 0.7155 & 65 \\
+RCTA & mode2$\rightarrow$mode5 & 0.8990 & 0.9048 & 0.8542 & 0.8552 & 94 \\
+\hline
+Source Only & mode3$\rightarrow$mode6 & 0.8759 & 0.8774 & 0.7064 & 0.7069 & 68 \\
+CORAL & mode3$\rightarrow$mode6 & 0.8849 & 0.8774 & 0.7962 & 0.7966 & 65 \\
+DAN & mode3$\rightarrow$mode6 & 0.8853 & 0.8843 & 0.8187 & 0.8190 & 59 \\
+DANN & mode3$\rightarrow$mode6 & 0.8772 & 0.8705 & 0.8566 & 0.8569 & 69 \\
+CDAN & mode3$\rightarrow$mode6 & 0.8681 & 0.8756 & 0.8204 & 0.8207 & 62 \\
+DeepJDOT & mode3$\rightarrow$mode6 & 0.8203 & 0.8117 & 0.7168 & 0.7172 & 70 \\
+RCTA & mode3$\rightarrow$mode6 & 0.9060 & 0.9102 & 0.8756 & 0.8759 & 96 \\
+\hline
+Source Only & mode5$\rightarrow$mode2 & 0.8691 & 0.8767 & 0.5203 & 0.5190 & 69 \\
+CORAL & mode5$\rightarrow$mode2 & 0.8427 & 0.8403 & 0.6808 & 0.6862 & 66 \\
+DAN & mode5$\rightarrow$mode2 & 0.8704 & 0.8663 & 0.8131 & 0.8052 & 67 \\
+DANN & mode5$\rightarrow$mode2 & 0.8435 & 0.8472 & 0.7831 & 0.7766 & 66 \\
+CDAN & mode5$\rightarrow$mode2 & 0.8721 & 0.8750 & 0.7478 & 0.7414 & 68 \\
+DeepJDOT & mode5$\rightarrow$mode2 & 0.7811 & 0.7812 & 0.7072 & 0.7091 & 70 \\
+RCTA & mode5$\rightarrow$mode2 & 0.9142 & 0.8872 & 0.8183 & 0.8184 & 96 \\
+\hline
+Source Only & mode6$\rightarrow$mode3 & 0.8654 & 0.8687 & 0.8463 & 0.8465 & 69 \\
+CORAL & mode6$\rightarrow$mode3 & 0.8624 & 0.8618 & 0.8359 & 0.8362 & 68 \\
+DAN & mode6$\rightarrow$mode3 & 0.8382 & 0.8342 & 0.7979 & 0.7983 & 70 \\
+DANN & mode6$\rightarrow$mode3 & 0.8619 & 0.8618 & 0.8618 & 0.8621 & 70 \\
+CDAN & mode6$\rightarrow$mode3 & 0.7934 & 0.7927 & 0.7547 & 0.7550 & 36 \\
+DeepJDOT & mode6$\rightarrow$mode3 & 0.7994 & 0.7720 & 0.7478 & 0.7481 & 70 \\
+RCTA & mode6$\rightarrow$mode3 & 0.9025 & 0.8981 & 0.8877 & 0.8879 & 95 \\
+\hline
+\end{tabular}
+\normalsize
+\end{table}
+
+\section{后续仍可补充的材料}
+随着 70 组实验计划继续推进，本附录还可进一步补充以下内容：
+\begin{enumerate}
+\item 六个多源场景的完整比较表和平均统计；
+\item RCTA 不同版本（easy-pairs、top1-push、aggressive）之间的配置演化表；
+\item 不同方法在代表性场景上的混淆矩阵与 t-SNE 图；
+\item 可靠性门控比例、原型活跃类别数量和目标域熵随训练轮数变化的曲线。
+\end{enumerate}
