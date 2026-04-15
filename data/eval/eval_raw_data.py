@@ -11,6 +11,13 @@ from typing import Any
 
 import numpy as np
 
+SCRIPT_PATH = Path(__file__).resolve()
+DATA_EVAL_DIR = SCRIPT_PATH.parent
+REPO_ROOT = SCRIPT_PATH.parents[2]
+DEFAULT_RAW_DIR = REPO_ROOT / "data" / "raw"
+DEFAULT_OUTPUT_MD = DATA_EVAL_DIR / "raw_data_report.md"
+DEFAULT_OUTPUT_JSON = DATA_EVAL_DIR / "raw_data_report.json"
+
 REQUIRED_TOP_LEVEL_KEYS = ("Signals", "Labels", "Folds")
 
 
@@ -127,14 +134,14 @@ def inspect_raw_dir(raw_dir: Path, pattern: str = "*.pickle") -> dict[str, Any]:
 
 def render_markdown(inspection: dict[str, Any]) -> str:
     lines: list[str] = [
-        "# TE Raw Data Inspection",
+        "# TE Raw Data Inspection / TE 原始数据检查",
         "",
-        f"Generated at: `{inspection.get('generated_at')}`",
-        f"Raw dir: `{inspection.get('raw_dir')}`",
+        f"Generated at / 生成时间: `{inspection.get('generated_at')}`",
+        f"Raw dir / 原始数据目录: `{inspection.get('raw_dir')}`",
         "",
-        "## File Summary",
+        "## File Summary / 文件汇总",
         "",
-        "| File | Domain | Type | Top-level keys | Error |",
+        "| File / 文件 | Domain / 域 | Type / 类型 | Top-level keys / 顶层键 | Error / 错误 |",
         "| --- | --- | --- | --- | --- |",
     ]
     files = inspection.get("files", [])
@@ -151,19 +158,19 @@ def render_markdown(inspection: dict[str, Any]) -> str:
     for item in files:
         lines.extend([
             "",
-            f"## {item['file_name']}",
+            f"## {item['file_name']} / 文件详情",
             "",
-            f"- Domain ID: `{item.get('domain_id', 'N/A')}`",
-            f"- Source path: `{item.get('source_path', 'N/A')}`",
-            f"- Size (bytes): `{item.get('size_bytes', 'N/A')}`",
-            f"- Python type: `{item.get('python_type', 'N/A')}`",
+            f"- Domain ID / 域编号: `{item.get('domain_id', 'N/A')}`",
+            f"- Source path / 源路径: `{item.get('source_path', 'N/A')}`",
+            f"- Size (bytes) / 文件大小(字节): `{item.get('size_bytes', 'N/A')}`",
+            f"- Python type / Python类型: `{item.get('python_type', 'N/A')}`",
         ])
         if item.get("error"):
             lines.append(f"- Error: `{item['error']}`")
             continue
-        lines.append(f"- Required keys present: `{item.get('required_keys_present', {})}`")
+        lines.append(f"- Required keys present / 必需键是否存在: `{item.get('required_keys_present', {})}`")
         lines.append("")
-        lines.append("| Key | Type | Shape | Length | Dtype | Extra |")
+        lines.append("| Key / 键 | Type / 类型 | Shape / 形状 | Length / 长度 | Dtype / 数据类型 | Extra / 额外信息 |")
         lines.append("| --- | --- | --- | --- | --- | --- |")
         for key in item.get("top_level_keys", []):
             summary = item.get("key_summaries", {}).get(key, {})
@@ -191,68 +198,71 @@ def render_markdown(inspection: dict[str, Any]) -> str:
 
     lines.extend([
         "",
-        "## Quick takeaways",
-        "",
-        f"- Signals shape variants: `{sorted(all_signals_shapes) if all_signals_shapes else 'N/A'}`",
-        f"- Fold names observed: `{sorted(all_folds) if all_folds else 'N/A'}`",
-        f"- Label preview frequency (not class counts): `{dict(label_counter) if label_counter else 'N/A'}`",
-        "- Next step: inspect domain-wise sample counts, class balance, and signal normalization strategy.",
-        "",
-        "## Mermaid overview",
+        "## Mermaid overview / 流程总览",
         "",
         "```mermaid",
         "flowchart TD",
-        "    A[Raw pickle files in data/raw] --> B[pickle.load(handle)]",
-        "    B --> C{Top-level dict?}",
-        "    C -->|Yes| D[Signals array]",
-        "    C -->|Yes| E[Labels array]",
-        "    C -->|Yes| F[Folds dict]",
-        "    D --> G[Benchmark manifest / dataset loader]",
+        "    A[\"Raw pickle files\"] --> B[\"pickle load\"]",
+        "    B --> C{\"Top-level dict?\"}",
+        "    C -->|Yes| D[\"Signals\"]",
+        "    C -->|Yes| E[\"Labels\"]",
+        "    C -->|Yes| F[\"Folds\"]",
+        "    D --> G[\"Benchmark manifest\"]",
         "    E --> G",
         "    F --> G",
-        "    G --> H[Normalization / split selection]",
-        "    H --> I[Single-source or multi-source batches]",
-        "    I --> J[Training methods: source_only / coral / dan / dann / cdan / deepjdot / rcta]",
+        "    G --> H[\"Domain resolver\"]",
+        "    H --> I[\"Normalization and fold selection\"]",
+        "    I --> J[\"Single-source pipeline\"]",
+        "    I --> K[\"Multi-source pipeline\"]",
+        "    J --> L[\"Training methods\"]",
+        "    K --> L",
+        "    L --> M[\"source_only coral dan dann cdan deepjdot rcta\"]",
+        "```",
+        "",
+        "## Raw data structure explained / 原始数据结构说明",
+        "",
+        "```mermaid",
+        "erDiagram",
+        "    PICKLE_FILE ||--|| SIGNALS : contains",
+        "    PICKLE_FILE ||--|| LABELS : contains",
+        "    PICKLE_FILE ||--|| FOLDS : contains",
+        "    SIGNALS {",
+        "        int sample_count",
+        "        int time_steps",
+        "        int channels",
+        "    }",
+        "    LABELS {",
+        "        int sample_count",
+        "        int[] label_values",
+        "    }",
+        "    FOLDS {",
+        "        string fold_name",
+        "        int[] sample_indices",
+        "    }",
+        "    PICKLE_FILE {",
+        "        string file_name",
+        "        string domain_id",
+        "    }",
         "```",
     ])
     return "\n".join(lines) + "\n"
-
-
-def build_mermaid() -> str:
-    return "\n".join([
-        "flowchart TD",
-        "    A[Raw pickle files in data/raw] --> B[pickle.load(handle)]",
-        "    B --> C{Top-level dict?}",
-        "    C -->|Yes| D[Signals array]",
-        "    C -->|Yes| E[Labels array]",
-        "    C -->|Yes| F[Folds dict]",
-        "    D --> G[Benchmark manifest / dataset loader]",
-        "    E --> G",
-        "    F --> G",
-        "    G --> H[Normalization / split selection]",
-        "    H --> I[Single-source or multi-source batches]",
-        "    I --> J[Training methods: source_only / coral / dan / dann / cdan / deepjdot / rcta]",
-    ])
+    return "\n".join(lines) + "\n"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect TE raw pickle files and render a markdown report.")
-    parser.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
-    parser.add_argument("--output-md", type=Path, default=Path("data/eval/raw_data_report.md"))
-    parser.add_argument("--output-json", type=Path, default=Path("data/eval/raw_data_report.json"))
-    parser.add_argument("--output-mermaid", type=Path, default=Path("data/eval/raw_data_flow.mmd"))
+    parser.add_argument("--raw-dir", type=Path, default=DEFAULT_RAW_DIR)
+    parser.add_argument("--output-md", type=Path, default=DEFAULT_OUTPUT_MD)
+    parser.add_argument("--output-json", type=Path, default=DEFAULT_OUTPUT_JSON)
     args = parser.parse_args()
 
     inspection = inspect_raw_dir(args.raw_dir)
     args.output_md.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
-    args.output_mermaid.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(json.dumps(inspection, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     args.output_md.write_text(render_markdown(inspection), encoding="utf-8")
-    args.output_mermaid.write_text(build_mermaid() + "\n", encoding="utf-8")
     print(f"Wrote {args.output_json}")
     print(f"Wrote {args.output_md}")
-    print(f"Wrote {args.output_mermaid}")
 
 
 if __name__ == "__main__":
