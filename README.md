@@ -246,7 +246,7 @@ flowchart TD
 当前仓库默认跟踪项目源码与文档，忽略大数据、外部参考和实验输出：
 
 - 已跟踪：`README.md`、`environment.yml`、`requirements-benchmark.txt`、`configs/`、`scripts/`、`src/`、`paper/`
-- 默认忽略：`.vscode/`、`data/`、`external/`、`refs/`、`runs/`、缓存与临时文件
+- 默认忽略：`.vscode/`、`data/raw/`、`external/`、`refs/`、`runs/`、缓存与临时文件
 
 ## 外部来源链接
 
