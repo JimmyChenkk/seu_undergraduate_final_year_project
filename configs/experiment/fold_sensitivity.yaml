@@ -1,0 +1,95 @@
+experiment_name: fold_sensitivity
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: true
+  progress_update_interval: 1
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_weights:
+    source_eval: 0.7
+    target_entropy: 0.3
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.002
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - source_only
+    - coral
+    - dann
+    - cdan
+  single_source_scenes:
+    - mode1->mode4
+    - mode4->mode1
+    - mode2->mode5
+    - mode5->mode2
+  multisource_targets: []
+
+method_overrides:
+  source_only: {}
+  coral: {}
+  dann: {}
+  cdan:
+    runtime:
+      model_selection: hybrid_source_eval_entropy_guard_domain_gap
+      early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+      selection_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      selection_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+      early_stopping_weights:
+        source_eval: 1.0
+        entropy_shortfall: 1.0
+        domain_gap: 1.0
+      early_stopping_params:
+        entropy_floor: 0.5
+        domain_confusion_target: 0.5
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode4
+  preferred_fold: Fold 1
+
+fold_study:
+  purpose: "Stability check for fold sensitivity without full 5-fold expansion."
+  primary_fold: Fold 1
+  validation_folds:
+    - Fold 3
+    - Fold 5
+  recommended_usage:
+    main_table: Fold 1
+    stability_table: [Fold 1, Fold 3, Fold 5]
+    report_metric: "mean ± std across selected folds"
+  notes:
+    - "Keep the main benchmark fixed to Fold 1 for comparability with existing runs."
+    - "Use Fold 3 and Fold 5 only for a reduced set of representative methods."
+    - "Avoid full 5-fold expansion unless the paper/review explicitly needs it."
+
+notes:
+  - Fold-aware experiment proposal for the current phase.
+  - Main benchmark remains Fold 1 so this config can coexist with the existing benchmark configs.
+  - The extra fold_study block is meant to guide a future automation pass or manual run plan.
+  - This keeps the fold analysis statistically defensible without multiplying the full 72-run benchmark by 5.
