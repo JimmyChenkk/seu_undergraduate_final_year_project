@@ -1,48 +1,48 @@
 {
-  "generated_at": "2026-04-15T07:13:12.724567+00:00",
-  "raw_dir": "/home/chenk/workspace/seu_undergraduate_final_year_project/data/raw",
-  "file_count": 6,
-  "files": [
+  "generated_at":"2026-04-15T08:23:12.117047+00:00",
+  "raw_dir":"/home/chenk/workspace/seu_undergraduate_final_year_project/data/raw",
+  "file_count":6,
+  "files":[
     {
-      "file_name": "TEPDataset_Mode1.pickle",
-      "domain_id": "mode1",
-      "source_path": "raw/TEPDataset_Mode1.pickle",
-      "size_bytes": 473326883,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode1.pickle",
+      "domain_id":"mode1",
+      "source_path":"raw/TEPDataset_Mode1.pickle",
+      "size_bytes":473326883,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2900,
             600,
             34
           ],
-          "length": 2900,
-          "dtype": "float64"
+          "length":2900,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2900
           ],
-          "length": 2900,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2900,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2900,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2900,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -64,132 +64,198 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 580
               ],
-              "length": 580,
-              "dtype": "int64",
-              "index_range": {
-                "size": 580,
-                "min": 22,
-                "max": 2896
+              "length":580,
+              "dtype":"int64",
+              "index_range":{
+                "size":580,
+                "min":22,
+                "max":2896
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 580
               ],
-              "length": 580,
-              "dtype": "int64",
-              "index_range": {
-                "size": 580,
-                "min": 9,
-                "max": 2898
+              "length":580,
+              "dtype":"int64",
+              "index_range":{
+                "size":580,
+                "min":9,
+                "max":2898
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 580
               ],
-              "length": 580,
-              "dtype": "int64",
-              "index_range": {
-                "size": 580,
-                "min": 4,
-                "max": 2899
+              "length":580,
+              "dtype":"int64",
+              "index_range":{
+                "size":580,
+                "min":4,
+                "max":2899
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 580
               ],
-              "length": 580,
-              "dtype": "int64",
-              "index_range": {
-                "size": 580,
-                "min": 1,
-                "max": 2895
+              "length":580,
+              "dtype":"int64",
+              "index_range":{
+                "size":580,
+                "min":1,
+                "max":2895
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 580
               ],
-              "length": 580,
-              "dtype": "int64",
-              "index_range": {
-                "size": 580,
-                "min": 0,
-                "max": 2887
+              "length":580,
+              "dtype":"int64",
+              "index_range":{
+                "size":580,
+                "min":0,
+                "max":2887
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2900,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.27340836062513607,
+            3649.578911978572,
+            4442.412731566823
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2900
+          ],
+          "dtype":"int64",
+          "example":[
+            12,
+            2,
+            12
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              580
+            ],
+            "dtype":"int64",
+            "example":[
+              1243,
+              2620,
+              1581
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              580
+            ],
+            "dtype":"int64",
+            "example":[
+              1436,
+              2203,
+              739
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              580
+            ],
+            "dtype":"int64",
+            "example":[
+              896,
+              2433,
+              2258
+            ]
           }
         }
       }
     },
     {
-      "file_name": "TEPDataset_Mode2.pickle",
-      "domain_id": "mode2",
-      "source_path": "raw/TEPDataset_Mode2.pickle",
-      "size_bytes": 464349923,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode2.pickle",
+      "domain_id":"mode2",
+      "source_path":"raw/TEPDataset_Mode2.pickle",
+      "size_bytes":464349923,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2845,
             600,
             34
           ],
-          "length": 2845,
-          "dtype": "float64"
+          "length":2845,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2845
           ],
-          "length": 2845,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2845,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2845,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2845,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -211,132 +277,198 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 567
               ],
-              "length": 567,
-              "dtype": "int64",
-              "index_range": {
-                "size": 567,
-                "min": 1,
-                "max": 2841
+              "length":567,
+              "dtype":"int64",
+              "index_range":{
+                "size":567,
+                "min":1,
+                "max":2841
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 567
               ],
-              "length": 567,
-              "dtype": "int64",
-              "index_range": {
-                "size": 567,
-                "min": 0,
-                "max": 2843
+              "length":567,
+              "dtype":"int64",
+              "index_range":{
+                "size":567,
+                "min":0,
+                "max":2843
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 567
               ],
-              "length": 567,
-              "dtype": "int64",
-              "index_range": {
-                "size": 567,
-                "min": 10,
-                "max": 2840
+              "length":567,
+              "dtype":"int64",
+              "index_range":{
+                "size":567,
+                "min":10,
+                "max":2840
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 567
               ],
-              "length": 567,
-              "dtype": "int64",
-              "index_range": {
-                "size": 567,
-                "min": 5,
-                "max": 2836
+              "length":567,
+              "dtype":"int64",
+              "index_range":{
+                "size":567,
+                "min":5,
+                "max":2836
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 567
               ],
-              "length": 567,
-              "dtype": "int64",
-              "index_range": {
-                "size": 567,
-                "min": 6,
-                "max": 2844
+              "length":567,
+              "dtype":"int64",
+              "index_range":{
+                "size":567,
+                "min":6,
+                "max":2844
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2845,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.30367447989237717,
+            744.862553743869,
+            7996.451636807002
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2845
+          ],
+          "dtype":"int64",
+          "example":[
+            9,
+            19,
+            12
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              567
+            ],
+            "dtype":"int64",
+            "example":[
+              1158,
+              1149,
+              2719
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              567
+            ],
+            "dtype":"int64",
+            "example":[
+              2156,
+              659,
+              1029
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              567
+            ],
+            "dtype":"int64",
+            "example":[
+              2664,
+              1063,
+              2160
+            ]
           }
         }
       }
     },
     {
-      "file_name": "TEPDataset_Mode3.pickle",
-      "domain_id": "mode3",
-      "source_path": "raw/TEPDataset_Mode3.pickle",
-      "size_bytes": 473163635,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode3.pickle",
+      "domain_id":"mode3",
+      "source_path":"raw/TEPDataset_Mode3.pickle",
+      "size_bytes":473163635,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2899,
             600,
             34
           ],
-          "length": 2899,
-          "dtype": "float64"
+          "length":2899,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2899
           ],
-          "length": 2899,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2899,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2899,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2899,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -358,132 +490,198 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 0,
-                "max": 2897
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":0,
+                "max":2897
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 5,
-                "max": 2896
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":5,
+                "max":2896
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 2,
-                "max": 2898
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":2,
+                "max":2898
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 3,
-                "max": 2894
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":3,
+                "max":2894
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 1,
-                "max": 2893
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":1,
+                "max":2893
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2899,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.19523895820520226,
+            5181.407724526025,
+            661.7099285529613
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2899
+          ],
+          "dtype":"int64",
+          "example":[
+            5,
+            17,
+            21
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              2753,
+              2435,
+              1596
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              1684,
+              2530,
+              2032
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              740,
+              2237,
+              2451
+            ]
           }
         }
       }
     },
     {
-      "file_name": "TEPDataset_Mode4.pickle",
-      "domain_id": "mode4",
-      "source_path": "raw/TEPDataset_Mode4.pickle",
-      "size_bytes": 467614243,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode4.pickle",
+      "domain_id":"mode4",
+      "source_path":"raw/TEPDataset_Mode4.pickle",
+      "size_bytes":467614243,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2865,
             600,
             34
           ],
-          "length": 2865,
-          "dtype": "float64"
+          "length":2865,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2865
           ],
-          "length": 2865,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2865,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2865,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2865,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -505,132 +703,198 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 571
               ],
-              "length": 571,
-              "dtype": "int64",
-              "index_range": {
-                "size": 571,
-                "min": 2,
-                "max": 2861
+              "length":571,
+              "dtype":"int64",
+              "index_range":{
+                "size":571,
+                "min":2,
+                "max":2861
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 571
               ],
-              "length": 571,
-              "dtype": "int64",
-              "index_range": {
-                "size": 571,
-                "min": 4,
-                "max": 2848
+              "length":571,
+              "dtype":"int64",
+              "index_range":{
+                "size":571,
+                "min":4,
+                "max":2848
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 571
               ],
-              "length": 571,
-              "dtype": "int64",
-              "index_range": {
-                "size": 571,
-                "min": 10,
-                "max": 2864
+              "length":571,
+              "dtype":"int64",
+              "index_range":{
+                "size":571,
+                "min":10,
+                "max":2864
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 571
               ],
-              "length": 571,
-              "dtype": "int64",
-              "index_range": {
-                "size": 571,
-                "min": 0,
-                "max": 2853
+              "length":571,
+              "dtype":"int64",
+              "index_range":{
+                "size":571,
+                "min":0,
+                "max":2853
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 571
               ],
-              "length": 571,
-              "dtype": "int64",
-              "index_range": {
-                "size": 571,
-                "min": 1,
-                "max": 2862
+              "length":571,
+              "dtype":"int64",
+              "index_range":{
+                "size":571,
+                "min":1,
+                "max":2862
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2865,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.5034600813306965,
+            5828.273789993893,
+            7232.774652514145
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2865
+          ],
+          "dtype":"int64",
+          "example":[
+            28,
+            17,
+            10
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              571
+            ],
+            "dtype":"int64",
+            "example":[
+              2222,
+              1558,
+              2083
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              571
+            ],
+            "dtype":"int64",
+            "example":[
+              1415,
+              73,
+              1343
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              571
+            ],
+            "dtype":"int64",
+            "example":[
+              321,
+              578,
+              2110
+            ]
           }
         }
       }
     },
     {
-      "file_name": "TEPDataset_Mode5.pickle",
-      "domain_id": "mode5",
-      "source_path": "raw/TEPDataset_Mode5.pickle",
-      "size_bytes": 470552187,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode5.pickle",
+      "domain_id":"mode5",
+      "source_path":"raw/TEPDataset_Mode5.pickle",
+      "size_bytes":470552187,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2883,
             600,
             34
           ],
-          "length": 2883,
-          "dtype": "float64"
+          "length":2883,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2883
           ],
-          "length": 2883,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2883,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2883,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2883,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -652,132 +916,198 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 576
               ],
-              "length": 576,
-              "dtype": "int64",
-              "index_range": {
-                "size": 576,
-                "min": 0,
-                "max": 2881
+              "length":576,
+              "dtype":"int64",
+              "index_range":{
+                "size":576,
+                "min":0,
+                "max":2881
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 576
               ],
-              "length": 576,
-              "dtype": "int64",
-              "index_range": {
-                "size": 576,
-                "min": 7,
-                "max": 2882
+              "length":576,
+              "dtype":"int64",
+              "index_range":{
+                "size":576,
+                "min":7,
+                "max":2882
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 576
               ],
-              "length": 576,
-              "dtype": "int64",
-              "index_range": {
-                "size": 576,
-                "min": 2,
-                "max": 2880
+              "length":576,
+              "dtype":"int64",
+              "index_range":{
+                "size":576,
+                "min":2,
+                "max":2880
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 576
               ],
-              "length": 576,
-              "dtype": "int64",
-              "index_range": {
-                "size": 576,
-                "min": 1,
-                "max": 2878
+              "length":576,
+              "dtype":"int64",
+              "index_range":{
+                "size":576,
+                "min":1,
+                "max":2878
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 576
               ],
-              "length": 576,
-              "dtype": "int64",
-              "index_range": {
-                "size": 576,
-                "min": 8,
-                "max": 2869
+              "length":576,
+              "dtype":"int64",
+              "index_range":{
+                "size":576,
+                "min":8,
+                "max":2869
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2883,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.3183329915754392,
+            767.1047790565059,
+            8329.710080353516
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2883
+          ],
+          "dtype":"int64",
+          "example":[
+            22,
+            15,
+            23
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              576
+            ],
+            "dtype":"int64",
+            "example":[
+              457,
+              1543,
+              2019
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              576
+            ],
+            "dtype":"int64",
+            "example":[
+              1904,
+              34,
+              2030
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              576
+            ],
+            "dtype":"int64",
+            "example":[
+              1237,
+              400,
+              1131
+            ]
           }
         }
       }
     },
     {
-      "file_name": "TEPDataset_Mode6.pickle",
-      "domain_id": "mode6",
-      "source_path": "raw/TEPDataset_Mode6.pickle",
-      "size_bytes": 472837219,
-      "python_type": "dict",
-      "top_level_keys": [
+      "file_name":"TEPDataset_Mode6.pickle",
+      "domain_id":"mode6",
+      "source_path":"raw/TEPDataset_Mode6.pickle",
+      "size_bytes":472837219,
+      "python_type":"dict",
+      "top_level_keys":[
         "Signals",
         "Labels",
         "Folds"
       ],
-      "required_keys_present": {
-        "Signals": true,
-        "Labels": true,
-        "Folds": true
+      "required_keys_present":{
+        "Signals":true,
+        "Labels":true,
+        "Folds":true
       },
-      "key_summaries": {
-        "Signals": {
-          "python_type": "ndarray",
-          "shape": [
+      "key_summaries":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
             2897,
             600,
             34
           ],
-          "length": 2897,
-          "dtype": "float64"
+          "length":2897,
+          "dtype":"float64"
         },
-        "Labels": {
-          "python_type": "ndarray",
-          "shape": [
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
             2897
           ],
-          "length": 2897,
-          "dtype": "int64",
-          "label_stats": {
-            "size": 2897,
-            "min": 0,
-            "max": 28,
-            "unique_count": 29,
-            "unique_values_preview": [
+          "length":2897,
+          "dtype":"int64",
+          "label_stats":{
+            "size":2897,
+            "min":0,
+            "max":28,
+            "unique_count":29,
+            "unique_values_preview":[
               0,
               1,
               2,
@@ -799,88 +1129,154 @@
               18,
               19
             ],
-            "unique_values_truncated": true
+            "unique_values_truncated":true
           }
         },
-        "Folds": {
-          "python_type": "dict",
-          "shape": null,
-          "length": 5,
-          "dtype": null,
-          "fold_names": [
+        "Folds":{
+          "python_type":"dict",
+          "shape":null,
+          "length":5,
+          "dtype":null,
+          "fold_names":[
             "Fold 1",
             "Fold 2",
             "Fold 3",
             "Fold 4",
             "Fold 5"
           ],
-          "fold_count": 5,
-          "entries": {
-            "Fold 1": {
-              "python_type": "ndarray",
-              "shape": [
+          "fold_count":5,
+          "entries":{
+            "Fold 1":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 0,
-                "max": 2893
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":0,
+                "max":2893
               }
             },
-            "Fold 2": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 2":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 2,
-                "max": 2895
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":2,
+                "max":2895
               }
             },
-            "Fold 3": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 3":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 1,
-                "max": 2891
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":1,
+                "max":2891
               }
             },
-            "Fold 4": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 4":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 21,
-                "max": 2892
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":21,
+                "max":2892
               }
             },
-            "Fold 5": {
-              "python_type": "ndarray",
-              "shape": [
+            "Fold 5":{
+              "python_type":"ndarray",
+              "shape":[
                 579
               ],
-              "length": 579,
-              "dtype": "int64",
-              "index_range": {
-                "size": 579,
-                "min": 5,
-                "max": 2896
+              "length":579,
+              "dtype":"int64",
+              "index_range":{
+                "size":579,
+                "min":5,
+                "max":2896
               }
             }
+          }
+        }
+      },
+      "key_previews":{
+        "Signals":{
+          "python_type":"ndarray",
+          "shape":[
+            2897,
+            600,
+            34
+          ],
+          "dtype":"float64",
+          "example":[
+            0.22811150141529618,
+            5816.132810354717,
+            774.24987364699
+          ]
+        },
+        "Labels":{
+          "python_type":"ndarray",
+          "shape":[
+            2897
+          ],
+          "dtype":"int64",
+          "example":[
+            13,
+            13,
+            27
+          ]
+        },
+        "Folds":{
+          "Fold 1":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              1839,
+              712,
+              2822
+            ]
+          },
+          "Fold 2":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              144,
+              513,
+              2544
+            ]
+          },
+          "Fold 3":{
+            "python_type":"ndarray",
+            "shape":[
+              579
+            ],
+            "dtype":"int64",
+            "example":[
+              1876,
+              1343,
+              2094
+            ]
           }
         }
       }

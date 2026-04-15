@@ -48,6 +48,30 @@ def summarize_array(value: Any) -> dict[str, Any]:
     return summary
 
 
+def sample_preview(value: Any, *, max_items: int = 3) -> Any:
+    """Return a compact JSON-friendly preview of a large value."""
+
+    if isinstance(value, np.ndarray):
+        preview: dict[str, Any] = {
+            "python_type": "ndarray",
+            "shape": [int(x) for x in value.shape],
+            "dtype": str(value.dtype),
+        }
+        if value.size == 0:
+            preview["example"] = []
+            return preview
+        flat = value.reshape(-1)
+        head = flat[:max_items]
+        preview["example"] = [item.item() if hasattr(item, "item") else item for item in head]
+        return preview
+    if isinstance(value, dict):
+        items = list(value.items())[:max_items]
+        return {str(key): sample_preview(val, max_items=max_items) for key, val in items}
+    if isinstance(value, (list, tuple)):
+        return [sample_preview(item, max_items=max_items) for item in list(value)[:max_items]]
+    return value
+
+
 def summarize_labels(labels: Any) -> dict[str, Any]:
     summary = summarize_array(labels)
     if isinstance(labels, np.ndarray) and labels.size > 0:
@@ -104,11 +128,13 @@ def inspect_pickle(path: Path, raw_dir: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         result["top_level_keys"] = []
         result["root_summary"] = summarize_array(payload)
+        result["root_preview"] = sample_preview(payload)
         return result
 
     result["top_level_keys"] = [str(k) for k in payload.keys()]
     result["required_keys_present"] = {key: key in payload for key in REQUIRED_TOP_LEVEL_KEYS}
     key_summaries: dict[str, Any] = {}
+    key_previews: dict[str, Any] = {}
     for key, value in payload.items():
         key_name = str(key)
         if key_name == "Labels":
@@ -117,7 +143,9 @@ def inspect_pickle(path: Path, raw_dir: Path) -> dict[str, Any]:
             key_summaries[key_name] = summarize_folds(value)
         else:
             key_summaries[key_name] = summarize_array(value)
+        key_previews[key_name] = sample_preview(value)
     result["key_summaries"] = key_summaries
+    result["key_previews"] = key_previews
     return result
 
 
@@ -133,119 +161,113 @@ def inspect_raw_dir(raw_dir: Path, pattern: str = "*.pickle") -> dict[str, Any]:
 
 
 def render_markdown(inspection: dict[str, Any]) -> str:
+    def fmt_shape(summary: dict[str, Any] | None) -> str:
+        shape = (summary or {}).get("shape")
+        return " × ".join(str(x) for x in shape) if shape else "N/A"
+
+    def shape_dim(summary: dict[str, Any] | None, index: int) -> str:
+        shape = (summary or {}).get("shape")
+        if not shape or len(shape) <= index:
+            return "N/A"
+        return str(shape[index])
+
+    files = inspection.get("files", [])
+    first = next((item for item in files if not item.get("error")), {})
+    first_summaries = first.get("key_summaries", {}) if isinstance(first, dict) else {}
+    first_previews = first.get("key_previews", {}) if isinstance(first, dict) else {}
+    signals_summary = first_summaries.get("Signals", {})
+    labels_summary = first_summaries.get("Labels", {})
+    folds_summary = first_summaries.get("Folds", {})
+
+    signals_preview = first_previews.get("Signals")
+    labels_preview = first_previews.get("Labels")
+    folds_preview = first_previews.get("Folds")
+    fold_names = folds_summary.get("fold_names", [])
+    first_fold_name = fold_names[0] if fold_names else "Fold 1"
+
     lines: list[str] = [
         "# TE Raw Data Inspection / TE 原始数据检查",
         "",
-        f"Generated at / 生成时间: `{inspection.get('generated_at')}`",
+        f"Generated / 生成时间: `{inspection.get('generated_at')}`",
         f"Raw dir / 原始数据目录: `{inspection.get('raw_dir')}`",
         "",
-        "## File Summary / 文件汇总",
+        "## What is inside one `.pickle`? / 一个 `.pickle` 里有什么？",
         "",
-        "| File / 文件 | Domain / 域 | Type / 类型 | Top-level keys / 顶层键 | Error / 错误 |",
-        "| --- | --- | --- | --- | --- |",
+        "```mermaid",
+        "flowchart TB",
+        "    P[\"One pickle file / 一个pickle文件\"]",
+        f"    P --> S[\"Signals ({fmt_shape(signals_summary)})\"]",
+        f"    P --> L[\"Labels ({fmt_shape(labels_summary)})\"]",
+        f"    P --> F[\"Folds ({folds_summary.get('fold_count', 'N/A')} folds)\"]",
+        f"    S --> S1[\"3D array: samples × time × channels = {fmt_shape(signals_summary)}\"]",
+        f"    L --> L1[\"1D array: one label per sample = {fmt_shape(labels_summary)}\"]",
+        f"    F --> F1[\"dict: fold name -> sample indices\"]",
+        "```",
+        "",
+        "## Counts and dimensions / 数量与维度",
+        "",
+        f"- Signals count / Signals 数量: `{shape_dim(signals_summary, 0)}` samples",
+        f"- One signal shape / 单个 signal 的形状: `{shape_dim(signals_summary, 1)} × {shape_dim(signals_summary, 2)}`",
+        f"- Labels count / Labels 数量: `{shape_dim(labels_summary, 0)}` labels",
+        f"- Folds count / Fold 数量: `{folds_summary.get('fold_count', 'N/A')}`",
+        f"- Each fold stores sample indices / 每个 fold 存样本索引: yes",
+        "",
+        "## Three examples / 三个小例子",
+        "",
+        "### 1) Signals example / Signals 示例",
+        "",
+        "```json",
+        json.dumps(signals_preview, ensure_ascii=False, indent=2)[:600],
+        "```",
+        "",
+        "### 2) Labels example / Labels 示例",
+        "",
+        "```json",
+        json.dumps(labels_preview, ensure_ascii=False, indent=2)[:400],
+        "```",
+        "",
+        f"### 3) Folds example / Folds 示例 ({first_fold_name})",
+        "",
+        "```json",
+        json.dumps({first_fold_name: (folds_preview or {}).get(first_fold_name)}, ensure_ascii=False, indent=2)[:600],
+        "```",
+        "",
+        "## How to read them / 怎么理解",
+        "",
+        "```mermaid",
+        "flowchart LR",
+        "    S0[\"Signals[i]\"] --- L0[\"Labels[i]\"]",
+        "    S0 --> X[\"same sample index\"]",
+        "    L0 --> X",
+        "    F1[\"Folds['Fold 1']\"] --> I1[\"sample indices\"]",
+        "    I1 --> T1[\"train / val / test split\"]",
+        "```",
+        "",
+        "```mermaid",
+        "flowchart TB",
+        "    A[\"All sample indices\"] --> B[\"Fold indices\"]",
+        "    A --> C[\"Remaining training indices\"]",
+        "    B --> D[\"held-out set\"]",
+        "    C --> E[\"training set\"]",
+        "```",
+        "",
+        "## Your understanding / 你的理解记录",
+        "",
+        "- One sample is a `600 × 34` matrix / 一个 sample 是 `600 × 34` 的矩阵。",
+        "- There are about `2900` such samples / 大约有 `2900` 个这样的 sample。",
+        "- If time is concatenated continuously, the dataset can be seen as `34 × (600 × 2900)` over the time axis / 如果把时间连续拼接，整个数据集可理解为沿时间轴的 `34 × (600 × 2900)` 二维形式。",
+        "- The raw data is now segmented into `2900` samples / 原始数据现在被切成了 `2900` 份样本。",
+        "- Each fold has about `2900 / 5 = 580` samples / 每个 fold 大约有 `2900 / 5 = 580` 个 sample。",
+        "- Fold membership is not sequential slicing / fold 不是按顺序切片。",
+        "- Sample IDs are randomly assigned into folds, for example a fold may contain a mixed set of sample indices instead of `1-580`, `581-1160`, ... / sample 编号是随机分配到各个 fold 中的，不是按 `1-580`、`581-1160` 这样的连续区间。",
+        "- `Folds` therefore store sample index sets, not raw signals / 因此 `Folds` 存的是样本索引集合，而不是原始信号。",
+        "",
+        "## Notes / 备注",
+        "",
+        "- `Signals` 是样本本体 / `Signals` is the sample tensor.",
+        "- `Labels` 与样本一一对齐 / `Labels` aligns with `Signals` by index.",
+        "- `Folds` 存的是索引，不是原始信号 / `Folds` stores indices, not raw signals.",
     ]
-    files = inspection.get("files", [])
-    for item in files:
-        keys = ", ".join(item.get("top_level_keys", [])) or "N/A"
-        lines.append(
-            f"| {item['file_name']} | {item.get('domain_id', 'N/A')} | {item.get('python_type', 'N/A')} | {keys} | {item.get('error', 'None')} |"
-        )
-
-    all_signals_shapes: set[tuple[int, ...]] = set()
-    all_folds: set[str] = set()
-    label_counter: Counter[int] = Counter()
-
-    for item in files:
-        lines.extend([
-            "",
-            f"## {item['file_name']} / 文件详情",
-            "",
-            f"- Domain ID / 域编号: `{item.get('domain_id', 'N/A')}`",
-            f"- Source path / 源路径: `{item.get('source_path', 'N/A')}`",
-            f"- Size (bytes) / 文件大小(字节): `{item.get('size_bytes', 'N/A')}`",
-            f"- Python type / Python类型: `{item.get('python_type', 'N/A')}`",
-        ])
-        if item.get("error"):
-            lines.append(f"- Error: `{item['error']}`")
-            continue
-        lines.append(f"- Required keys present / 必需键是否存在: `{item.get('required_keys_present', {})}`")
-        lines.append("")
-        lines.append("| Key / 键 | Type / 类型 | Shape / 形状 | Length / 长度 | Dtype / 数据类型 | Extra / 额外信息 |")
-        lines.append("| --- | --- | --- | --- | --- | --- |")
-        for key in item.get("top_level_keys", []):
-            summary = item.get("key_summaries", {}).get(key, {})
-            extra = []
-            if key == "Signals" and summary.get("shape"):
-                all_signals_shapes.add(tuple(summary["shape"]))
-            if key == "Labels" and summary.get("label_stats"):
-                preview = summary["label_stats"].get("unique_values_preview", [])
-                label_counter.update(int(v) for v in preview)
-            if key == "Folds":
-                all_folds.update(summary.get("fold_names", []))
-                extra.append(f"fold_names={summary.get('fold_names', [])}")
-                extra.append(f"fold_count={summary.get('fold_count', 0)}")
-            lines.append(
-                f"| {key} | {summary.get('python_type')} | {summary.get('shape')} | {summary.get('length')} | {summary.get('dtype')} | {'; '.join(extra) if extra else 'None'} |"
-            )
-            if key == "Folds" and summary.get("entries"):
-                lines.append("")
-                lines.append("| Fold | Shape | Length | Dtype | Index range |")
-                lines.append("| --- | --- | --- | --- | --- |")
-                for fold_name, fold_summary in summary["entries"].items():
-                    lines.append(
-                        f"| {fold_name} | {fold_summary.get('shape')} | {fold_summary.get('length')} | {fold_summary.get('dtype')} | {fold_summary.get('index_range', 'None')} |"
-                    )
-
-    lines.extend([
-        "",
-        "## Mermaid overview / 流程总览",
-        "",
-        "```mermaid",
-        "flowchart TD",
-        "    A[\"Raw pickle files\"] --> B[\"pickle load\"]",
-        "    B --> C{\"Top-level dict?\"}",
-        "    C -->|Yes| D[\"Signals\"]",
-        "    C -->|Yes| E[\"Labels\"]",
-        "    C -->|Yes| F[\"Folds\"]",
-        "    D --> G[\"Benchmark manifest\"]",
-        "    E --> G",
-        "    F --> G",
-        "    G --> H[\"Domain resolver\"]",
-        "    H --> I[\"Normalization and fold selection\"]",
-        "    I --> J[\"Single-source pipeline\"]",
-        "    I --> K[\"Multi-source pipeline\"]",
-        "    J --> L[\"Training methods\"]",
-        "    K --> L",
-        "    L --> M[\"source_only coral dan dann cdan deepjdot rcta\"]",
-        "```",
-        "",
-        "## Raw data structure explained / 原始数据结构说明",
-        "",
-        "```mermaid",
-        "erDiagram",
-        "    PICKLE_FILE ||--|| SIGNALS : contains",
-        "    PICKLE_FILE ||--|| LABELS : contains",
-        "    PICKLE_FILE ||--|| FOLDS : contains",
-        "    SIGNALS {",
-        "        int sample_count",
-        "        int time_steps",
-        "        int channels",
-        "    }",
-        "    LABELS {",
-        "        int sample_count",
-        "        int[] label_values",
-        "    }",
-        "    FOLDS {",
-        "        string fold_name",
-        "        int[] sample_indices",
-        "    }",
-        "    PICKLE_FILE {",
-        "        string file_name",
-        "        string domain_id",
-        "    }",
-        "```",
-    ])
-    return "\n".join(lines) + "\n"
     return "\n".join(lines) + "\n"
 
 
@@ -259,7 +281,10 @@ def main() -> None:
     inspection = inspect_raw_dir(args.raw_dir)
     args.output_md.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
-    args.output_json.write_text(json.dumps(inspection, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    args.output_json.write_text(
+        json.dumps(inspection, indent=2, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
     args.output_md.write_text(render_markdown(inspection), encoding="utf-8")
     print(f"Wrote {args.output_json}")
     print(f"Wrote {args.output_md}")
