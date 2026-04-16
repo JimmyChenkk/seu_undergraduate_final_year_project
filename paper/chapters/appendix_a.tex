@@ -1,10 +1,10 @@
 \chapter{实验补充材料}
 
 \section{附录说明}
-本附录用于放置不便完全写入正文、但对理解实验设置和补充分析仍有参考价值的材料，例如关键超参数表、更多实验结果、补充可视化图和必要的实现说明等。由于当前论文写作与实验推进是并行进行的，因此附录也承担“收纳阶段性结果、为后续删减和重排预留素材”的作用。
+本附录给出正文之外的补充材料，包括关键超参数表、RCTA aggressive 配置摘要以及四个关键单源场景的完整结果。所有内容均服务于本文正文聚焦的单源到单目标跨工况诊断任务。
 
 \section{基线方法关键超参数}
-表~\ref{tab:appendix-baseline-hparams} 给出了当前 6 种基线方法在 aggressive 批次中采用的关键超参数。这些配置由 \texttt{configs/method/*.yaml} 与实验覆盖项共同确定。
+表~\ref{tab:appendix-baseline-hparams} 给出了本文 6 种基线方法在 aggressive 配置下采用的关键超参数。这些配置由 \texttt{configs/method/*.yaml} 与实验覆盖项共同确定。
 
 \begin{table}[htbp]
 \centering
@@ -27,7 +27,7 @@ DeepJDOT & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{ot}=1.0$，$\alpha=0.1$，$\b
 \end{table}
 
 \section{RCTA aggressive 配置摘要}
-表~\ref{tab:appendix-rcta-hparams} 汇总了当前单源四场景中效果最稳定的 RCTA aggressive 配置。该配置同时融合了 DANN 基础对齐、MCC 正则、可靠性门控、双原型记忆与一致性学习。
+表~\ref{tab:appendix-rcta-hparams} 汇总了本文单源四场景中采用的 RCTA aggressive 配置。该配置以 DANN 为基础对齐分支，同时融合 MCC 正则、可靠性门控、双原型记忆与一致性学习。
 
 \begin{table}[htbp]
 \centering
@@ -55,12 +55,12 @@ MCC 正则 & $\lambda_{mcc}=0.1$，temperature=2.0 \\
 \normalsize
 \end{table}
 
-\section{当前已完成四个单源场景的完整结果}
-表~\ref{tab:appendix-single-source-full} 给出当前 aggressive 批次中 4 个已完成单源场景的完整结果，包括源域训练准确率、源域评估准确率、目标域准确率、目标域平衡准确率和最终选择 epoch。该表可直接作为正文删减前的完整原始材料。
+\section{四个关键单源场景的完整结果}
+表~\ref{tab:appendix-single-source-full} 给出了本文四个关键单源场景的完整结果，包括源域训练准确率、源域评估准确率、目标域准确率、目标域平衡准确率和最终选择 epoch。该表可作为正文统计结果的完整支撑材料。
 
 \begin{table}[htbp]
 \centering
-\caption{当前已完成四个单源场景的完整结果}
+\caption{四个关键单源场景的完整结果}
 \label{tab:appendix-single-source-full}
 \scriptsize
 \begin{tabular}{lcccccc}
@@ -103,11 +103,5 @@ RCTA & mode6$\rightarrow$mode3 & 0.9025 & 0.8981 & 0.8877 & 0.8879 & 95 \\
 \normalsize
 \end{table}
 
-\section{后续仍可补充的材料}
-随着 70 组实验计划继续推进，本附录还可进一步补充以下内容：
-\begin{enumerate}
-\item 六个多源场景的完整比较表和平均统计；
-\item RCTA 不同版本（easy-pairs、top1-push、aggressive）之间的配置演化表；
-\item 不同方法在代表性场景上的混淆矩阵与 t-SNE 图；
-\item 可靠性门控比例、原型活跃类别数量和目标域熵随训练轮数变化的曲线。
-\end{enumerate}
+\section{补充说明}
+正文中的汇总图由四个关键单源场景的比较结果自动生成，代表性定性图则选取自 mode2$\rightarrow$mode5 场景。之所以选择该场景，一方面是因为其相对 Source Only 的改进幅度较大，另一方面也因为该场景中 Source Only 与 RCTA 的结构差异更容易从混淆矩阵和 t-SNE 图中观察到。
