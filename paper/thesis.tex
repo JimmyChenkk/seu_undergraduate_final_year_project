@@ -8,6 +8,19 @@
 \supervisor{王永健、童国道}
 \period{2026年3月 \textasciitilde  2026年6月}
 
+\newcommand{\resultplaceholder}[2][4.2cm]{%
+  \begingroup
+  \setlength{\fboxsep}{6pt}%
+  \noindent\fbox{%
+    \parbox[c][#1][c]{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{%
+      \centering
+      \textbf{实验结果占位图}\\[0.4em]
+      \footnotesize #2%
+    }%
+  }%
+  \endgroup
+}
+
 \begin{document}
 
 \maketitle
@@ -17,9 +30,9 @@
 \begin{abstract}[zh]
 工业过程故障诊断对于保障生产安全、降低非计划停机损失和提升过程运行可靠性具有重要意义。然而，在真实流程工业现场中，不同操作模式、负载水平和控制阶段往往对应不同的数据分布，使得基于单源、多源及更一般跨域设置训练得到的诊断模型均难以直接迁移到新工况。面向这一问题，本文以 Tennessee Eastman Process Domain Adaptation 数据集为对象，研究跨工况无监督领域自适应故障诊断，并围绕统一实验基准构建、典型方法比较和改进方法设计展开系统研究。
 
-本文首先构建了面向 TEP 跨工况迁移诊断的统一实验流程，统一了数据组织方式、预处理策略、共享骨干网络、模型选择规则和结果管理方式，在一致协议下比较了多种代表性领域自适应方法。基线实验表明，显式领域对齐能够有效改善跨工况诊断性能，但仅依赖全局对齐仍难以稳定处理多类别时序任务中的类别混叠、伪标签噪声和场景敏感性问题。
+本文首先构建了面向 TEP 跨工况迁移诊断的统一实验流程，统一了数据组织方式、预处理策略、共享骨干网络、模型选择规则和结果管理方式，在一致协议下比较了多种代表性领域自适应方法。围绕基线比较部分，本文已经预留了用于分析显式领域对齐效果、类别混叠以及伪标签噪声问题的结果结构，待最终实验结果回填后即可形成完整论证。
 
-在此基础上，本文提出可靠性门控的类条件时序自适应方法 RCTA。该方法以强基线对齐分支为基础，引入 EMA 教师网络、弱强双视图时序增强、多因素可靠性门控、双原型记忆以及一致性约束，以实现更稳定的目标域伪监督利用和更清晰的类条件结构建模。实验结果表明，所提方法在本文重点考察的关键单源跨工况场景上优于对比基线，能够在保持源域判别能力的同时进一步提升目标域迁移性能。
+在此基础上，本文提出可靠性门控的类条件时序自适应方法 RCTA。该方法以强基线对齐分支为基础，引入 EMA 教师网络、弱强双视图时序增强、多因素可靠性门控、双原型记忆以及一致性约束，以实现更稳定的目标域伪监督利用和更清晰的类条件结构建模。当前版本已完成实验结果章节的结构化占位整理，待最终实验数据与图件回填后再形成完整的定量比较与定性分析。
 
 总体而言，本文形成了从统一实验基准构建到改进方法验证的完整研究链路，可为流程工业无监督领域自适应故障诊断研究提供可复现的比较基础和有效的方法参考。
 
@@ -33,7 +46,7 @@ Industrial fault diagnosis is important for production safety, reducing unplanne
 
 This work first establishes a unified and reproducible experimental pipeline for cross-mode transfer fault diagnosis on TEP. The pipeline standardizes data organization, preprocessing, shared backbone design, model selection, and result management, enabling fair comparisons among representative domain adaptation methods under a consistent protocol. Baseline experiments show that explicit domain alignment can substantially improve cross-mode diagnostic performance, but global alignment alone is still insufficient to robustly handle class confusion, noisy pseudo labels, and scenario sensitivity in multi-class industrial time-series tasks.
 
-On this basis, the thesis proposes a Reliability-Gated Class-Conditional Temporal Adaptation method, denoted as RCTA. Built on a strong alignment baseline, the method integrates an EMA teacher, weak and strong temporal augmentations, multi-factor reliability gating, dual prototype memories, and consistency regularization to achieve more stable target-domain pseudo supervision and clearer class-conditional structure. Experimental results show that the proposed method outperforms the compared baselines in the key single-source cross-mode scenarios emphasized in this study, while preserving source-domain discriminability.
+On this basis, the thesis proposes a Reliability-Gated Class-Conditional Temporal Adaptation method, denoted as RCTA. Built on a strong alignment baseline, the method integrates an EMA teacher, weak and strong temporal augmentations, multi-factor reliability gating, dual prototype memories, and consistency regularization to achieve more stable target-domain pseudo supervision and clearer class-conditional structure. In the current draft, the result chapters have been converted into structured placeholders, so that the final quantitative and qualitative findings can be filled in after the experimental artifacts are finalized.
 
 Overall, this thesis develops a coherent research line from unified benchmark construction to improved method validation, providing both a reproducible comparison basis and an effective methodological reference for unsupervised domain adaptation in industrial process fault diagnosis.
 

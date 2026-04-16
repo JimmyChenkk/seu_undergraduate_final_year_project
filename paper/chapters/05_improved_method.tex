@@ -1,7 +1,7 @@
 \chapter{可靠性门控的类条件时序自适应方法}
 
 \section{方法设计动机}
-第四章的基线实验表明，现有领域自适应方法已经能够显著改善目标域性能，但仍存在三个关键缺口。第一，DANN 和 DAN 说明全局域对齐在 TEP 跨工况任务中确实有效，但这种“先缩小整体分布差异”的思路并不能显式保证跨域同类样本聚合、异类样本分离。第二，CDAN 虽然尝试引入条件信息，却仍然受到目标域伪标签噪声和训练不稳定性的影响，说明类别结构不能只通过域判别器间接建模。第三，在 mode6$\rightarrow$mode3 这类 Source Only 已较强的场景中，若对齐压力控制不当，仍可能出现负迁移。
+第四章预留的基线比较框架聚焦三个关键问题。第一，全局域对齐虽然是重要出发点，但并不能显式保证跨域同类样本聚合、异类样本分离。第二，仅通过域判别器间接注入条件信息，仍可能受到目标域伪标签噪声和训练不稳定性的影响。第三，在部分相对易迁移的场景中，对齐压力控制不当时仍可能引入额外扰动。基于这三个问题，后续方法需要在整体对齐、类别结构与伪监督稳定性之间建立更细致的平衡。
 
 因此，改进方法需要同时回答三个问题：其一，如何保留强基线已经验证有效的全局对齐能力；其二，如何把类别结构显式注入目标域适应过程；其三，如何在目标域无标签条件下控制伪监督噪声的传播。围绕这三个问题，本文提出可靠性门控的类条件时序自适应方法（Reliability-Gated Class-Conditional Temporal Adaptation, RCTA）。
 
@@ -205,12 +205,12 @@ RCTA 的三项目标域辅助损失并不是同时、同权重地注入训练，
 这一调度策略与前述门控机制相互配合，形成了一个“先搭底座、再引入目标域监督、最后强化类条件结构”的渐进式优化过程。训练早期主要由源域监督损失和基础对齐分支主导；中期随着可靠伪标签数量增加，目标域伪监督开始发挥作用；后期则通过原型约束进一步稳定类别边界。对于多类别流程工业时序任务而言，这种渐进式策略比一开始就施加强目标域约束更稳定。
 
 \section{四个关键单源场景上的实验验证}
-\subsection{定量结果：四个场景均取得最优结果}
-表~\ref{tab:rcta-vs-baselines} 给出了 RCTA 与 Source Only 以及逐场景最强基线的对比结果。可以看到，RCTA 在四个关键单源场景上均取得最高目标域准确率。若对四个场景求平均，RCTA 的平均目标域准确率达到 0.8590；逐场景最强基线的平均准确率为 0.8403；DANN 作为平均表现最强的单一基线方法，其平均准确率为 0.8329。由此可见，RCTA 相比 Source Only 平均提升 0.1884，相比逐场景最强基线平均进一步提升 0.0186，相比 DANN 平均提升 0.0261。
+\subsection{定量结果占位：四个场景比较框架}
+表~\ref{tab:rcta-vs-baselines} 预留了 RCTA 与 Source Only 以及逐场景最强基线的对比结果位置。当前版本中，所有与最终实验结果直接相关的数值内容统一替换为占位实现，待最终实验数据确认后再集中回填。
 
 \begin{table}[htbp]
 \centering
-\caption{RCTA 与 Source Only 及逐场景最强基线的比较}
+\caption{RCTA 与 Source Only 及逐场景最强基线的比较（占位）}
 \label{tab:rcta-vs-baselines}
 \small
 \resizebox{\textwidth}{!}{%
@@ -218,94 +218,91 @@ RCTA 的三项目标域辅助损失并不是同时、同权重地注入训练，
 \hline
 场景 & Source Only & 最强基线 & RCTA & 相对 Source Only 增益 & 相对最强基线增益 \\
 \hline
-mode2$\rightarrow$mode5 & 0.6094 & 0.8299 (DANN) & 0.8542 & +0.2448 & +0.0243 \\
-mode3$\rightarrow$mode6 & 0.7064 & 0.8566 (DANN) & 0.8756 & +0.1693 & +0.0190 \\
-mode5$\rightarrow$mode2 & 0.5203 & 0.8131 (DAN) & 0.8183 & +0.2981 & +0.0053 \\
-mode6$\rightarrow$mode3 & 0.8463 & 0.8618 (DANN) & 0.8877 & +0.0415 & +0.0259 \\
+\multicolumn{6}{c}{实验结果数据占位，待最终版本补充。} \\
 \hline
 \end{tabular}
 }
 \normalsize
 \end{table}
 
-从不同场景的收益结构可以进一步看出 RCTA 的特点。对于 mode5$\rightarrow$mode2 这类困难方向，RCTA 在最强基线之上仍有 0.0053 的额外提升，相对 Source Only 的绝对收益更是达到 0.2981，说明可靠性门控与类条件结构对困难迁移方向尤为重要。对于 mode6$\rightarrow$mode3 这类 Source Only 已较强的方向，RCTA 仍能在不过度破坏原有判别边界的前提下，相对 DANN 再提升 0.0259，说明该方法并不是通过加大对齐压力“硬推”目标域性能，而是在结构层面做出了更细致的修正。
+在最终版本中，本节将重点比较 RCTA 与基线方法在平均性能、困难场景收益以及跨场景稳定性方面的差异。当前先保留分析位置，避免在结果尚未最终确认前提前写死具体结论。
 
 \begin{figure}[htbp]
 \centering
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/single_source_method_mean_accuracy.png}
-\\
+\resultplaceholder{平均目标域准确率对比图待补充}
+\par
 \footnotesize (a) 四个关键单源场景上的方法平均目标域准确率
 \end{minipage}
 \hfill
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/single_source_heatmap.png}
-\\
+\resultplaceholder{分场景热力图待补充}
+\par
 \footnotesize (b) 各方法在四个关键场景上的目标域准确率热力图
 \end{minipage}
-\caption{四个关键单源场景上的整体对比结果}
+\caption{四个关键单源场景上的整体对比结果（占位）}
 \label{fig:rcta-single-source-overview}
 \end{figure}
 
-图~\ref{fig:rcta-single-source-overview} 进一步从整体视角展示了不同方法的性能格局。图~\ref{fig:rcta-single-source-overview}(a) 表明，RCTA 在平均目标域准确率上位居第一；图~\ref{fig:rcta-single-source-overview}(b) 则显示 RCTA 在四个关键场景上均位于最优位置，没有通过牺牲某一场景来换取整体平均值。这一点对于工业诊断任务尤为重要，因为实际部署更关心方法能否在不同迁移方向上保持稳定收益，而非只在少数场景上取得高峰值。
+图~\ref{fig:rcta-single-source-overview} 的位置已保留，用于后续放置平均准确率对比图和分场景热力图。待图件回填后，将从整体性能格局、场景间稳定性以及是否存在单一场景牺牲等角度展开分析。
 
 \subsection{定性结果：代表性场景分析}
-为了进一步说明 RCTA 的作用机制，本文选取 mode2$\rightarrow$mode5 这一具有代表性的单源场景进行定性分析。该场景中 Source Only 的目标域准确率仅为 0.6094，而 RCTA 达到 0.8542，具有较为明显的改进幅度，适合观察特征结构和误分类模式的变化。
+为了进一步说明 RCTA 的作用机制，本节预留代表性单源场景的定性分析位置。后续将在最终结果回填后，结合具体表现选择代表性迁移方向，并补充相应的混淆矩阵与特征可视化图件。
 
 \begin{figure}[htbp]
 \centering
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/source_only_mode2_to_mode5_confusion_matrix.png}
-\\
+\resultplaceholder{基线方法混淆矩阵待补充}
+\par
 \footnotesize (a) Source Only
 \end{minipage}
 \hfill
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/rcta_mode2_to_mode5_confusion_matrix.png}
-\\
+\resultplaceholder{RCTA 混淆矩阵待补充}
+\par
 \footnotesize (b) RCTA
 \end{minipage}
-\caption{mode2$\rightarrow$mode5 场景下 Source Only 与 RCTA 的混淆矩阵对比}
+\caption{代表性场景下 Source Only 与 RCTA 的混淆矩阵对比（占位）}
 \label{fig:rcta-confusion}
 \end{figure}
 
-从图~\ref{fig:rcta-confusion} 可以看到，Source Only 的混淆矩阵中存在较多偏离主对角线的误判块，说明在跨域条件下多个类别的判别边界出现明显混叠；而 RCTA 的主对角线更加连续、非对角区域的误判分布明显收缩，说明可靠性门控和原型约束确实有助于增强目标域类别可分性。
+图~\ref{fig:rcta-confusion} 当前为占位实现。待最终图件回填后，本节将重点观察误分类是否集中于少数类别、主对角线连续性是否增强，以及类条件结构约束是否改善了跨域类别可分性。
 
 \begin{figure}[htbp]
 \centering
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/source_only_mode2_to_mode5_tsne_domain.png}
-\\
+\resultplaceholder{基线方法 t-SNE 图待补充}
+\par
 \footnotesize (a) Source Only
 \end{minipage}
 \hfill
 \begin{minipage}{0.49\textwidth}
 \centering
-\includegraphics[width=\textwidth]{figs/aggressive_single_source/rcta_mode2_to_mode5_tsne_domain.png}
-\\
+\resultplaceholder{RCTA t-SNE 图待补充}
+\par
 \footnotesize (b) RCTA
 \end{minipage}
-\caption{mode2$\rightarrow$mode5 场景下 Source Only 与 RCTA 的域分布 t-SNE 对比}
+\caption{代表性场景下 Source Only 与 RCTA 的域分布 t-SNE 对比（占位）}
 \label{fig:rcta-tsne}
 \end{figure}
 
-图~\ref{fig:rcta-tsne} 展示了同一场景下的域分布 t-SNE。相比 Source Only，RCTA 学到的特征空间中，源域与目标域样本在若干主簇上混合得更加充分，但又没有出现整体塌缩成单一团块的现象。这说明 RCTA 并不是简单地把两个域强行压在一起，而是在保持类间结构的同时改善跨域重叠关系。这一现象与前文的设计目标相吻合：基础对齐分支负责减小整体域差异，可靠性门控与原型约束则负责维持类条件结构。
+图~\ref{fig:rcta-tsne} 当前为占位实现。待最终图件回填后，本节将重点分析源域与目标域样本的重叠关系、类别簇结构是否保持清晰，以及所提方法是否在对齐与结构保持之间取得平衡。
 
 \subsection{RCTA 架构创新的作用分析}
-结合方法设计与实验结果，RCTA 的主要优势可以概括为以下三点。
+待最终结果回填后，本节将围绕以下三个方面总结 RCTA 的潜在优势来源，并与前述定量、定性结果形成对应关系。
 
 \begin{enumerate}
-\item \textbf{在强基线之上做结构增强。} RCTA 并没有舍弃 DANN 已经证明有效的全局对齐能力，而是在其基础上加入类条件结构建模，因此能够兼顾整体域适应与类别几何约束。
-\item \textbf{把目标域监督建立在可靠样本之上。} EMA 教师、弱强双视图和按类门控共同控制了伪标签质量，使目标域样本的引入更加循序渐进，降低了错误伪标签在训练早期放大传播的风险。
-\item \textbf{把类条件信息从“隐式利用”变为“显式建模”。} 双原型记忆、原型吸引与原型分离使模型在特征空间中显式维护类别中心和类别边界，从而弥补纯全局对齐难以稳定处理多类别流程工业时序任务的不足。
+\item \textbf{在强基线之上做结构增强。} 后续将结合结果回填内容，分析 RCTA 是否同时改善了整体域适应与类别几何约束。
+\item \textbf{把目标域监督建立在可靠样本之上。} 后续将结合结果回填内容，分析 EMA 教师、弱强双视图和按类门控是否提升了伪标签利用的稳定性。
+\item \textbf{把类条件信息从“隐式利用”变为“显式建模”。} 后续将结合结果回填内容，分析双原型记忆与原型约束是否改善了类内聚合和类间分离。
 \end{enumerate}
 
-此外，RCTA 在四个关键场景上的平均源域评估准确率达到 0.9001，平均目标域平衡准确率达到 0.8594，说明其目标域收益并非通过牺牲源域判别能力换取，而是在保持源域保真度的同时提升了目标域可迁移性。这进一步说明，所提方法学到的是更具跨域共享性的判别表示，而不是单纯依赖目标域偏移某一侧的偶然收益。
+与源域保真度和目标域平衡准确率相关的补充结论同样保留为占位说明，待最终实验统计结果确认后再补入正文。
 
 \section{本章小结}
-本章提出了可靠性门控的类条件时序自适应方法 RCTA，并围绕其设计动机、总体框架、教师--学生协同、可靠性门控、双原型记忆以及课程化优化策略进行了系统阐述。实验结果表明，RCTA 在四个关键单源场景上均取得最优结果，平均目标域准确率达到 0.8590；代表性场景的混淆矩阵和 t-SNE 可视化进一步说明，该方法能够在改善域间重叠的同时保持更清晰的类别结构。由此可见，围绕可靠性门控和类条件原型展开的架构创新，对于流程工业跨工况无监督领域自适应故障诊断是有效的。
+本章提出了可靠性门控的类条件时序自适应方法 RCTA，并围绕其设计动机、总体框架、教师--学生协同、可靠性门控、双原型记忆以及课程化优化策略进行了系统阐述。与实验验证直接相关的定量表格、混淆矩阵和 t-SNE 图件当前均已替换为占位实现，待最终实验结果确认后可在现有结构中直接回填，并形成完整的定量比较与定性分析结论。
