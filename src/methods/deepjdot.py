@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import torch
 import torch.nn.functional as F
 
 from src.losses import deepjdot_loss
@@ -62,11 +63,12 @@ class DeepJDOTMethod(SingleSourceMethodBase):
             sinkhorn_reg=self.sinkhorn_reg,
             sinkhorn_num_iter_max=self.sinkhorn_num_iter_max,
         )
-        if not torch.isfinite(loss_alignment):
+        loss_alignment = torch.as_tensor(loss_alignment, device=loss_cls.device, dtype=loss_cls.dtype)
+        if not torch.isfinite(loss_alignment).item():
             loss_alignment = torch.zeros_like(loss_alignment)
         current_weight = self.alignment_scheduler.step()
         loss_total = loss_cls + current_weight * loss_alignment
-        if not torch.isfinite(loss_total):
+        if not torch.isfinite(loss_total).item():
             loss_total = loss_cls
 
         return MethodStepOutput(
