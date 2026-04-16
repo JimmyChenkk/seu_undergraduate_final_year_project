@@ -1,4 +1,4 @@
-\begin{thebibliography}{8}
+\begin{thebibliography}{13}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -35,9 +35,9 @@ DOWNS J~J, VOGEL E~F.
 SUN B, SAENKO K.
 \newblock Deep {CORAL}: Correlation alignment for deep domain
   adaptation\allowbreak[C/OL]//\allowbreak
-Lecture Notes in Computer Science: volume 9915\quad Computer Vision -- ECCV
+Lecture Notes in Computer Science: volume 9915\quad Computer Vision -- {ECCV}
   2016 Workshops.
-\newblock Springer, 2016: 443-450.
+\newblock Cham: Springer International Publishing, 2016: 443-450.
 \newblock DOI: \doi{10.1007/978-3-319-49409-8_35}.
 
 \bibitem[Long et~al.(2015)Long, Cao, Wang, and Jordan]{long2015dan}
@@ -60,8 +60,8 @@ GANIN Y, USTINOVA E, AJAKAN H, et~al.
 LONG M, CAO Z, WANG J, et~al.
 \newblock Conditional adversarial domain
   adaptation\allowbreak[C/OL]//\allowbreak
-Advances in Neural Information Processing Systems: volume~31.
-\newblock 2018: 1640-1650.
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~31.
+\newblock Curran Associates, Inc., 2018: 1647-1657.
 \newblock
   \url{https://proceedings.neurips.cc/paper/2018/hash/ab88b15733f543179858600245108dd8-Abstract.html}.
 
@@ -70,10 +70,58 @@ Advances in Neural Information Processing Systems: volume~31.
 DAMODARAN B~B, KELLENBERGER B, FLAMARY R, et~al.
 \newblock {DeepJDOT}: Deep joint distribution optimal transport for
   unsupervised domain adaptation\allowbreak[C/OL]//\allowbreak
-Proceedings of the European Conference on Computer Vision (ECCV).
-\newblock 2018: 447-463.
+Lecture Notes in Computer Science: volume 11208\quad Computer Vision -- {ECCV}
+  2018.
+\newblock Cham: Springer International Publishing, 2018: 467-483.
 \newblock
   \url{https://openaccess.thecvf.com/content_ECCV_2018/html/Bharath_Bhushan_Damodaran_DeepJDOT_Deep_Joint_ECCV_2018_paper.html}.
 \newblock DOI: \doi{10.1007/978-3-030-01225-0_28}.
+
+\bibitem[Jin et~al.(2020)Jin, Wang, Long, and Wang]{jin2020mcc}
+JIN Y, WANG X, LONG M, et~al.
+\newblock Minimum class confusion for versatile domain
+  adaptation\allowbreak[C/OL]//\allowbreak
+Lecture Notes in Computer Science: volume 12366\quad Computer Vision -- {ECCV}
+  2020.
+\newblock Cham: Springer International Publishing, 2020: 464-480.
+\newblock DOI: \doi{10.1007/978-3-030-58589-1_28}.
+
+\bibitem[Tarvainen et~al.(2017)Tarvainen and Valpola]{tarvainen2017meanteacher}
+TARVAINEN A, VALPOLA H.
+\newblock Mean teachers are better role models: Weight-averaged consistency
+  targets improve semi-supervised deep learning
+  results\allowbreak[C/OL]//\allowbreak
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
+\newblock Curran Associates, Inc., 2017: 1195-1204.
+\newblock
+  \url{https://proceedings.neurips.cc/paper/2017/hash/68053af2923e00204c3ca7c6a3150cf7-Abstract.html}.
+
+\bibitem[Xie et~al.(2020)Xie, Dai, Hovy, Luong, and Le]{xie2020uda}
+XIE Q, DAI Z, HOVY E, et~al.
+\newblock Unsupervised data augmentation for consistency
+  training\allowbreak[C/OL]//\allowbreak
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~33.
+\newblock Curran Associates, Inc., 2020: 6256-6268.
+\newblock
+  \url{https://proceedings.neurips.cc/paper_files/paper/2020/file/44feb0096faa8326192570788b38c1d1-Paper.pdf}.
+
+\bibitem[Lee(2013)]{lee2013pseudolabel}
+LEE D~H.
+\newblock {Pseudo-Label}: The simple and efficient semi-supervised learning
+  method for deep neural networks\allowbreak[C/OL]//\allowbreak
+{ICML} 2013 Workshop: Challenges in Representation Learning ({WREPL}).
+\newblock Atlanta, Georgia, USA, 2013.
+\newblock
+  \url{https://storage.googleapis.com/kaggle-forum-message-attachments/8924/pseudo_label_final.pdf}.
+
+\bibitem[Tanwisuth et~al.(2021)Tanwisuth, Fan, Zheng, Zhang, Zhang, Chen, and
+  Zhou]{tanwisuth2021prototype}
+TANWISUTH K, FAN X, ZHENG H, et~al.
+\newblock A prototype-oriented framework for unsupervised domain
+  adaptation\allowbreak[C/OL]//\allowbreak
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~34.
+\newblock Curran Associates, Inc., 2021: 17194-17208.
+\newblock
+  \url{https://proceedings.neurips.cc/paper/2021/hash/8edd72158ccd2a879f79cb2538568fdc-Abstract.html}.
 
 \end{thebibliography}

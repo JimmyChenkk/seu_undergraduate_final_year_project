@@ -20,14 +20,14 @@ runtime:
   model_selection: hybrid_source_eval_inverse_entropy
   early_stopping_metric: hybrid_source_eval_inverse_entropy
   selection_weights:
-    source_eval: 0.70
-    target_entropy: 0.30
+    source_eval: 0.80
+    target_entropy: 0.20
   early_stopping_weights:
-    source_eval: 0.70
-    target_entropy: 0.30
-  early_stopping_patience: 16
+    source_eval: 0.80
+    target_entropy: 0.20
+  early_stopping_patience: 18
   early_stopping_min_delta: 0.0008
-  early_stopping_min_epochs: 28
+  early_stopping_min_epochs: 30
 
 automation:
   methods:
@@ -75,43 +75,43 @@ method_overrides:
   dann: {}
   rcta:
     optimization:
-      epochs: 96
+      epochs: 104
     loss:
-      base_align: dann
-      teacher_temperature: 1.1
+      base_align: cdan
+      teacher_temperature: 1.0
       reliability_weights:
-        cal_conf: 1.6
-        inv_entropy: 0.9
-        consistency: 1.2
-        proto_sim: 1.4
-      gate_score_floor_start: 0.28
-      gate_score_floor_end: 0.56
-      gate_score_floor_schedule_steps: 2800
-      gate_accept_ratio_start: 0.24
-      gate_accept_ratio_end: 0.84
-      gate_curriculum_steps: 2800
-      pseudo_label_weight: 0.38
-      pseudo_warmup_steps: 640
+        cal_conf: 1.8
+        inv_entropy: 0.8
+        consistency: 1.1
+        proto_sim: 1.5
+      gate_score_floor_start: 0.24
+      gate_score_floor_end: 0.50
+      gate_score_floor_schedule_steps: 3200
+      gate_accept_ratio_start: 0.20
+      gate_accept_ratio_end: 0.72
+      gate_curriculum_steps: 3200
+      pseudo_label_weight: 0.30
+      pseudo_warmup_steps: 900
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.50
-      prototype_weight: 0.07
-      prototype_start_step: 900
-      prototype_warmup_steps: 1300
-      consistency_weight: 0.11
-      consistency_start_step: 640
-      consistency_warmup_steps: 1300
+      pseudo_confidence_power: 1.35
+      prototype_weight: 0.08
+      prototype_start_step: 1000
+      prototype_warmup_steps: 1500
+      consistency_weight: 0.14
+      consistency_start_step: 900
+      consistency_warmup_steps: 1500
       consistency_gate_only: true
-      consistency_reliability_power: 1.6
+      consistency_reliability_power: 1.8
       augment:
         weak_jitter_std: 0.005
         weak_scaling_std: 0.005
-        strong_jitter_std: 0.014
-        strong_scaling_std: 0.014
-        strong_time_mask_ratio: 0.06
+        strong_jitter_std: 0.015
+        strong_scaling_std: 0.015
+        strong_time_mask_ratio: 0.05
         strong_channel_dropout_prob: 0.05
 
 notes:
   - Benchmark config for 7 methods across 8 scenarios on domains 2/3/5/6.
   - Single-source scenarios: 2->5, 5->2, 3->6, 6->3.
   - Multi-source scenarios: 235->6, 236->5, 256->3, 356->2.
-  - RCTA uses the best-performing settings from the stronger TOP1-push style configuration.
+  - RCTA is tuned more conservatively for better stability on 2->5 while keeping the strong TOP1-push style base.

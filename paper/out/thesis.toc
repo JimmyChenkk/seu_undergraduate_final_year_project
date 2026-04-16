@@ -92,10 +92,10 @@
 \contentsline {section}{\numberline {6.3}不足与未来展望}{30}{section.6.3}%
 \contentsline {section}{\numberline {6.4}本章小结}{31}{section.6.4}%
 \contentsline {chapter}{参考文献}{32}{chapter*.14}%
-\contentsline {chapter}{\numberline {附录A\hspace {.3em}}实验补充材料}{33}{appendix.A}%
-\contentsline {section}{\numberline {A.1}附录说明}{33}{section.A.1}%
-\contentsline {section}{\numberline {A.2}基线方法关键超参数}{33}{section.A.2}%
-\contentsline {section}{\numberline {A.3}RCTA aggressive 配置摘要}{33}{section.A.3}%
-\contentsline {section}{\numberline {A.4}四个关键单源场景的完整结果}{34}{section.A.4}%
-\contentsline {section}{\numberline {A.5}补充说明}{34}{section.A.5}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{35}{appendix*.18}%
+\contentsline {chapter}{\numberline {附录A\hspace {.3em}}实验补充材料}{34}{appendix.A}%
+\contentsline {section}{\numberline {A.1}附录说明}{34}{section.A.1}%
+\contentsline {section}{\numberline {A.2}基线方法关键超参数}{34}{section.A.2}%
+\contentsline {section}{\numberline {A.3}RCTA aggressive 配置摘要}{34}{section.A.3}%
+\contentsline {section}{\numberline {A.4}四个关键单源场景的完整结果}{35}{section.A.4}%
+\contentsline {section}{\numberline {A.5}补充说明}{35}{section.A.5}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{36}{appendix*.18}%

@@ -38,7 +38,7 @@ RCTA 的一次训练迭代包含以下五个环节：
 +\lambda_{proto}(t)\mathcal{L}_{proto}
 +\lambda_{cons}(t)\mathcal{L}_{cons},
 \end{equation}
-其中 $\mathcal{L}_{cls}^s$ 为源域监督分类损失，$\mathcal{L}_{align}$ 为 DANN 对抗对齐损失，$\mathcal{L}_{mcc}$ 为最小类混淆正则，$\mathcal{L}_{pl}$ 为目标域伪标签损失，$\mathcal{L}_{proto}$ 为原型约束，$\mathcal{L}_{cons}$ 为教师--学生一致性损失，$\lambda_{pl}(t)$、$\lambda_{proto}(t)$ 和 $\lambda_{cons}(t)$ 则通过训练步数 $t$ 进行课程化调度。
+其中 $\mathcal{L}_{cls}^s$ 为源域监督分类损失，$\mathcal{L}_{align}$ 为 DANN 对抗对齐损失，$\mathcal{L}_{mcc}$ 为最小类混淆正则~\cite{jin2020mcc}，$\mathcal{L}_{pl}$ 为目标域伪标签损失，$\mathcal{L}_{proto}$ 为原型约束，$\mathcal{L}_{cons}$ 为教师--学生一致性损失，$\lambda_{pl}(t)$、$\lambda_{proto}(t)$ 和 $\lambda_{cons}(t)$ 则通过训练步数 $t$ 进行课程化调度。
 
 其中，基础对齐项具体写为
 \begin{equation}
@@ -52,7 +52,7 @@ RCTA 的一次训练迭代包含以下五个环节：
 
 \section{教师网络与时序一致性学习}
 \subsection{EMA 教师网络}
-为减轻目标域伪标签的瞬时波动，RCTA 不直接使用学生网络当前时刻的预测作为监督，而是引入教师网络生成更平滑的目标域概率分布。教师参数通过学生参数的指数滑动平均更新：
+为减轻目标域伪标签的瞬时波动，RCTA 不直接使用学生网络当前时刻的预测作为监督，而是引入教师网络生成更平滑的目标域概率分布~\cite{tarvainen2017meanteacher}。教师参数通过学生参数的指数滑动平均更新：
 \begin{equation}
 \theta_{\mathrm{tea}}\leftarrow
 \mu \theta_{\mathrm{tea}}+(1-\mu)\theta_{\mathrm{stu}},
@@ -73,7 +73,7 @@ p_{j}^{tea}=
 本文在 aggressive 配置中采用 $T_{tea}=1.1$，既保留类别判别性，又避免温度过低造成的过度自信。
 
 \subsection{弱强双视图时序增强}
-RCTA 在目标域上采用保守的弱增强与相对困难的强增强。设随机增强算子分别为 $\mathcal{A}_w$ 与 $\mathcal{A}_s$，则有
+RCTA 在目标域上采用保守的弱增强与相对困难的强增强~\cite{xie2020uda}。设随机增强算子分别为 $\mathcal{A}_w$ 与 $\mathcal{A}_s$，则有
 \begin{equation}
 \tilde{x}_{j,w}^t=\mathcal{A}_w(x_j^t),\qquad
 \tilde{x}_{j,s}^t=\mathcal{A}_s(x_j^t).
@@ -128,7 +128,7 @@ r_j=
 与简单的全局阈值不同，RCTA 采用按预测类别分别筛选的策略。对每个预测类别 $k$，先保留满足 $r_j\ge \tau(t)$ 的样本，再在该类别内部选取得分前 $\lceil \rho(t)\cdot n_k\rceil$ 个样本进入门控集合 $\Omega_t$。这种按类门控机制能够缓解类别不均衡带来的“头部类别占满伪标签预算”问题，更适合 29 类流程工业诊断任务。
 
 \subsection{可靠性加权伪标签损失}
-对于通过门控的目标样本，伪标签损失采用带可靠性加权的交叉熵：
+对于通过门控的目标样本，伪标签损失采用带可靠性加权的交叉熵~\cite{lee2013pseudolabel}：
 \begin{equation}
 \mathcal{L}_{pl}=
 \frac{1}{|\Omega_t|}
@@ -140,7 +140,7 @@ r_j=
 
 \section{双原型记忆与类条件约束}
 \subsection{源域与目标域原型记忆}
-为了显式建模类别结构，RCTA 为源域和目标域分别维护原型记忆库。设学生网络在源域样本上的特征表示为
+为了显式建模类别结构，RCTA 为源域和目标域分别维护原型记忆库~\cite{tanwisuth2021prototype}。设学生网络在源域样本上的特征表示为
 \begin{equation}
 f_i^s=\phi(x_i^s).
 \end{equation}
