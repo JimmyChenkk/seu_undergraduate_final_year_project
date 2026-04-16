@@ -75,39 +75,39 @@ method_overrides:
   dann: {}
   rcta:
     optimization:
-      epochs: 104
+      epochs: 96
     loss:
-      base_align: cdan
-      teacher_temperature: 1.0
+      base_align: dann
+      teacher_temperature: 1.1
       reliability_weights:
-        cal_conf: 1.8
-        inv_entropy: 0.8
-        consistency: 1.1
-        proto_sim: 1.5
+        cal_conf: 1.6
+        inv_entropy: 0.9
+        consistency: 1.2
+        proto_sim: 1.4
       gate_score_floor_start: 0.24
-      gate_score_floor_end: 0.50
-      gate_score_floor_schedule_steps: 3200
-      gate_accept_ratio_start: 0.20
-      gate_accept_ratio_end: 0.72
-      gate_curriculum_steps: 3200
-      pseudo_label_weight: 0.30
-      pseudo_warmup_steps: 900
+      gate_score_floor_end: 0.58
+      gate_score_floor_schedule_steps: 2400
+      gate_accept_ratio_start: 0.30
+      gate_accept_ratio_end: 0.92
+      gate_curriculum_steps: 2400
+      pseudo_label_weight: 0.42
+      pseudo_warmup_steps: 500
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.35
+      pseudo_confidence_power: 1.60
       prototype_weight: 0.08
-      prototype_start_step: 1000
-      prototype_warmup_steps: 1500
-      consistency_weight: 0.14
-      consistency_start_step: 900
-      consistency_warmup_steps: 1500
+      prototype_start_step: 700
+      prototype_warmup_steps: 1000
+      consistency_weight: 0.12
+      consistency_start_step: 500
+      consistency_warmup_steps: 1000
       consistency_gate_only: true
       consistency_reliability_power: 1.8
       augment:
         weak_jitter_std: 0.005
         weak_scaling_std: 0.005
-        strong_jitter_std: 0.015
-        strong_scaling_std: 0.015
-        strong_time_mask_ratio: 0.05
+        strong_jitter_std: 0.014
+        strong_scaling_std: 0.014
+        strong_time_mask_ratio: 0.06
         strong_channel_dropout_prob: 0.05
 
 notes:
