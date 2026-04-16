@@ -62,8 +62,12 @@ class DeepJDOTMethod(SingleSourceMethodBase):
             sinkhorn_reg=self.sinkhorn_reg,
             sinkhorn_num_iter_max=self.sinkhorn_num_iter_max,
         )
+        if not torch.isfinite(loss_alignment):
+            loss_alignment = torch.zeros_like(loss_alignment)
         current_weight = self.alignment_scheduler.step()
         loss_total = loss_cls + current_weight * loss_alignment
+        if not torch.isfinite(loss_total):
+            loss_total = loss_cls
 
         return MethodStepOutput(
             loss=loss_total,

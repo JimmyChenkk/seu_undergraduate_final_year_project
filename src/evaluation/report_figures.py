@@ -304,10 +304,24 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     features = np.concatenate([source_embeddings, target_embeddings], axis=0)
     label_values = np.concatenate([source_labels, target_labels], axis=0)
     domain_groups = _domain_group_labels(source_domains, target_domains)
-    embedding_2d = _fit_tsne(features)
+
+    finite_mask = np.isfinite(features).all(axis=1)
+    if not finite_mask.all():
+        dropped = int((~finite_mask).sum())
+        print(
+            f"[report_figures] skipping {dropped} non-finite samples before t-SNE for {artifact_path.name}"
+        )
+    safe_features = features[finite_mask]
+    safe_domain_groups = domain_groups[finite_mask]
+    safe_label_values = label_values[finite_mask]
+    if len(safe_features) <= 5:
+        print(f"[report_figures] not enough finite samples for t-SNE in {artifact_path.name}; skipping figure export")
+        return
+
+    embedding_2d = _fit_tsne(safe_features)
 
     plt.figure(figsize=(6, 5))
-    _plot_domain_embedding(embedding_2d, domain_groups)
+    _plot_domain_embedding(embedding_2d, safe_domain_groups)
     plt.legend()
     plt.title("Domain Fusion t-SNE")
     plt.xlabel("t-SNE-1")
@@ -318,7 +332,7 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     scatter = plt.scatter(
         embedding_2d[:, 0],
         embedding_2d[:, 1],
-        c=label_values,
+        c=safe_label_values,
         s=12,
         alpha=0.75,
         cmap="tab20",
@@ -379,8 +393,14 @@ def export_domain_comparison_figure(
 
 def export_run_review_figures(artifact_path: Path, output_dir: Path) -> None:
     _ensure_dir(output_dir)
-    export_tsne_figures(artifact_path, output_dir)
-    export_confusion_matrix_figure(artifact_path, output_dir / "confusion_matrix.png")
+    try:
+        export_tsne_figures(artifact_path, output_dir)
+    except Exception as exc:  # pragma: no cover - defensive figure export guard
+        print(f"[report_figures] t-SNE export skipped for {artifact_path.name}: {exc}")
+    try:
+        export_confusion_matrix_figure(artifact_path, output_dir / "confusion_matrix.png")
+    except Exception as exc:  # pragma: no cover - defensive figure export guard
+        print(f"[report_figures] confusion matrix export skipped for {artifact_path.name}: {exc}")
 
 
 def export_summary_figures(results_dir: Path, output_dir: Path) -> None:

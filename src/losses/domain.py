@@ -209,13 +209,20 @@ def deepjdot_loss(
     features_source = features_source[:batch_size]
     features_target = features_target[:batch_size]
 
+    features_source = torch.nan_to_num(features_source, nan=0.0, posinf=1e6, neginf=-1e6)
+    features_target = torch.nan_to_num(features_target, nan=0.0, posinf=1e6, neginf=-1e6)
+    logits_target = torch.nan_to_num(logits_target, nan=0.0, posinf=1e6, neginf=-1e6)
+
     feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
     if normalize_feature_cost:
         feature_cost = feature_cost / float(max(features_source.shape[1], 1))
+    feature_cost = torch.nan_to_num(feature_cost, nan=1e6, posinf=1e6, neginf=1e6)
 
     target_log_probs = F.log_softmax(logits_target, dim=1)
     class_cost = -target_log_probs[:, source_labels].transpose(0, 1)
+    class_cost = torch.nan_to_num(class_cost, nan=1e6, posinf=1e6, neginf=1e6)
     total_cost = reg_dist * feature_cost + reg_cl * class_cost
+    total_cost = torch.nan_to_num(total_cost, nan=1e6, posinf=1e6, neginf=1e6)
 
     if sample_weights is None:
         sample_weights = torch.full(

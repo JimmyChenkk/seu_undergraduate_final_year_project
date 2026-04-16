@@ -31,8 +31,8 @@ runtime:
 
 automation:
   methods:
-    - rcta
     - deepjdot
+    - rcta
     - dann
     - cdan
     - dan
@@ -59,8 +59,8 @@ method_overrides:
     loss:
       adaptation_schedule: warm_start
       transport_solver: sinkhorn
-      sinkhorn_reg: 0.05
-      sinkhorn_num_iter_max: 100
+      sinkhorn_reg: 0.1
+      sinkhorn_num_iter_max: 200
       normalize_feature_cost: true
   dan: {}
   cdan:

@@ -636,6 +636,19 @@ def _collect_loader_outputs(
     labels_array = np.concatenate(labels_list, axis=0)
     predictions_array = logits_array.argmax(axis=1)
     domains_array = np.concatenate(domains, axis=0)
+    finite_embeddings = np.isfinite(embeddings_array).all(axis=1)
+    finite_logits = np.isfinite(logits_array).all(axis=1)
+    finite_mask = finite_embeddings & finite_logits
+    if not finite_mask.all():
+        invalid_count = int((~finite_mask).sum())
+        print(
+            f"[trainer] dropping {invalid_count} non-finite samples from collected outputs for {domain_name}"
+        )
+        embeddings_array = embeddings_array[finite_mask]
+        logits_array = logits_array[finite_mask]
+        labels_array = labels_array[finite_mask]
+        predictions_array = predictions_array[finite_mask]
+        domains_array = domains_array[finite_mask]
     return {
         "embeddings": embeddings_array,
         "logits": logits_array,
