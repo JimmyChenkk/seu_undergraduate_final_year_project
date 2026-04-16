@@ -181,28 +181,27 @@ def resolve_scene_settings(
 
     scene_settings = []
 
-    multisource_scene_tokens = automation.get("multisource_scenes", [])
-    if include_multisource_targets and not multisource_scene_tokens:
-        multisource_scene_tokens = automation.get("multisource_targets", [])
-    if isinstance(multisource_scene_tokens, list) and multisource_scene_tokens:
-        scene_settings.extend(_build_multisource_settings(multisource_scene_tokens))
-
     if all_scenes:
-        scene_settings.extend(
-            _build_single_source_settings([f"{source}->{target}" for source, target in _build_all_directed_scenes()])
-        )
-    elif cli_scenes is not None:
-        scene_settings.extend(_build_single_source_settings(cli_scenes))
-    else:
-        configured_scenes = automation.get("single_source_scenes", [])
-        if isinstance(configured_scenes, list) and configured_scenes:
-            scene_settings.extend(_build_single_source_settings(configured_scenes))
-        else:
-            protocol = experiment_payload.get("protocol_override", {})
-            source_domains = protocol.get("source_domains", [])
-            target_domain = protocol.get("target_domain")
-            if len(source_domains) == 1 and target_domain:
-                scene_settings.extend(_build_single_source_settings([f"{source_domains[0]}->{target_domain}"]))
+        return _build_single_source_settings([f"{source}->{target}" for source, target in _build_all_directed_scenes()])
+
+    if cli_scenes is not None:
+        return _build_single_source_settings(cli_scenes)
+
+    for key, value in automation.items():
+        if key == "single_source_scenes" and isinstance(value, list) and value:
+            scene_settings.extend(_build_single_source_settings(value))
+        elif key in {"multisource_scenes", "multisource_targets"}:
+            if key == "multisource_targets" and not include_multisource_targets:
+                continue
+            if isinstance(value, list) and value:
+                scene_settings.extend(_build_multisource_settings(value))
+
+    if not scene_settings:
+        protocol = experiment_payload.get("protocol_override", {})
+        source_domains = protocol.get("source_domains", [])
+        target_domain = protocol.get("target_domain")
+        if len(source_domains) == 1 and target_domain:
+            scene_settings.extend(_build_single_source_settings([f"{source_domains[0]}->{target_domain}"]))
 
     if not scene_settings:
         raise ValueError(

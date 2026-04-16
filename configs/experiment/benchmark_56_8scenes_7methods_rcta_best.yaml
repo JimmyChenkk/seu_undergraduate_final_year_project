@@ -38,16 +38,16 @@ automation:
     - cdan
     - dann
     - rcta
-  single_source_scenes:
-    - mode2->mode5
-    - mode5->mode2
-    - mode3->mode6
-    - mode6->mode3
   multisource_scenes:
     - mode2-mode3-mode5->mode6
     - mode2-mode3-mode6->mode5
     - mode2-mode5-mode6->mode3
     - mode3-mode5-mode6->mode2
+  single_source_scenes:
+    - mode2->mode5
+    - mode5->mode2
+    - mode3->mode6
+    - mode6->mode3
 
 method_overrides:
   source_only: {}
