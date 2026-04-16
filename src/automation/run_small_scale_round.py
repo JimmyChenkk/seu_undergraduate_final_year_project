@@ -94,40 +94,21 @@ def _build_all_directed_scenes() -> list[tuple[str, str]]:
     ]
 
 
-def _normalize_multisource_targets(targets: Any) -> list[str]:
-    if targets in (None, False):
-        return []
-    if targets is True:
-        return list(ALL_MODES)
-
-    raw_items = [targets] if isinstance(targets, str) else list(targets)
-    normalized_targets: list[str] = []
-    seen: set[str] = set()
-    for item in raw_items:
-        token = str(item).strip()
-        if not token:
-            continue
-        if token.lower() in {"all", "*"}:
-            for domain_name in ALL_MODES:
-                if domain_name not in seen:
-                    seen.add(domain_name)
-                    normalized_targets.append(domain_name)
-            continue
-        domain_name = _validate_domain(token)
-        if domain_name not in seen:
-            seen.add(domain_name)
-            normalized_targets.append(domain_name)
-    return normalized_targets
-
-
 def _build_multisource_settings(scene_tokens: Iterable[str]) -> list[dict[str, object]]:
     settings: list[dict[str, object]] = []
-    for source_token, target_domain in _parse_scene_tokens(scene_tokens):
+    for token in scene_tokens:
+        normalized = str(token).replace(":", "->")
+        if "->" not in normalized:
+            raise ValueError(f"Invalid multi-source scene token: {token}")
+        source_token, target_domain = [item.strip() for item in normalized.split("->", maxsplit=1)]
         source_domains = [item.strip() for item in source_token.replace("+", "-").split("-") if item.strip()]
         for domain_name in source_domains:
             _validate_domain(domain_name)
+        target_domain = _validate_domain(target_domain)
         if len(source_domains) < 2:
-            raise ValueError(f"Multi-source scene must include at least two source domains: {source_token}->{target_domain}")
+            raise ValueError(f"Multi-source scene must include at least two source domains: {token}")
+        if target_domain in source_domains:
+            raise ValueError(f"Multi-source scene target must differ from sources: {token}")
         settings.append(
             {
                 "setting": "multi_source",
@@ -190,11 +171,10 @@ def resolve_scene_settings(
     for key, value in automation.items():
         if key == "single_source_scenes" and isinstance(value, list) and value:
             scene_settings.extend(_build_single_source_settings(value))
-        elif key in {"multisource_scenes", "multisource_targets"}:
-            if key == "multisource_targets" and not include_multisource_targets:
-                continue
-            if isinstance(value, list) and value:
-                scene_settings.extend(_build_multisource_settings(value))
+        elif key == "multisource_scenes" and isinstance(value, list) and value:
+            scene_settings.extend(_build_multisource_settings(value))
+        elif key == "multisource_targets" and include_multisource_targets and isinstance(value, list) and value:
+            scene_settings.extend(_build_multisource_settings(value))
 
     if not scene_settings:
         protocol = experiment_payload.get("protocol_override", {})
@@ -205,8 +185,8 @@ def resolve_scene_settings(
 
     if not scene_settings:
         raise ValueError(
-            "No automation scenes resolved. Configure automation.single_source_scenes or "
-            "automation.multisource_scenes, or pass --scenes/--all-scenes."
+            "No automation scenes resolved. Configure automation.single_source_scenes / "
+            "automation.multisource_scenes / automation.multisource_targets, or pass --scenes/--all-scenes."
         )
     return scene_settings
 
