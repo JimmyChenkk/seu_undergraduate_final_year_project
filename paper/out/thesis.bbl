@@ -14,52 +14,66 @@
 \bibitem[Qin(2012)]{qin2012survey}
 QIN S~J.
 \newblock Survey on data-driven industrial process monitoring and
-  diagnosis\allowbreak[J].
+  diagnosis\allowbreak[J/OL].
 \newblock Annual Reviews in Control, 2012, 36\allowbreak (2): 220-234.
+\newblock DOI: \doi{10.1016/j.arcontrol.2012.09.004}.
 
-\bibitem[Pan et~al.(2009)Pan and Yang]{pan2009survey}
+\bibitem[Pan et~al.(2010)Pan and Yang]{pan2009survey}
 PAN S~J, YANG Q.
-\newblock A survey on transfer learning\allowbreak[J].
-\newblock IEEE Transactions on Knowledge and Data Engineering, 2009,
+\newblock A survey on transfer learning\allowbreak[J/OL].
+\newblock IEEE Transactions on Knowledge and Data Engineering, 2010,
   22\allowbreak (10): 1345-1359.
+\newblock DOI: \doi{10.1109/TKDE.2009.191}.
 
 \bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
 DOWNS J~J, VOGEL E~F.
-\newblock A plant-wide industrial process control problem\allowbreak[J].
+\newblock A plant-wide industrial process control problem\allowbreak[J/OL].
 \newblock Computers \& Chemical Engineering, 1993, 17\allowbreak (3): 245-255.
+\newblock DOI: \doi{10.1016/0098-1354(93)80018-I}.
 
 \bibitem[Sun et~al.(2016)Sun and Saenko]{sun2016deep}
 SUN B, SAENKO K.
 \newblock Deep {CORAL}: Correlation alignment for deep domain
-  adaptation\allowbreak[C]//\allowbreak
-Computer Vision -- ECCV 2016 Workshops.
-\newblock 2016: 443-450.
+  adaptation\allowbreak[C/OL]//\allowbreak
+Lecture Notes in Computer Science: volume 9915\quad Computer Vision -- ECCV
+  2016 Workshops.
+\newblock Springer, 2016: 443-450.
+\newblock DOI: \doi{10.1007/978-3-319-49409-8_35}.
 
 \bibitem[Long et~al.(2015)Long, Cao, Wang, and Jordan]{long2015dan}
 LONG M, CAO Y, WANG J, et~al.
 \newblock Learning transferable features with deep adaptation
-  networks\allowbreak[C]//\allowbreak
-Proceedings of the 32nd International Conference on Machine Learning.
-\newblock 2015: 97-105.
+  networks\allowbreak[C/OL]//\allowbreak
+Proceedings of Machine Learning Research: volume~37\quad Proceedings of the
+  32nd International Conference on Machine Learning.
+\newblock Lille, France: PMLR, 2015: 97-105.
+\newblock \url{https://proceedings.mlr.press/v37/long15.html}.
 
 \bibitem[Ganin et~al.(2016)Ganin, Ustinova, Ajakan, Germain, Larochelle,
   Laviolette, Marchand, and Lempitsky]{ganin2016dann}
 GANIN Y, USTINOVA E, AJAKAN H, et~al.
-\newblock Domain-adversarial training of neural networks\allowbreak[J].
+\newblock Domain-adversarial training of neural networks\allowbreak[J/OL].
 \newblock Journal of Machine Learning Research, 2016, 17\allowbreak (59): 1-35.
+\newblock \url{https://jmlr.org/papers/v17/15-239.html}.
 
 \bibitem[Long et~al.(2018)Long, Cao, Wang, and Jordan]{long2018conditional}
 LONG M, CAO Z, WANG J, et~al.
-\newblock Conditional adversarial domain adaptation\allowbreak[C]//\allowbreak
+\newblock Conditional adversarial domain
+  adaptation\allowbreak[C/OL]//\allowbreak
 Advances in Neural Information Processing Systems: volume~31.
-\newblock 2018.
+\newblock 2018: 1640-1650.
+\newblock
+  \url{https://proceedings.neurips.cc/paper/2018/hash/ab88b15733f543179858600245108dd8-Abstract.html}.
 
 \bibitem[Damodaran et~al.(2018)Damodaran, Kellenberger, Flamary, Tuia, and
   Courty]{damodaran2018deepjdot}
 DAMODARAN B~B, KELLENBERGER B, FLAMARY R, et~al.
-\newblock Deepjdot: Deep joint distribution optimal transport for unsupervised
-  domain adaptation\allowbreak[C]//\allowbreak
-Proceedings of the European Conference on Computer Vision.
+\newblock {DeepJDOT}: Deep joint distribution optimal transport for
+  unsupervised domain adaptation\allowbreak[C/OL]//\allowbreak
+Proceedings of the European Conference on Computer Vision (ECCV).
 \newblock 2018: 447-463.
+\newblock
+  \url{https://openaccess.thecvf.com/content_ECCV_2018/html/Bharath_Bhushan_Damodaran_DeepJDOT_Deep_Joint_ECCV_2018_paper.html}.
+\newblock DOI: \doi{10.1007/978-3-030-01225-0_28}.
 
 \end{thebibliography}

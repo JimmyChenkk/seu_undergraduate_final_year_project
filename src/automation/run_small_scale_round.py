@@ -120,17 +120,20 @@ def _normalize_multisource_targets(targets: Any) -> list[str]:
     return normalized_targets
 
 
-def _build_multisource_target_settings(target_domains: Iterable[str]) -> list[dict[str, object]]:
+def _build_multisource_settings(scene_tokens: Iterable[str]) -> list[dict[str, object]]:
     settings: list[dict[str, object]] = []
-    for target_domain in target_domains:
-        resolved_target = _validate_domain(target_domain)
-        source_domains = [domain for domain in ALL_MODES if domain != resolved_target]
+    for source_token, target_domain in _parse_scene_tokens(scene_tokens):
+        source_domains = [item.strip() for item in source_token.replace("+", "-").split("-") if item.strip()]
+        for domain_name in source_domains:
+            _validate_domain(domain_name)
+        if len(source_domains) < 2:
+            raise ValueError(f"Multi-source scene must include at least two source domains: {source_token}->{target_domain}")
         settings.append(
             {
                 "setting": "multi_source",
                 "source_domains": source_domains,
-                "target_domain": resolved_target,
-                "label": f"{'-'.join(source_domains)}_to_{resolved_target}",
+                "target_domain": target_domain,
+                "label": f"{'-'.join(source_domains)}_to_{target_domain}",
             }
         )
     return settings
@@ -176,38 +179,35 @@ def resolve_scene_settings(
 ) -> list[dict[str, object]]:
     automation = _automation_section(experiment_payload)
 
+    scene_settings = []
+
+    multisource_scene_tokens = automation.get("multisource_scenes", [])
+    if include_multisource_targets and not multisource_scene_tokens:
+        multisource_scene_tokens = automation.get("multisource_targets", [])
+    if isinstance(multisource_scene_tokens, list) and multisource_scene_tokens:
+        scene_settings.extend(_build_multisource_settings(multisource_scene_tokens))
+
     if all_scenes:
-        scene_settings = _build_single_source_settings(
-            [f"{source}->{target}" for source, target in _build_all_directed_scenes()]
+        scene_settings.extend(
+            _build_single_source_settings([f"{source}->{target}" for source, target in _build_all_directed_scenes()])
         )
     elif cli_scenes is not None:
-        scene_settings = _build_single_source_settings(cli_scenes)
+        scene_settings.extend(_build_single_source_settings(cli_scenes))
     else:
         configured_scenes = automation.get("single_source_scenes", [])
         if isinstance(configured_scenes, list) and configured_scenes:
-            scene_settings = _build_single_source_settings(configured_scenes)
+            scene_settings.extend(_build_single_source_settings(configured_scenes))
         else:
             protocol = experiment_payload.get("protocol_override", {})
             source_domains = protocol.get("source_domains", [])
             target_domain = protocol.get("target_domain")
             if len(source_domains) == 1 and target_domain:
-                scene_settings = _build_single_source_settings(
-                    [f"{source_domains[0]}->{target_domain}"]
-                )
-            else:
-                scene_settings = []
-
-    multisource_targets = (
-        list(ALL_MODES)
-        if include_multisource_targets
-        else _normalize_multisource_targets(automation.get("multisource_targets", []))
-    )
-    scene_settings.extend(_build_multisource_target_settings(multisource_targets))
+                scene_settings.extend(_build_single_source_settings([f"{source_domains[0]}->{target_domain}"]))
 
     if not scene_settings:
         raise ValueError(
             "No automation scenes resolved. Configure automation.single_source_scenes or "
-            "automation.multisource_targets, or pass --scenes/--all-scenes."
+            "automation.multisource_scenes, or pass --scenes/--all-scenes."
         )
     return scene_settings
 
