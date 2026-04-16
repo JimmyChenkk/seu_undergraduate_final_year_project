@@ -18,16 +18,16 @@ class DeepJDOTMethod(SingleSourceMethodBase):
     def __init__(
         self,
         *,
-        adaptation_weight: float = 1.0,
-        adaptation_schedule: str = "warm_start",
-        adaptation_max_steps: int = 1000,
+        adaptation_weight: float = 0.4,
+        adaptation_schedule: str = "linear",
+        adaptation_max_steps: int = 2000,
         adaptation_schedule_alpha: float = 10.0,
-        reg_dist: float = 0.1,
-        reg_cl: float = 1.0,
+        reg_dist: float = 0.2,
+        reg_cl: float = 0.5,
         normalize_feature_cost: bool = True,
         transport_solver: str = "sinkhorn",
-        sinkhorn_reg: float = 0.05,
-        sinkhorn_num_iter_max: int = 100,
+        sinkhorn_reg: float = 0.1,
+        sinkhorn_num_iter_max: int = 300,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -66,8 +66,11 @@ class DeepJDOTMethod(SingleSourceMethodBase):
         loss_alignment = torch.as_tensor(loss_alignment, device=loss_cls.device, dtype=loss_cls.dtype)
         if not torch.isfinite(loss_alignment).item():
             loss_alignment = torch.zeros_like(loss_alignment)
+
         current_weight = self.alignment_scheduler.step()
-        loss_total = loss_cls + current_weight * loss_alignment
+        # Keep DeepJDOT as a stabilizing regularizer instead of dominating the classifier loss.
+        alignment_scale = current_weight * 0.5
+        loss_total = loss_cls + alignment_scale * loss_alignment
         if not torch.isfinite(loss_total).item():
             loss_total = loss_cls
 
