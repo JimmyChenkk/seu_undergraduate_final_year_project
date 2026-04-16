@@ -20,6 +20,9 @@ loss:
   reg_dist: 0.1
   reg_cl: 1.0
   normalize_feature_cost: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 100
 
 notes:
-  - DeepJDOT baseline with normalized feature transport cost and warm-start alignment weight.
+  - DeepJDOT baseline with normalized feature transport cost, warm-start alignment weight, and Sinkhorn OT for stability.

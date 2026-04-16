@@ -183,10 +183,22 @@ def deepjdot_loss(
     sample_weights: torch.Tensor | None = None,
     target_sample_weights: torch.Tensor | None = None,
     normalize_feature_cost: bool = True,
+    solver: str = "sinkhorn",
+    sinkhorn_reg: float = 0.05,
+    sinkhorn_num_iter_max: int = 100,
 ) -> torch.Tensor:
-    """Compute the DeepJDOT minibatch OT loss."""
+    """Compute the DeepJDOT minibatch OT loss.
 
-    import ot
+    The reference DeepJDOT objective combines a feature-space transport cost and
+    a class-conditional cost, then solves the minibatch OT problem. We default to
+    an entropic Sinkhorn solver for stability, while still allowing exact EMD for
+    strict comparisons with legacy code.
+    """
+
+    try:
+        import ot
+    except ImportError as exc:  # pragma: no cover - dependency error is environment-specific
+        raise ImportError("DeepJDOT requires the POT package (import ot).") from exc
 
     batch_size = min(features_source.shape[0], features_target.shape[0], source_labels.shape[0], logits_target.shape[0])
     if batch_size == 0:
@@ -220,7 +232,18 @@ def deepjdot_loss(
             dtype=features_target.dtype,
         )
 
-    return ot.emd2(sample_weights, target_sample_weights, total_cost)
+    solver_name = solver.strip().lower()
+    if solver_name in {"sinkhorn", "entropic", "regularized"}:
+        return ot.sinkhorn2(
+            sample_weights,
+            target_sample_weights,
+            total_cost,
+            reg=sinkhorn_reg,
+            numItermax=sinkhorn_num_iter_max,
+        )
+    if solver_name in {"emd", "exact"}:
+        return ot.emd2(sample_weights, target_sample_weights, total_cost)
+    raise ValueError(f"Unsupported DeepJDOT solver: {solver}")
 
 
 class GradientReverseFunction(Function):
