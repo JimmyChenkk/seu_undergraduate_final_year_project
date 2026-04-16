@@ -18,7 +18,7 @@
 Source Only & 70 & 32 & $1\times 10^{-4}$ & 无显式对齐项 \\
 CORAL & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{coral}=0.5$，warm-start \\
 DAN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{mmd}=0.05$，5 组高斯核尺度 \\
-DANN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{adv}=0.5$，GRL warm-start，判别器 256$\times$2 \\
+DANN & 70 & 32 & $1\times 10^{-4}$ & \begin{tabular}[t]{@{}l@{}}$\lambda_{adv}=0.5$，GRL warm-start，\\ 判别器 256$\times$2\end{tabular} \\
 CDAN & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{cadv}=0.2$，randomized dim=256，熵保护选择指标 \\
 DeepJDOT & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{ot}=1.0$，$\alpha=0.1$，$\beta=1.0$ \\
 \hline
@@ -42,10 +42,10 @@ DeepJDOT & 70 & 32 & $1\times 10^{-4}$ & $\lambda_{ot}=1.0$，$\alpha=0.1$，$\b
 基础对齐分支 & DANN \\
 MCC 正则 & $\lambda_{mcc}=0.1$，temperature=2.0 \\
 教师网络 & EMA decay=0.99，teacher temperature=1.1 \\
-可靠性权重 & cal\_conf=1.6，inv\_entropy=0.9，consistency=1.2，proto\_sim=1.4 \\
+可靠性权重 & \begin{tabular}[t]{@{}l@{}}cal\_conf=1.6，inv\_entropy=0.9，\\ consistency=1.2，proto\_sim=1.4\end{tabular} \\
 分数下界课程 & 0.24 $\rightarrow$ 0.58，持续 2400 steps \\
 按类接受比例课程 & 0.30 $\rightarrow$ 0.92，持续 2400 steps \\
-伪标签损失 & 最大权重 0.42，warmup 500 steps，可靠性加权，power=1.6 \\
+伪标签损失 & \begin{tabular}[t]{@{}l@{}}最大权重 0.42，warmup 500 steps，\\ 可靠性加权，power=1.6\end{tabular} \\
 原型损失 & 最大权重 0.08，start step=700，warmup 1000 steps \\
 一致性损失 & 最大权重 0.12，start step=500，warmup 1000 steps \\
 一致性门控 & 仅对 gate 内样本启用，reliability power=1.8 \\

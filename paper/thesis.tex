@@ -27,6 +27,8 @@
 \end{abstract}
 
 \begin{abstract}[en]
+\begingroup
+\sloppy
 Industrial fault diagnosis is important for production safety, reduction of unplanned downtime, and reliable process operation. In real process industries, however, data collected under different operating modes, load levels, or control stages usually follow different distributions. As a result, a model trained on labeled data from one operating condition often generalizes poorly to another condition. To address this problem, this thesis studies single-source to single-target unsupervised domain adaptation for fault diagnosis on the Tennessee Eastman Process Domain Adaptation dataset, with an emphasis on benchmark construction, unified comparison, and method improvement.
 
 This work first establishes a reproducible experimental pipeline for cross-mode transfer diagnosis on TEP. A manifest-backed data interface is used to organize six operating modes, twenty-nine classes, and five folds. Under a shared one-dimensional fully convolutional backbone, six representative methods are compared: Source Only, CORAL, DAN, DANN, CDAN, and DeepJDOT. Input representation, domain-wise normalization, optimization settings, model-selection criteria, early stopping, and reporting artifacts are standardized so that the comparison focuses on the adaptation mechanisms themselves. On four key single-source scenarios, namely mode2$\rightarrow$mode5, mode3$\rightarrow$mode6, mode5$\rightarrow$mode2, and mode6$\rightarrow$mode3, the average target-domain accuracy reaches 0.7501, 0.8118, 0.8329, 0.7852, and 0.7213 for CORAL, DAN, DANN, CDAN, and DeepJDOT, respectively, compared with 0.6706 for the Source Only baseline.
@@ -35,8 +37,8 @@ Based on the baseline analysis, this thesis further proposes a Reliability-Gated
 
 Overall, the thesis forms a coherent research line from benchmark construction to baseline comparison and improved-method validation. The results indicate that, for multi-class industrial time-series adaptation, global alignment alone is insufficient to stably resolve class confusion and noisy pseudo supervision, while the combination of reliability gating, teacher-student consistency, and dual-prototype structure can further improve cross-mode transfer performance.
 
-{\sloppy
-\keywords{Fault Diagnosis, Domain Adaptation, TEP, Unsupervised Domain Adaptation}\par}
+\keywords{Fault Diagnosis, Domain Adaptation, TEP, Unsupervised Domain Adaptation}\par
+\endgroup
 \end{abstract}
 
 \tableofcontents
