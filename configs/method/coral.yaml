@@ -17,8 +17,9 @@ loss:
   adaptation_schedule: warm_start
   adaptation_max_steps: 1000
   adaptation_schedule_alpha: 10.0
-  align_mean: true
+  align_mean: false
   normalize_covariance: true
 
 notes:
   - Deep CORAL baseline with warm-start alignment weight and normalized covariance matching.
+  - align_mean is disabled to match the standard CORAL formulation.

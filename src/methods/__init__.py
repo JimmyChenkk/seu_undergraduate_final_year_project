@@ -64,7 +64,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
             adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
             adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
-            align_mean=bool(loss.get("align_mean", True)),
+            align_mean=bool(loss.get("align_mean", False)),
             normalize_covariance=bool(loss.get("normalize_covariance", True)),
             **shared_kwargs,
         )
@@ -82,12 +82,15 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
     if method_name == "deepjdot":
         return DeepJDOTMethod(
             adaptation_weight=float(loss.get("adaptation_weight", 1.0)),
-            adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
+            adaptation_schedule=str(loss.get("adaptation_schedule", "warm_start")),
             adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
             adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
             reg_dist=float(loss.get("reg_dist", 0.1)),
             reg_cl=float(loss.get("reg_cl", 1.0)),
             normalize_feature_cost=bool(loss.get("normalize_feature_cost", True)),
+            transport_solver=str(loss.get("transport_solver", "sinkhorn")),
+            sinkhorn_reg=float(loss.get("sinkhorn_reg", 0.05)),
+            sinkhorn_num_iter_max=int(loss.get("sinkhorn_num_iter_max", 100)),
             **shared_kwargs,
         )
     if method_name == "dann":

@@ -31,13 +31,13 @@ runtime:
 
 automation:
   methods:
-    - source_only
-    - coral
-    - deepjdot
-    - dan
-    - cdan
-    - dann
     - rcta
+    - deepjdot
+    - dann
+    - cdan
+    - dan
+    - coral
+    - source_only
   multisource_scenes:
     - mode2-mode3-mode5->mode6
     - mode2-mode3-mode6->mode5
@@ -51,8 +51,17 @@ automation:
 
 method_overrides:
   source_only: {}
-  coral: {}
-  deepjdot: {}
+  coral:
+    loss:
+      align_mean: false
+      normalize_covariance: true
+  deepjdot:
+    loss:
+      adaptation_schedule: warm_start
+      transport_solver: sinkhorn
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 100
+      normalize_feature_cost: true
   dan: {}
   cdan:
     runtime:
