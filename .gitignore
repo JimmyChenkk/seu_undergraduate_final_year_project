@@ -5,6 +5,9 @@
 /refs/
 /runs/
 /RCTA_next_step_plan.md
+/goal.md
+/WORKFLOW.md
+/AGENTS.md
 
 # Python cache
 __pycache__/
