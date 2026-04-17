@@ -53,6 +53,10 @@ def _method_config(*, base_align: str = "cdan", gate_score_floor: float = 0.0) -
             "prototype_weight": 0.1,
             "prototype_separation_weight": 0.1,
             "consistency_weight": 0.1,
+            "alignment_start_step": 2,
+            "alignment_use_reliable_only": True,
+            "semi_reliable_consistency_weight": 0.25,
+            "unreliable_entropy_weight": 0.08,
             "prototype_momentum": 0.9,
             "prototype_separation_margin": 0.2,
             "augment": {
@@ -203,6 +207,28 @@ class RCTATests(unittest.TestCase):
         self.assertGreater(int(method.target_prototype_counts.sum().item()), 0)
         self.assertIn("source_prototype_active_classes", hook_metrics)
         self.assertIn("target_prototype_active_classes", hook_metrics)
+
+    def test_alignment_is_delayed_until_configured_step(self) -> None:
+        torch.manual_seed(4)
+        method = build_method(
+            _method_config(base_align="cdan", gate_score_floor=0.0),
+            num_classes=29,
+            in_channels=34,
+            input_length=32,
+            num_sources=1,
+        )
+        method.train()
+        source_x = torch.randn(4, 34, 32)
+        source_y = torch.tensor([0, 1, 2, 0], dtype=torch.long)
+        target_x = torch.randn(4, 34, 32)
+        target_y = torch.tensor([0, 1, 2, 0], dtype=torch.long)
+
+        step_output = method.compute_loss([(source_x, source_y)], (target_x, target_y))
+        self.assertEqual(step_output.metrics["lambda_alignment"], 0.0)
+
+        method.step_num.fill_(2)
+        step_output_after = method.compute_loss([(source_x, source_y)], (target_x, target_y))
+        self.assertGreater(step_output_after.metrics["lambda_alignment"], 0.0)
 
     def test_rcta_smoke_backward_for_cdan_and_deepjdot(self) -> None:
         torch.manual_seed(1)

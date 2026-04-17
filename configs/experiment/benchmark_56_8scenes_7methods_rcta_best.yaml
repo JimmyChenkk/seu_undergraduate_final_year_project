@@ -8,10 +8,12 @@ tracking:
 
 runtime:
   dry_run: false
-  save_checkpoint: false
-  save_analysis: false
+  save_checkpoint: true
+  save_analysis: true
   disable_cudnn: false
   cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
   num_workers: 8
   pin_memory: true
   persistent_workers: true
@@ -25,14 +27,14 @@ runtime:
   model_selection: hybrid_source_eval_inverse_entropy
   early_stopping_metric: hybrid_source_eval_inverse_entropy
   selection_weights:
-    source_eval: 0.80
-    target_entropy: 0.20
+    source_eval: 0.70
+    target_entropy: 0.30
   early_stopping_weights:
-    source_eval: 0.80
-    target_entropy: 0.20
-  early_stopping_patience: 8
-  early_stopping_min_delta: 0.0008
-  early_stopping_min_epochs: 20
+    source_eval: 0.70
+    target_entropy: 0.30
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 24
 
 automation:
   methods:
@@ -63,66 +65,98 @@ method_overrides:
   deepjdot:
     loss:
       adaptation_schedule: warm_start
-      transport_solver: sinkhorn
-      sinkhorn_reg: 0.1
-      sinkhorn_num_iter_max: 200
+      adaptation_weight: 0.45
+      reg_dist: 0.20
+      reg_cl: 1.00
+      transport_solver: emd
+      sinkhorn_reg: 0.2
+      sinkhorn_num_iter_max: 400
       normalize_feature_cost: true
-  dan: {}
+  dan:
+    loss:
+      adaptation_weight: 0.55
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 1200
+      adaptation_schedule_alpha: 10.0
+      kernel_scales: [0.0625, 0.125, 0.25, 0.5, 1.0, 2.0]
+      linear_mmd: true
   cdan:
+    loss:
+      adaptation_weight: 0.35
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 1200
+      adaptation_schedule_alpha: 10.0
+      grl_lambda: 1.0
+      grl_warm_start: true
+      grl_max_iters: 1200
+      randomized: true
+      randomized_dim: 256
+      entropy_conditioning: true
+      mcc_weight: 0.03
+      mcc_temperature: 2.0
+      domain_hidden_dim: 256
+      domain_num_hidden_layers: 2
     runtime:
-      model_selection: hybrid_source_eval_entropy_guard_domain_gap
-      early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+      model_selection: hybrid_source_eval_inverse_entropy
+      early_stopping_metric: hybrid_source_eval_inverse_entropy
       selection_weights:
-        source_eval: 1.0
-        entropy_shortfall: 1.0
-        domain_gap: 1.0
-      selection_params:
-        entropy_floor: 0.5
-        domain_confusion_target: 0.5
+        source_eval: 0.7
+        target_entropy: 0.3
       early_stopping_weights:
-        source_eval: 1.0
-        entropy_shortfall: 1.0
-        domain_gap: 1.0
-      early_stopping_params:
-        entropy_floor: 0.5
-        domain_confusion_target: 0.5
-  dann: {}
+        source_eval: 0.7
+        target_entropy: 0.3
+      early_stopping_patience: 10
+      early_stopping_min_delta: 0.0005
+      early_stopping_min_epochs: 24
+  dann:
+    loss:
+      adaptation_weight: 0.55
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 1200
+      adaptation_schedule_alpha: 10.0
+      grl_lambda: 1.0
+      grl_warm_start: true
+      grl_max_iters: 1200
+      domain_hidden_dim: 256
+      domain_num_hidden_layers: 2
   rcta:
     optimization:
       epochs: 96
     loss:
       base_align: cdan
-      teacher_ema_decay: 0.995
-      teacher_temperature: 1.3
-      mcc_weight: 0.08
+      teacher_ema_decay: 0.997
+      teacher_temperature: 1.15
+      mcc_weight: 0.05
       reliability_weights:
-        cal_conf: 1.2
-        inv_entropy: 1.0
-        consistency: 1.2
-        proto_sim: 0.6
-      gate_score_floor_start: 0.42
-      gate_score_floor_end: 0.60
-      gate_score_floor_schedule_steps: 1800
-      gate_accept_ratio_start: 0.15
-      gate_accept_ratio_end: 0.55
-      gate_curriculum_steps: 1600
-      pseudo_label_weight: 0.14
-      pseudo_warmup_steps: 1500
+        cal_conf: 1.0
+        inv_entropy: 0.8
+        consistency: 1.0
+        proto_sim: 0.7
+      gate_score_floor_start: 0.35
+      gate_score_floor_end: 0.55
+      gate_score_floor_schedule_steps: 1400
+      gate_accept_ratio_start: 0.20
+      gate_accept_ratio_end: 0.60
+      gate_curriculum_steps: 1400
+      pseudo_label_weight: 0.22
+      pseudo_warmup_steps: 1200
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.8
-      prototype_weight: 0.08
-      prototype_start_step: 1400
-      prototype_warmup_steps: 1400
-      prototype_separation_weight: 0.12
-      consistency_weight: 0.04
-      consistency_start_step: 1000
-      consistency_warmup_steps: 1400
+      pseudo_confidence_power: 1.4
+      prototype_weight: 0.12
+      prototype_start_step: 1000
+      prototype_warmup_steps: 1200
+      prototype_separation_weight: 0.08
+      consistency_weight: 0.06
+      consistency_start_step: 800
+      consistency_warmup_steps: 1200
       consistency_gate_only: true
-      consistency_reliability_power: 1.4
-      prototype_momentum: 0.92
-      prototype_separation_margin: 0.25
+      consistency_reliability_power: 1.1
+      prototype_momentum: 0.95
+      prototype_separation_margin: 0.20
+      alignment_start_step: 600
+      alignment_use_reliable_only: true
       cdan:
-        adaptation_weight: 0.28
+        adaptation_weight: 0.35
         adaptation_schedule: warm_start
         adaptation_max_steps: 1200
         adaptation_schedule_alpha: 10.0

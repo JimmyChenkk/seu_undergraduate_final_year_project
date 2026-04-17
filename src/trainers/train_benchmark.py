@@ -234,9 +234,9 @@ def configure_torch_runtime(runtime: dict[str, Any], device_name: str) -> None:
         return
 
     torch.backends.cudnn.enabled = True
-    # cuDNN autotune can push some drivers into unstable states during long runs,
-    # so keep it opt-in instead of enabling it by default.
-    torch.backends.cudnn.benchmark = bool(runtime.get("cudnn_benchmark", False))
+    torch.backends.cudnn.benchmark = bool(runtime.get("cudnn_benchmark", True))
+    torch.backends.cuda.matmul.allow_tf32 = bool(runtime.get("allow_tf32", True))
+    torch.set_float32_matmul_precision(str(runtime.get("matmul_precision", "high")))
 
 
 def _should_show_progress(runtime: dict[str, Any]) -> bool:
@@ -531,6 +531,7 @@ def _evaluate_accuracy(
     *,
     max_batches: int | None = None,
     non_blocking: bool = False,
+    amp_enabled: bool = False,
 ):
     import torch
 
@@ -541,7 +542,8 @@ def _evaluate_accuracy(
         for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
             y_batch = y_batch.to(device, non_blocking=non_blocking)
-            logits = model.predict_logits(x_batch)
+            with torch.autocast(device_type=device.type, enabled=amp_enabled):
+                logits = model.predict_logits(x_batch)
             predictions = logits.argmax(dim=1)
             correct += int((predictions == y_batch).sum().item())
             total += int(y_batch.numel())
@@ -557,6 +559,7 @@ def _evaluate_unlabeled_target_proxy(
     *,
     max_batches: int | None = None,
     non_blocking: bool = False,
+    amp_enabled: bool = False,
 ) -> dict[str, float]:
     """Compute label-free target-domain proxy metrics for UDA model selection."""
 
@@ -569,7 +572,8 @@ def _evaluate_unlabeled_target_proxy(
     with torch.inference_mode():
         for batch_index, (x_batch, _) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
-            logits = model.predict_logits(x_batch)
+            with torch.autocast(device_type=device.type, enabled=amp_enabled):
+                logits = model.predict_logits(x_batch)
             probabilities = torch.softmax(logits, dim=1)
             confidence = probabilities.max(dim=1).values
             entropy = -(
@@ -820,6 +824,9 @@ def run_deep_experiment(
         and pin_memory_enabled
         and device.type == "cuda"
     )
+    num_workers = int(runtime.get("num_workers", 4 if device.type == "cuda" else 0))
+    persistent_workers = bool(runtime.get("persistent_workers", num_workers > 0))
+    amp_enabled = bool(runtime.get("amp", device.type == "cuda"))
 
     model = build_method(
         method_config,
@@ -921,7 +928,8 @@ def run_deep_experiment(
             )
 
             optimizer.zero_grad(set_to_none=True)
-            step_output = model.compute_loss(source_batches, target_batch)
+            with torch.autocast(device_type=device.type, enabled=amp_enabled):
+                step_output = model.compute_loss(source_batches, target_batch)
             step_output.loss.backward()
             if max_grad_norm is not None and max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
@@ -990,6 +998,7 @@ def run_deep_experiment(
                 device,
                 max_batches=evaluation_max_batches,
                 non_blocking=transfer_non_blocking,
+                amp_enabled=amp_enabled,
             )
             target_proxy_metrics = _evaluate_unlabeled_target_proxy(
                 model,
@@ -997,6 +1006,7 @@ def run_deep_experiment(
                 device,
                 max_batches=evaluation_max_batches,
                 non_blocking=transfer_non_blocking,
+                amp_enabled=amp_enabled,
             )
             last_valid_source_train_acc = float(source_train_acc)
             last_valid_source_eval_acc = float(source_eval_acc)

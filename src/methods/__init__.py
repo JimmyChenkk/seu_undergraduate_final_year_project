@@ -149,6 +149,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             ),
             consistency_gate_only=bool(loss.get("consistency_gate_only", False)),
             consistency_reliability_power=float(loss.get("consistency_reliability_power", 1.0)),
+            alignment_start_step=int(loss.get("alignment_start_step", 0)),
+            alignment_use_reliable_only=bool(loss.get("alignment_use_reliable_only", True)),
             prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
             prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
             augment_kwargs={

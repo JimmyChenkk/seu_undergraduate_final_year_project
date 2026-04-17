@@ -68,9 +68,7 @@ class DeepJDOTMethod(SingleSourceMethodBase):
             loss_alignment = torch.zeros_like(loss_alignment)
 
         current_weight = self.alignment_scheduler.step()
-        # Keep DeepJDOT as a stabilizing regularizer instead of dominating the classifier loss.
-        alignment_scale = current_weight * 0.5
-        loss_total = loss_cls + alignment_scale * loss_alignment
+        loss_total = loss_cls + current_weight * loss_alignment
         if not torch.isfinite(loss_total).item():
             loss_total = loss_cls
 

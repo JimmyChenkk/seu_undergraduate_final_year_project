@@ -71,15 +71,17 @@ def _make_loader(
     persistent_workers: bool,
 ) -> DataLoader:
     dataset = TensorDataset(x, y)
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-        persistent_workers=persistent_workers and num_workers > 0,
-        drop_last=shuffle,
-    )
+    loader_kwargs = {
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "persistent_workers": persistent_workers and num_workers > 0,
+        "drop_last": shuffle,
+    }
+    if num_workers > 0:
+        loader_kwargs["prefetch_factor"] = 4
+    return DataLoader(dataset, **loader_kwargs)
 
 
 def _cache_root(config: TEDADatasetConfig) -> Path:

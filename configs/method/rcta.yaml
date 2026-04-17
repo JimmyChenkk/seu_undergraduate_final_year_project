@@ -46,6 +46,10 @@ loss:
   pseudo_use_reliability_weighting: true
   pseudo_confidence_power: 1.35
   prototype_weight: 0.10
+  semi_reliable_consistency_weight: 0.25
+  unreliable_entropy_weight: 0.08
+  alignment_start_step: 1100
+  alignment_use_reliable_only: true
   prototype_start_step: 900
   prototype_warmup_steps: 1600
   prototype_separation_weight: 0.10
@@ -54,6 +58,8 @@ loss:
   consistency_warmup_steps: 1400
   consistency_gate_only: false
   consistency_reliability_power: 1.2
+  alignment_start_step: 1100
+  alignment_use_reliable_only: true
   prototype_momentum: 0.94
   prototype_separation_margin: 0.28
   augment:
@@ -99,5 +105,5 @@ loss:
     sinkhorn_num_iter_max: 100
 
 notes:
-  - RCTA strengthens the teacher/pseudo-label/prototype loop with reliability shaping and curriculum schedules.
-  - The method keeps a single implementation path and can switch among CDAN, DANN, and DeepJDOT as base alignment choices.
+  - RCTA uses reliability-aware self-training with prototype guidance and scheduled alignment.
+  - The method keeps one implementation path and supports CDAN, DANN, and DeepJDOT alignment backbones.

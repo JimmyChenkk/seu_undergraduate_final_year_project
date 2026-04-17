@@ -212,17 +212,24 @@ def deepjdot_loss(
     features_source = torch.nan_to_num(features_source, nan=0.0, posinf=1e6, neginf=-1e6)
     features_target = torch.nan_to_num(features_target, nan=0.0, posinf=1e6, neginf=-1e6)
     logits_target = torch.nan_to_num(logits_target, nan=0.0, posinf=1e6, neginf=-1e6)
+    source_labels = source_labels.long().clamp(min=0, max=max(int(logits_target.shape[1]) - 1, 0))
 
     feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
     if normalize_feature_cost:
         feature_cost = feature_cost / float(max(features_source.shape[1], 1))
     feature_cost = torch.nan_to_num(feature_cost, nan=1e6, posinf=1e6, neginf=1e6)
 
-    target_log_probs = F.log_softmax(logits_target, dim=1)
+    target_log_probs = F.log_softmax(logits_target.float(), dim=1).to(dtype=logits_target.dtype)
     class_cost = -target_log_probs[:, source_labels].transpose(0, 1)
     class_cost = torch.nan_to_num(class_cost, nan=1e6, posinf=1e6, neginf=1e6)
     total_cost = reg_dist * feature_cost + reg_cl * class_cost
     total_cost = torch.nan_to_num(total_cost, nan=1e6, posinf=1e6, neginf=1e6)
+
+    if not torch.isfinite(total_cost).all():
+        return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
+
+    if features_source.device.type == "cuda":
+        total_cost = total_cost.float()
 
     if sample_weights is None:
         sample_weights = torch.full(
@@ -241,13 +248,16 @@ def deepjdot_loss(
 
     solver_name = solver.strip().lower()
     if solver_name in {"sinkhorn", "entropic", "regularized"}:
-        return ot.sinkhorn2(
-            sample_weights,
-            target_sample_weights,
-            total_cost,
-            reg=sinkhorn_reg,
-            numItermax=sinkhorn_num_iter_max,
-        )
+        try:
+            return ot.sinkhorn2(
+                sample_weights,
+                target_sample_weights,
+                total_cost,
+                reg=max(float(sinkhorn_reg), 1e-3),
+                numItermax=max(int(sinkhorn_num_iter_max), 10),
+            )
+        except Exception:
+            return ot.emd2(sample_weights, target_sample_weights, total_cost)
     if solver_name in {"emd", "exact"}:
         return ot.emd2(sample_weights, target_sample_weights, total_cost)
     raise ValueError(f"Unsupported DeepJDOT solver: {solver}")

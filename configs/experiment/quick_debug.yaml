@@ -11,9 +11,13 @@ runtime:
   save_checkpoint: false
   save_analysis: false
   disable_cudnn: false
-  cudnn_benchmark: false
-  num_workers: 0
-  pin_memory: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  non_blocking_transfers: true
   show_progress: true
   progress_update_interval: 1
   evaluation_interval: 5
