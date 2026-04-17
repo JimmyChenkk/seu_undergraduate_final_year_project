@@ -1,33 +1,48 @@
 # 领域自适应流程工业故障诊断研究工作区
 
-本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前代码主线面向 single-source to single-target 的流程工业故障诊断 benchmark 复现与方法对比。
+本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前项目方向以 `goal.md` 为准，主线聚焦域 `2/3/5/6` 之间的迁移任务，围绕 `RCTA` 与若干基线方法开展阶段性实验与论文材料整理。
 
 ## 项目说明
 
 - 研究主题：流程工业故障诊断中的领域自适应。
 - 数据集：Tennessee Eastman Process Domain Adaptation，原始 `.pickle` 文件统一放在 `data/raw/`。
-- 默认任务设置：single-source、single-target、无监督目标域适配。
+- 默认任务设置：以 `goal.md` 定义的 8 个场景为准，包含 4 个单源到单目标场景与 4 个多源到单目标场景。
+- 当前对比方法：`RCTA`、`DeepJDOT`、`CDAN`、`DAN`、`DANN`、`CORAL`、`Source-Only`。
 - 工作区分工：
   - `src/` 放核心实现。
   - `configs/` 放数据、方法和实验配置。
   - `scripts/` 放命令行入口。
+  - `tests/` 放自动化验证。
   - `paper/` 放论文模板、正文与图表材料。
   - `external/` 与 `refs/` 放外部参考代码和资料。
 
 ## 目录概览
 
-以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。
+以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。`tests/` 已加入自动化验证目录，当前工作区会优先围绕 `goal.md` 所定义的目标持续收敛。
 
 ```text
 workspace/
 ├─ README.md
 ├─ WORKFLOW.md
+├─ goal.md
+├─ AGENTS.md
 ├─ environment.yml
 ├─ requirements-benchmark.txt
 ├─ configs/
 │  ├─ data/
+│  │  └─ te_da.yaml
 │  ├─ experiment/
+│  │  ├─ quick_debug.yaml
+│  │  ├─ benchmark_72.yaml
+│  │  └─ rcta_*.yaml
 │  └─ method/
+│     ├─ source_only.yaml
+│     ├─ coral.yaml
+│     ├─ dan.yaml
+│     ├─ dann.yaml
+│     ├─ cdan.yaml
+│     ├─ deepjdot.yaml
+│     └─ rcta.yaml
 ├─ data/
 │  ├─ raw/
 │  ├─ benchmark/
@@ -50,6 +65,7 @@ workspace/
 │  ├─ methods/
 │  ├─ trainers/
 │  └─ utils/
+├─ tests/
 ├─ paper/
 │  ├─ thesis.tex
 │  ├─ chapters/
@@ -115,15 +131,20 @@ bash scripts/train.sh \
   configs/method/dann.yaml \
   configs/experiment/quick_debug.yaml
 
-# 运行默认的 quick_debug 批量实验（2 场景 x 6 方法 = 12 runs）
+# 运行默认的 quick_debug 批量实验（历史 benchmark 用法，2 场景 x 6 方法 = 12 runs）
 bash scripts/run_small_scale_round.sh
 
 # 预览默认 quick_debug 计划而不启动训练
 bash scripts/run_small_scale_round.sh --plan-only
 
-# 预览 benchmark_72 计划（12 设置 x 6 方法 = 72 runs）
+# 预览 benchmark_72 计划（历史 benchmark 用法，12 设置 x 6 方法 = 72 runs）
 bash scripts/run_small_scale_round.sh \
   --experiment-config configs/experiment/benchmark_72.yaml \
+  --plan-only
+
+# 预览当前 RCTA 主线的 8 场景 / 7 方法计划
+bash scripts/run_small_scale_round.sh \
+  --experiment-config configs/experiment/benchmark_56_8scenes_7methods_rcta_best.yaml \
   --plan-only
 
 # 只跑指定方法和场景做 smoke test
