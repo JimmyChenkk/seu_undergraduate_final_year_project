@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha1
+import json
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -53,6 +56,8 @@ class PreparedBenchmarkData:
     source_eval_loaders: list[DataLoader]
     target_train_loader: DataLoader
     target_eval_loader: DataLoader
+    cache_key: str | None = None
+    cache_hit: bool = False
 
 
 def _make_loader(
@@ -74,6 +79,66 @@ def _make_loader(
         pin_memory=pin_memory,
         persistent_workers=persistent_workers and num_workers > 0,
         drop_last=shuffle,
+    )
+
+
+def _cache_root(config: TEDADatasetConfig) -> Path:
+    return Path(config.cache_dir) / "benchmark_prepared"
+
+
+def _cache_key(
+    *,
+    config: TEDADatasetConfig,
+    setting: DomainAdaptationSetting,
+    batch_size: int,
+    num_workers: int,
+    pin_memory: bool,
+    persistent_workers: bool,
+    fold_name: str,
+) -> str:
+    payload = {
+        "setting": setting.setting_name,
+        "source_domains": [reference.domain.name for reference in setting.source_domains],
+        "target_domain": setting.target_domain.domain.name,
+        "batch_size": int(batch_size),
+        "num_workers": int(num_workers),
+        "pin_memory": bool(pin_memory),
+        "persistent_workers": bool(persistent_workers),
+        "fold_name": str(fold_name),
+        "normalization": config.normalization,
+        "normalization_scope": config.normalization_scope,
+        "channels_first": bool(config.channels_first),
+        "preferred_fold": config.preferred_fold,
+        "raw_dir": str(config.raw_dir),
+        "manifest_path": str(config.manifest_path),
+        "raw_file_pattern": config.raw_file_pattern,
+    }
+    digest = sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+    return digest
+
+
+def _cache_path(config: TEDADatasetConfig, cache_key: str) -> Path:
+    return _cache_root(config) / f"{cache_key}.npz"
+
+
+def _build_domain_split_from_arrays(
+    *,
+    domain_id: str,
+    train_x: np.ndarray,
+    train_y: np.ndarray,
+    eval_x: np.ndarray,
+    eval_y: np.ndarray,
+    train_indices: np.ndarray,
+    eval_indices: np.ndarray,
+) -> DomainSplitTensors:
+    return DomainSplitTensors(
+        domain_id=domain_id,
+        train_x=torch.from_numpy(train_x).float(),
+        train_y=torch.from_numpy(train_y).long(),
+        eval_x=torch.from_numpy(eval_x).float(),
+        eval_y=torch.from_numpy(eval_y).long(),
+        train_indices=train_indices,
+        eval_indices=eval_indices,
     )
 
 
@@ -162,16 +227,72 @@ def prepare_benchmark_data(
 
     interface = TEDADatasetInterface(config)
     selected_fold = fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
-
-    source_splits = [
-        load_domain_split(interface, reference.domain.name, fold_name=selected_fold)
-        for reference in setting.source_domains
-    ]
-    target_split = load_domain_split(
-        interface,
-        setting.target_domain.domain.name,
+    cache_key = _cache_key(
+        config=config,
+        setting=setting,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
         fold_name=selected_fold,
     )
+    cache_path = _cache_path(config, cache_key)
+
+    source_splits: list[DomainSplitTensors]
+    target_split: DomainSplitTensors
+    cache_hit = False
+    if cache_path.exists():
+        payload = np.load(cache_path, allow_pickle=False)
+        split_names = [reference.domain.name for reference in setting.source_domains]
+        source_splits = []
+        for index, domain_name in enumerate(split_names):
+            source_splits.append(
+                _build_domain_split_from_arrays(
+                    domain_id=domain_name,
+                    train_x=payload[f"source_{index}_train_x"],
+                    train_y=payload[f"source_{index}_train_y"],
+                    eval_x=payload[f"source_{index}_eval_x"],
+                    eval_y=payload[f"source_{index}_eval_y"],
+                    train_indices=payload[f"source_{index}_train_indices"],
+                    eval_indices=payload[f"source_{index}_eval_indices"],
+                )
+            )
+        target_split = _build_domain_split_from_arrays(
+            domain_id=setting.target_domain.domain.name,
+            train_x=payload["target_train_x"],
+            train_y=payload["target_train_y"],
+            eval_x=payload["target_eval_x"],
+            eval_y=payload["target_eval_y"],
+            train_indices=payload["target_train_indices"],
+            eval_indices=payload["target_eval_indices"],
+        )
+        cache_hit = True
+    else:
+        source_splits = [
+            load_domain_split(interface, reference.domain.name, fold_name=selected_fold)
+            for reference in setting.source_domains
+        ]
+        target_split = load_domain_split(
+            interface,
+            setting.target_domain.domain.name,
+            fold_name=selected_fold,
+        )
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_payload: dict[str, np.ndarray] = {}
+        for index, split in enumerate(source_splits):
+            cache_payload[f"source_{index}_train_x"] = split.train_x.numpy()
+            cache_payload[f"source_{index}_train_y"] = split.train_y.numpy()
+            cache_payload[f"source_{index}_eval_x"] = split.eval_x.numpy()
+            cache_payload[f"source_{index}_eval_y"] = split.eval_y.numpy()
+            cache_payload[f"source_{index}_train_indices"] = split.train_indices
+            cache_payload[f"source_{index}_eval_indices"] = split.eval_indices
+        cache_payload["target_train_x"] = target_split.train_x.numpy()
+        cache_payload["target_train_y"] = target_split.train_y.numpy()
+        cache_payload["target_eval_x"] = target_split.eval_x.numpy()
+        cache_payload["target_eval_y"] = target_split.eval_y.numpy()
+        cache_payload["target_train_indices"] = target_split.train_indices
+        cache_payload["target_eval_indices"] = target_split.eval_indices
+        np.savez_compressed(cache_path, **cache_payload)
 
     source_train_loaders = [
         _make_loader(
@@ -237,4 +358,6 @@ def prepare_benchmark_data(
         source_eval_loaders=source_eval_loaders,
         target_train_loader=target_train_loader,
         target_eval_loader=target_eval_loader,
+        cache_key=cache_key,
+        cache_hit=cache_hit,
     )

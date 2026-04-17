@@ -175,6 +175,7 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
         "run_root": result_payload.get("run_root"),
         "metrics_path": result_payload.get("metrics_path"),
         "review_path": result_payload.get("review_path"),
+        "cache_hit": result_payload.get("cache_hit"),
         "device": {
             "device_used": result.get("device_used"),
             "cudnn_enabled": result.get("cudnn_enabled"),
@@ -359,15 +360,20 @@ def _emit_epoch_summary(
 ) -> None:
     """Print a concise epoch summary after validation metrics are ready."""
 
+    def _fmt(value: float | None, digits: int) -> str:
+        if value is None:
+            return "n/a"
+        return f"{float(value):.{digits}f}"
+
     print(file=sys.stderr)
     print(
         (
             f"[{method_name}][{scenario_id}] "
             f"epoch {epoch_index + 1}/{epochs} done "
-            f"loss={summary.get('loss_total', float('nan')):.4f} "
-            f"src_train={summary.get('acc_source_train', float('nan')):.3f} "
-            f"src_eval={summary.get('acc_source_eval', float('nan')):.3f} "
-            f"tgt_eval={summary.get('target_eval_acc', float('nan')):.3f}"
+            f"loss={_fmt(summary.get('loss_total'), 4)} "
+            f"src_train={_fmt(summary.get('acc_source_train'), 3)} "
+            f"src_eval={_fmt(summary.get('acc_source_eval'), 3)} "
+            f"tgt_eval={_fmt(summary.get('target_eval_acc'), 3)}"
         ),
         file=sys.stderr,
         flush=True,
@@ -492,6 +498,21 @@ def _mean_metrics(history_chunk):
     for key, values in history_chunk.items():
         summary[key] = float(sum(values) / max(len(values), 1))
     return summary
+
+
+def _max_history_metric(history: list[dict[str, float]], key: str) -> float | None:
+    values = [float(item[key]) for item in history if item.get(key) is not None]
+    if not values:
+        return None
+    return float(max(values))
+
+
+def _latest_history_metric(history: list[dict[str, float]], key: str) -> float | None:
+    for item in reversed(history):
+        value = item.get(key)
+        if value is not None:
+            return float(value)
+    return None
 
 
 def _string_array(values: list[str]):
@@ -835,6 +856,11 @@ def run_deep_experiment(
         analysis_max_batches = evaluation_max_batches
     if analysis_max_batches is not None:
         analysis_max_batches = int(analysis_max_batches)
+    evaluation_interval = max(int(runtime.get("evaluation_interval", 1)), 1)
+    selection_interval = max(int(runtime.get("selection_interval", evaluation_interval)), 1)
+    early_stopping_interval = max(int(runtime.get("early_stopping_interval", evaluation_interval)), 1)
+    final_epoch_evaluation = bool(runtime.get("final_epoch_evaluation", True))
+    final_selection_evaluation = bool(runtime.get("final_selection_evaluation", True))
 
     source_domain_ids = [split.domain_id for split in prepared_data.source_splits]
     final_source_train_by_domain: dict[str, float] = {}
@@ -844,6 +870,13 @@ def run_deep_experiment(
     selected_source_train_acc = 0.0
     selected_source_eval_acc = 0.0
     selected_target_eval_acc = 0.0
+    last_valid_source_train_acc: float | None = None
+    last_valid_source_eval_acc: float | None = None
+    last_valid_target_eval_acc: float | None = None
+    last_valid_target_proxy_metrics: dict[str, float | None] = {
+        "target_train_mean_confidence": None,
+        "target_train_mean_entropy": None,
+    }
     selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
     selection_weights = _normalize_metric_weights(runtime.get("selection_weights", {}))
     selection_params = _normalize_metric_params(runtime.get("selection_params", {}))
@@ -914,42 +947,67 @@ def run_deep_experiment(
                     epoch_metrics=epoch_metrics,
                 )
 
-        final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
-            model,
-            prepared_data.source_train_eval_loaders,
-            source_domain_ids,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
-        final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
-            model,
-            prepared_data.source_eval_loaders,
-            source_domain_ids,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
-        target_eval_acc = _evaluate_accuracy(
-            model,
-            prepared_data.target_eval_loader,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
-        target_proxy_metrics = _evaluate_unlabeled_target_proxy(
-            model,
-            prepared_data.target_train_loader,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
         summary = _mean_metrics(epoch_metrics)
-        summary["epoch"] = epoch_index + 1
+        epoch_number = epoch_index + 1
+        is_final_epoch = epoch_number == epochs
+        should_periodic_eval = epoch_number % evaluation_interval == 0
+        should_selection_eval = selection_mode != "final" and epoch_number % selection_interval == 0
+        should_early_stopping_eval = (
+            early_stopping_patience is not None and epoch_number % early_stopping_interval == 0
+        )
+        should_force_final_eval = is_final_epoch and final_epoch_evaluation
+        did_validate = (
+            should_periodic_eval
+            or should_selection_eval
+            or should_early_stopping_eval
+            or should_force_final_eval
+        )
+
+        source_train_acc = float(summary.get("acc_source_train", 0.0))
+        source_eval_acc = last_valid_source_eval_acc
+        target_eval_acc = last_valid_target_eval_acc
+        target_proxy_metrics = deepcopy(last_valid_target_proxy_metrics)
+        if did_validate:
+            final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
+                model,
+                prepared_data.source_train_eval_loaders,
+                source_domain_ids,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
+                model,
+                prepared_data.source_eval_loaders,
+                source_domain_ids,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            target_eval_acc = _evaluate_accuracy(
+                model,
+                prepared_data.target_eval_loader,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            target_proxy_metrics = _evaluate_unlabeled_target_proxy(
+                model,
+                prepared_data.target_train_loader,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            last_valid_source_train_acc = float(source_train_acc)
+            last_valid_source_eval_acc = float(source_eval_acc)
+            last_valid_target_eval_acc = float(target_eval_acc)
+            last_valid_target_proxy_metrics = deepcopy(target_proxy_metrics)
+        summary["epoch"] = epoch_number
         summary["acc_source_train"] = float(source_train_acc)
-        summary["acc_source_eval"] = float(source_eval_acc)
-        summary["target_eval_acc"] = float(target_eval_acc)
+        summary["acc_source_eval"] = None if source_eval_acc is None else float(source_eval_acc)
+        summary["target_eval_acc"] = None if target_eval_acc is None else float(target_eval_acc)
         summary.update(target_proxy_metrics)
+        summary["validation_epoch"] = bool(did_validate)
         history.append(summary)
         if show_progress:
             _emit_epoch_summary(
@@ -965,7 +1023,7 @@ def run_deep_experiment(
             selection_mode,
             weights=selection_weights,
             params=selection_params,
-        )
+        ) if did_validate and (should_selection_eval or should_force_final_eval) else None
         summary["model_selection_metric"] = selection_mode
         if selection_weights:
             summary["model_selection_weights"] = deepcopy(selection_weights)
@@ -988,7 +1046,7 @@ def run_deep_experiment(
                 early_stopping_metric,
                 weights=early_stopping_weights,
                 params=early_stopping_params,
-            )
+            ) if did_validate and (should_early_stopping_eval or should_force_final_eval) else None
             summary["early_stopping_metric"] = early_stopping_metric
             if early_stopping_weights:
                 summary["early_stopping_weights"] = deepcopy(early_stopping_weights)
@@ -1024,36 +1082,43 @@ def run_deep_experiment(
 
     if selection_mode != "final" and selected_state_dict is not None:
         model.load_state_dict(selected_state_dict)
-        selected_source_train_by_domain, selected_source_train_acc = _evaluate_domain_accuracies(
-            model,
-            prepared_data.source_train_eval_loaders,
-            source_domain_ids,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
-        selected_source_eval_by_domain, selected_source_eval_acc = _evaluate_domain_accuracies(
-            model,
-            prepared_data.source_eval_loaders,
-            source_domain_ids,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
-        selected_target_eval_acc = _evaluate_accuracy(
-            model,
-            prepared_data.target_eval_loader,
-            device,
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
+        if final_selection_evaluation:
+            selected_source_train_by_domain, selected_source_train_acc = _evaluate_domain_accuracies(
+                model,
+                prepared_data.source_train_eval_loaders,
+                source_domain_ids,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            selected_source_eval_by_domain, selected_source_eval_acc = _evaluate_domain_accuracies(
+                model,
+                prepared_data.source_eval_loaders,
+                source_domain_ids,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+            selected_target_eval_acc = _evaluate_accuracy(
+                model,
+                prepared_data.target_eval_loader,
+                device,
+                max_batches=evaluation_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
+        else:
+            selected_source_train_by_domain = final_source_train_by_domain
+            selected_source_eval_by_domain = final_source_eval_by_domain
+            selected_source_train_acc = float(history[-1]["acc_source_train"])
+            selected_source_eval_acc = _latest_history_metric(history, "acc_source_eval")
+            selected_target_eval_acc = _latest_history_metric(history, "target_eval_acc")
     else:
         selected_epoch = len(history)
         selected_source_train_by_domain = final_source_train_by_domain
         selected_source_eval_by_domain = final_source_eval_by_domain
         selected_source_train_acc = float(history[-1]["acc_source_train"])
-        selected_source_eval_acc = float(history[-1]["acc_source_eval"])
-        selected_target_eval_acc = float(history[-1]["target_eval_acc"])
+        selected_source_eval_acc = _latest_history_metric(history, "acc_source_eval")
+        selected_target_eval_acc = _latest_history_metric(history, "target_eval_acc")
 
     result = {
         "method_name": str(method_config["method_name"]),
@@ -1061,17 +1126,17 @@ def run_deep_experiment(
         "source_train_acc_by_domain": selected_source_train_by_domain,
         "source_eval_acc_by_domain": selected_source_eval_by_domain,
         "source_train_acc": float(selected_source_train_acc),
-        "source_eval_acc": float(selected_source_eval_acc),
-        "target_eval_acc": float(selected_target_eval_acc),
+        "source_eval_acc": None if selected_source_eval_acc is None else float(selected_source_eval_acc),
+        "target_eval_acc": None if selected_target_eval_acc is None else float(selected_target_eval_acc),
         "best_source_train_acc": float(max(item["acc_source_train"] for item in history)),
         "final_source_train_acc": float(history[-1]["acc_source_train"]),
-        "best_source_eval_acc": float(max(item["acc_source_eval"] for item in history)),
-        "final_source_eval_acc": float(history[-1]["acc_source_eval"]),
-        "best_target_eval_acc": float(max(item["target_eval_acc"] for item in history)),
-        "final_target_eval_acc": float(history[-1]["target_eval_acc"]),
+        "best_source_eval_acc": _max_history_metric(history, "acc_source_eval"),
+        "final_source_eval_acc": _latest_history_metric(history, "acc_source_eval"),
+        "best_target_eval_acc": _max_history_metric(history, "target_eval_acc"),
+        "final_target_eval_acc": _latest_history_metric(history, "target_eval_acc"),
         "selected_source_train_acc": float(selected_source_train_acc),
-        "selected_source_eval_acc": float(selected_source_eval_acc),
-        "selected_target_eval_acc": float(selected_target_eval_acc),
+        "selected_source_eval_acc": None if selected_source_eval_acc is None else float(selected_source_eval_acc),
+        "selected_target_eval_acc": None if selected_target_eval_acc is None else float(selected_target_eval_acc),
         "selected_target_train_mean_confidence": (
             None
             if selected_summary is None or selected_summary.get("target_train_mean_confidence") is None
@@ -1131,6 +1196,8 @@ def run_deep_experiment(
         )
         result.update(analysis_summary)
 
+    result["cache_key"] = getattr(prepared_data, "cache_key", None)
+    result["cache_hit"] = bool(getattr(prepared_data, "cache_hit", False))
     result["device_used"] = str(device)
     result["cudnn_enabled"] = bool(torch.backends.cudnn.enabled)
     result["cudnn_benchmark"] = bool(torch.backends.cudnn.benchmark)

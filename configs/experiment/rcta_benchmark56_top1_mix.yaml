@@ -1,0 +1,91 @@
+experiment_name: rcta_benchmark56_top1_mix
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: false
+  disable_cudnn: false
+  cudnn_benchmark: true
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  non_blocking_transfers: true
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  model_selection: hybrid_source_eval_inverse_entropy
+  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  selection_weights:
+    source_eval: 0.70
+    target_entropy: 0.30
+  early_stopping_weights:
+    source_eval: 0.70
+    target_entropy: 0.30
+  early_stopping_patience: 16
+  early_stopping_min_delta: 0.0008
+  early_stopping_min_epochs: 28
+
+automation:
+  methods:
+    - rcta
+  multisource_scenes:
+    - mode2-mode3-mode5->mode6
+    - mode2-mode3-mode6->mode5
+    - mode2-mode5-mode6->mode3
+    - mode3-mode5-mode6->mode2
+  single_source_scenes:
+    - mode2->mode5
+    - mode5->mode2
+    - mode3->mode6
+    - mode6->mode3
+
+method_overrides:
+  rcta:
+    optimization:
+      epochs: 96
+    loss:
+      base_align: dann
+      teacher_temperature: 1.1
+      reliability_weights:
+        cal_conf: 1.6
+        inv_entropy: 0.9
+        consistency: 1.2
+        proto_sim: 1.4
+      gate_score_floor_start: 0.28
+      gate_score_floor_end: 0.56
+      gate_score_floor_schedule_steps: 2800
+      gate_accept_ratio_start: 0.24
+      gate_accept_ratio_end: 0.84
+      gate_curriculum_steps: 2800
+      pseudo_label_weight: 0.38
+      pseudo_warmup_steps: 640
+      pseudo_use_reliability_weighting: true
+      pseudo_confidence_power: 1.50
+      prototype_weight: 0.07
+      prototype_start_step: 900
+      prototype_warmup_steps: 1300
+      consistency_weight: 0.11
+      consistency_start_step: 640
+      consistency_warmup_steps: 1300
+      consistency_gate_only: true
+      consistency_reliability_power: 1.6
+      augment:
+        weak_jitter_std: 0.005
+        weak_scaling_std: 0.005
+        strong_jitter_std: 0.014
+        strong_scaling_std: 0.014
+        strong_time_mask_ratio: 0.06
+        strong_channel_dropout_prob: 0.05
+
+notes:
+  - RCTA-only benchmark_56 sweep using the stronger top1-push curriculum.
+  - Keeps the current fast runtime path for overnight scene-level retuning.

@@ -8,14 +8,19 @@ tracking:
 
 runtime:
   dry_run: false
-  save_checkpoint: true
-  save_analysis: true
+  save_checkpoint: false
+  save_analysis: false
   disable_cudnn: false
   cudnn_benchmark: false
   num_workers: 0
   pin_memory: false
   show_progress: true
   progress_update_interval: 1
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
   model_selection: hybrid_source_eval_inverse_entropy
   early_stopping_metric: hybrid_source_eval_inverse_entropy
   selection_weights:
@@ -24,9 +29,9 @@ runtime:
   early_stopping_weights:
     source_eval: 0.7
     target_entropy: 0.3
-  early_stopping_patience: 10
+  early_stopping_patience: 6
   early_stopping_min_delta: 0.002
-  early_stopping_min_epochs: 20
+  early_stopping_min_epochs: 10
 
 automation:
   methods:
