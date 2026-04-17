@@ -262,16 +262,18 @@ flowchart TD
 - 如果某个注册 metric 还需要额外标量参数，可以在 experiment 或 method 的 `runtime_defaults` 里通过 `selection_params` / `early_stopping_params` 传入，而权重项继续放在 `selection_weights` / `early_stopping_weights`。
 - 目前内置的 `hybrid_source_eval_entropy_guard_domain_gap` 适合 adversarial DA 方法：当目标域熵已经异常偏低、但域判别准确率离理想混淆点还较远时，会惩罚这类过度自信 checkpoint。
 
-## Git 追踪说明
-
-当前仓库默认跟踪项目源码与文档，忽略大数据、外部参考和实验输出：
-
-- 已跟踪：`README.md`、`environment.yml`、`requirements-benchmark.txt`、`configs/`、`scripts/`、`src/`、`paper/`
-- 默认忽略：`.vscode/`、`data/raw/`、`external/`、`refs/`、`runs/`、缓存与临时文件
-
 ## 外部来源链接
 
 以下链接用于记录本项目曾使用过的外部仓库、模板与数据源，便于后续重新 `git clone`、手动下载或回溯来源。
+
+### `external/` 与 `refs/` 的区别
+
+- `external/`：放**已经实际引入工作区**、并且会持续参与对照阅读或二次开发的仓库。它们更像“可执行的外部参考实现”，后续可以直接打开、跑代码、对照改造。
+- `refs/`：放**以阅读和检索为主**的参考资料，包括论文式实现、算法仓库、阅读清单、方法索引等。它们更像“知识库 / 文献库”，不一定会长期参与运行或改造。
+- 简单说：`external/` 偏“可用、可跑、可改”，`refs/` 偏“可查、可比、可追溯”。
+- 生态位上，`external/` 更接近本项目的“工程参考层”，`refs/` 更接近“研究资料层”。
+
+### 当前 `external/` 里的仓库
 
 - 原始数据集（Tennessee Eastman Process Domain Adaptation, Kaggle）：
   https://www.kaggle.com/datasets/eddardd/tennessee-eastman-process-domain-adaptation?resource=download
@@ -285,6 +287,25 @@ flowchart TD
   https://github.com/thuml/Transfer-Learning-Library.git
 - `external/skada`：
   https://github.com/scikit-adaptation/skada.git
+- `external/pytorch-adapt`：
+  https://github.com/KevinMusgrave/pytorch-adapt.git
+- `external/source-free-domain-adaptation`：
+  https://github.com/tntek/source-free-domain-adaptation.git
+- `external/SDALR`：
+  https://github.com/BdLab405/SDALR.git
+- `external/SHOT`：
+  https://github.com/tim-learn/SHOT.git
+- `external/SENTRY`：
+  https://github.com/virajprabhu/SENTRY.git
+- `external/ProDA`：
+  https://github.com/microsoft/ProDA.git
+- `external/improved_sfda`：
+  https://github.com/nttcslab/improved_sfda.git
+- `external/mean-teacher`：
+  https://github.com/CuriousAI/mean-teacher.git
+
+### 当前 `refs/` 里的仓库
+
 - `refs/algorithms/Deep-Unsupervised-Domain-Adaptation`：
   https://github.com/agrija9/Deep-Unsupervised-Domain-Adaptation.git
 - `refs/algorithms/OMEGA`：
@@ -293,3 +314,9 @@ flowchart TD
   https://github.com/jindongwang/transferlearning.git
 - `refs/reading/awesome-domain-adaptation`：
   https://github.com/zhaoxin94/awesome-domain-adaptation.git
+
+### 使用建议
+
+- 如果一个仓库是你后续**会直接对照代码、复现、改造**的，就放 `external/`。
+- 如果一个仓库主要用于**查思路、查论文脉络、查方法列表**，就放 `refs/`。
+- 当某个 `refs/` 仓库后来变成了高频参考实现，也可以再升级迁移到 `external/`。
