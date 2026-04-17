@@ -25,37 +25,37 @@ runtime_defaults:
 loss:
   base_align: cdan
   use_mcc: true
-  mcc_weight: 0.08
+  mcc_weight: 0.06
   mcc_temperature: 2.0
-  teacher_ema_decay: 0.995
-  teacher_temperature: 1.3
+  teacher_ema_decay: 0.997
+  teacher_temperature: 1.4
   reliability_weights:
-    cal_conf: 1.2
+    cal_conf: 1.3
     inv_entropy: 1.0
-    consistency: 1.2
-    proto_sim: 0.6
-  gate_score_floor: 0.60
-  gate_score_floor_start: 0.42
-  gate_score_floor_end: 0.60
-  gate_score_floor_schedule_steps: 1800
-  gate_accept_ratio_start: 0.15
-  gate_accept_ratio_end: 0.55
-  gate_curriculum_steps: 1600
-  pseudo_label_weight: 0.14
-  pseudo_warmup_steps: 1500
+    consistency: 1.1
+    proto_sim: 0.8
+  gate_score_floor: 0.56
+  gate_score_floor_start: 0.38
+  gate_score_floor_end: 0.58
+  gate_score_floor_schedule_steps: 2200
+  gate_accept_ratio_start: 0.12
+  gate_accept_ratio_end: 0.68
+  gate_curriculum_steps: 2000
+  pseudo_label_weight: 0.16
+  pseudo_warmup_steps: 1200
   pseudo_use_reliability_weighting: true
-  pseudo_confidence_power: 1.8
-  prototype_weight: 0.08
-  prototype_start_step: 1400
-  prototype_warmup_steps: 1400
-  prototype_separation_weight: 0.12
-  consistency_weight: 0.04
-  consistency_start_step: 1000
+  pseudo_confidence_power: 1.35
+  prototype_weight: 0.10
+  prototype_start_step: 900
+  prototype_warmup_steps: 1600
+  prototype_separation_weight: 0.10
+  consistency_weight: 0.05
+  consistency_start_step: 700
   consistency_warmup_steps: 1400
-  consistency_gate_only: true
-  consistency_reliability_power: 1.4
-  prototype_momentum: 0.92
-  prototype_separation_margin: 0.25
+  consistency_gate_only: false
+  consistency_reliability_power: 1.2
+  prototype_momentum: 0.94
+  prototype_separation_margin: 0.28
   augment:
     weak_jitter_std: 0.006
     weak_scaling_std: 0.006
@@ -99,5 +99,5 @@ loss:
     sinkhorn_num_iter_max: 100
 
 notes:
-  - RCTA baseline with EMA teacher, reliability-gated pseudo labels, dual prototypes, and conservative temporal consistency.
-  - V1 defaults to a CDAN alignment base while keeping DANN and DeepJDOT branches available through base_align.
+  - RCTA strengthens the teacher/pseudo-label/prototype loop with reliability shaping and curriculum schedules.
+  - The method keeps a single implementation path and can switch among CDAN, DANN, and DeepJDOT as base alignment choices.

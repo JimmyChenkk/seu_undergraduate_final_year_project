@@ -411,12 +411,7 @@ class RCTAMethod(SingleSourceMethodBase):
         self.gate_score_floor_end = float(gate_score_floor if gate_score_floor_end is None else gate_score_floor_end)
         self.gate_score_floor_schedule_steps = max(int(gate_score_floor_schedule_steps), 1)
 
-        weights = {
-            "cal_conf": 1.0,
-            "inv_entropy": 1.0,
-            "consistency": 1.0,
-            "proto_sim": 1.0,
-        }
+        weights = {"cal_conf": 1.0, "inv_entropy": 1.0, "consistency": 1.0, "proto_sim": 1.0}
         if isinstance(reliability_weights, dict):
             for key in weights:
                 if key in reliability_weights:
@@ -449,18 +444,9 @@ class RCTAMethod(SingleSourceMethodBase):
         self.register_buffer("step_num", torch.zeros((), dtype=torch.long))
 
         if self.base_align == "cdan":
-            self.aligner = _CDANAligner(
-                feature_dim=feature_dim,
-                num_classes=num_classes,
-                dropout=dropout,
-                **(cdan_kwargs or {}),
-            )
+            self.aligner = _CDANAligner(feature_dim=feature_dim, num_classes=num_classes, dropout=dropout, **(cdan_kwargs or {}))
         elif self.base_align == "dann":
-            self.aligner = _DANNAligner(
-                feature_dim=feature_dim,
-                dropout=dropout,
-                **(dann_kwargs or {}),
-            )
+            self.aligner = _DANNAligner(feature_dim=feature_dim, dropout=dropout, **(dann_kwargs or {}))
         else:
             self.aligner = _DeepJDOTAligner(**(deepjdot_kwargs or {}))
 
@@ -492,19 +478,13 @@ class RCTAMethod(SingleSourceMethodBase):
     def _teacher_probabilities(self, logits: torch.Tensor) -> torch.Tensor:
         return torch.softmax(logits / self.teacher_temperature, dim=1)
 
-    def _current_reference_prototypes(
-        self,
-        source_batch_prototypes: torch.Tensor,
-        source_batch_active: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _current_reference_prototypes(self, source_batch_prototypes: torch.Tensor, source_batch_active: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         reference = source_batch_prototypes.clone()
         active = source_batch_active.clone()
-
         source_active = self.source_prototype_counts > 0
         if source_active.any():
             reference[source_active] = self.source_prototypes[source_active]
             active = active | source_active
-
         target_active = self.target_prototype_counts > 0
         overlap = target_active & active
         if overlap.any():
@@ -513,16 +493,11 @@ class RCTAMethod(SingleSourceMethodBase):
         if target_only.any():
             reference[target_only] = self.target_prototypes[target_only]
             active = active | target_only
-
         if active.any():
             reference[active] = _normalize_rows(reference[active])
         return reference, active
 
-    def _batch_prototypes(
-        self,
-        features: torch.Tensor,
-        labels: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _batch_prototypes(self, features: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         prototypes = torch.zeros_like(self.source_prototypes)
         active = torch.zeros_like(self.source_prototype_counts, dtype=torch.bool)
         for class_id in torch.unique(labels):
@@ -538,27 +513,11 @@ class RCTAMethod(SingleSourceMethodBase):
         entropy = -(probabilities * torch.log(probabilities.clamp_min(_EPSILON))).sum(dim=1)
         return entropy / math.log(probabilities.shape[1])
 
-    def _prototype_similarity(
-        self,
-        teacher_features: torch.Tensor,
-        pseudo_labels: torch.Tensor,
-        reference_prototypes: torch.Tensor,
-        active_mask: torch.Tensor,
-    ) -> torch.Tensor:
-        similarity = torch.full(
-            (teacher_features.shape[0],),
-            0.5,
-            device=teacher_features.device,
-            dtype=teacher_features.dtype,
-        )
+    def _prototype_similarity(self, teacher_features: torch.Tensor, pseudo_labels: torch.Tensor, reference_prototypes: torch.Tensor, active_mask: torch.Tensor) -> torch.Tensor:
+        similarity = torch.full((teacher_features.shape[0],), 0.5, device=teacher_features.device, dtype=teacher_features.dtype)
         valid = active_mask[pseudo_labels]
         if valid.any():
-            cosine = F.cosine_similarity(
-                teacher_features[valid],
-                reference_prototypes[pseudo_labels[valid]],
-                dim=1,
-                eps=_EPSILON,
-            )
+            cosine = F.cosine_similarity(teacher_features[valid], reference_prototypes[pseudo_labels[valid]], dim=1, eps=_EPSILON)
             similarity[valid] = (cosine + 1.0) * 0.5
         return similarity
 
@@ -580,13 +539,7 @@ class RCTAMethod(SingleSourceMethodBase):
         progress = min(max(float(step_num - start_step), 0.0) / float(warmup_steps), 1.0)
         return base_weight * progress
 
-    def _prototype_attraction_loss(
-        self,
-        features: torch.Tensor,
-        labels: torch.Tensor,
-        reference_prototypes: torch.Tensor,
-        active_mask: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+    def _prototype_attraction_loss(self, features: torch.Tensor, labels: torch.Tensor, reference_prototypes: torch.Tensor, active_mask: torch.Tensor | None = None) -> torch.Tensor:
         if features.numel() == 0:
             return _zero(reference_prototypes.device, reference_prototypes.dtype)
         if active_mask is not None:
@@ -599,11 +552,7 @@ class RCTAMethod(SingleSourceMethodBase):
         cosine = F.cosine_similarity(features, prototypes, dim=1, eps=_EPSILON)
         return (1.0 - cosine).mean()
 
-    def _prototype_separation_loss(
-        self,
-        reference_prototypes: torch.Tensor,
-        active_mask: torch.Tensor,
-    ) -> torch.Tensor:
+    def _prototype_separation_loss(self, reference_prototypes: torch.Tensor, active_mask: torch.Tensor) -> torch.Tensor:
         active_prototypes = reference_prototypes[active_mask]
         if active_prototypes.shape[0] < 2:
             return _zero(reference_prototypes.device, reference_prototypes.dtype)
@@ -616,14 +565,7 @@ class RCTAMethod(SingleSourceMethodBase):
             return _zero(reference_prototypes.device, reference_prototypes.dtype)
         return valid.mean()
 
-    def _update_prototype_bank(
-        self,
-        features: torch.Tensor | None,
-        labels: torch.Tensor | None,
-        *,
-        prototypes: torch.Tensor,
-        counts: torch.Tensor,
-    ) -> None:
+    def _update_prototype_bank(self, features: torch.Tensor | None, labels: torch.Tensor | None, *, prototypes: torch.Tensor, counts: torch.Tensor) -> None:
         if features is None or labels is None or features.numel() == 0 or labels.numel() == 0:
             return
         for class_id in torch.unique(labels):
@@ -635,133 +577,60 @@ class RCTAMethod(SingleSourceMethodBase):
             if int(counts[class_index].item()) == 0:
                 prototypes[class_index] = centroid
             else:
-                prototypes[class_index] = F.normalize(
-                    self.prototype_momentum * prototypes[class_index]
-                    + (1.0 - self.prototype_momentum) * centroid,
-                    dim=0,
-                    eps=_EPSILON,
-                )
+                prototypes[class_index] = F.normalize(self.prototype_momentum * prototypes[class_index] + (1.0 - self.prototype_momentum) * centroid, dim=0, eps=_EPSILON)
             counts[class_index] += 1
 
     def _ema_update_teacher(self) -> None:
         with torch.no_grad():
-            for teacher_parameter, student_parameter in zip(
-                self.teacher_encoder.parameters(),
-                self.encoder.parameters(),
-            ):
-                teacher_parameter.data.mul_(self.teacher_ema_decay).add_(
-                    student_parameter.data,
-                    alpha=1.0 - self.teacher_ema_decay,
-                )
-            for teacher_parameter, student_parameter in zip(
-                self.teacher_classifier.parameters(),
-                self.classifier.parameters(),
-            ):
-                teacher_parameter.data.mul_(self.teacher_ema_decay).add_(
-                    student_parameter.data,
-                    alpha=1.0 - self.teacher_ema_decay,
-                )
-            for teacher_buffer, student_buffer in zip(
-                self.teacher_encoder.buffers(),
-                self.encoder.buffers(),
-            ):
+            for teacher_parameter, student_parameter in zip(self.teacher_encoder.parameters(), self.encoder.parameters()):
+                teacher_parameter.data.mul_(self.teacher_ema_decay).add_(student_parameter.data, alpha=1.0 - self.teacher_ema_decay)
+            for teacher_parameter, student_parameter in zip(self.teacher_classifier.parameters(), self.classifier.parameters()):
+                teacher_parameter.data.mul_(self.teacher_ema_decay).add_(student_parameter.data, alpha=1.0 - self.teacher_ema_decay)
+            for teacher_buffer, student_buffer in zip(self.teacher_encoder.buffers(), self.encoder.buffers()):
                 teacher_buffer.copy_(student_buffer)
-            for teacher_buffer, student_buffer in zip(
-                self.teacher_classifier.buffers(),
-                self.classifier.buffers(),
-            ):
+            for teacher_buffer, student_buffer in zip(self.teacher_classifier.buffers(), self.classifier.buffers()):
                 teacher_buffer.copy_(student_buffer)
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
         source_x, source_y = self.merge_source_batches(source_batches)
         target_x, _ = target_batch
-
         logits_source, features_source = self.forward(source_x)
         weak_target, strong_target = self.augmenter.augment_pair(target_x)
         logits_target_align, features_target_align = self.forward(weak_target)
-        logits_target_strong, features_target_strong = self.forward(strong_target)
+        logits_target_strong, _ = self.forward(strong_target)
         teacher_logits, teacher_features = self._teacher_forward(weak_target)
         teacher_probabilities = self._teacher_probabilities(teacher_logits).detach()
         pseudo_labels = teacher_probabilities.argmax(dim=1)
-
         source_batch_prototypes, source_batch_active = self._batch_prototypes(features_source.detach(), source_y)
-        reference_prototypes, prototype_active = self._current_reference_prototypes(
-            source_batch_prototypes,
-            source_batch_active,
-        )
-
+        reference_prototypes, prototype_active = self._current_reference_prototypes(source_batch_prototypes, source_batch_active)
         student_probabilities = torch.softmax(logits_target_strong, dim=1)
         cal_conf = teacher_probabilities.max(dim=1).values
         inv_entropy = 1.0 - self._normalized_entropy(teacher_probabilities)
         consistency_score = student_probabilities.gather(1, pseudo_labels.unsqueeze(1)).squeeze(1)
-        proto_similarity = self._prototype_similarity(
-            teacher_features.detach(),
-            pseudo_labels,
-            reference_prototypes.detach(),
-            prototype_active,
-        )
-
-        reliability_score = (
-            self.reliability_weights["cal_conf"] * cal_conf
-            + self.reliability_weights["inv_entropy"] * inv_entropy
-            + self.reliability_weights["consistency"] * consistency_score.detach()
-            + self.reliability_weights["proto_sim"] * proto_similarity
-        ).clamp(0.0, 1.0)
+        proto_similarity = self._prototype_similarity(teacher_features.detach(), pseudo_labels, reference_prototypes.detach(), prototype_active)
+        reliability_score = (self.reliability_weights["cal_conf"] * cal_conf + self.reliability_weights["inv_entropy"] * inv_entropy + self.reliability_weights["consistency"] * consistency_score.detach() + self.reliability_weights["proto_sim"] * proto_similarity).clamp(0.0, 1.0)
         if self.pseudo_confidence_power != 1.0:
             reliability_score = reliability_score.clamp_min(_EPSILON).pow(self.pseudo_confidence_power).clamp(0.0, 1.0)
         current_step = int(self.step_num.item())
         scheduled_gate_floor = self._scheduled_gate_score_floor(current_step)
-        gate_mask, curriculum_ratio = self.gate.select(
-            reliability_score.detach(),
-            pseudo_labels.detach(),
-            current_step,
-            score_floor_override=scheduled_gate_floor,
-        )
-
+        gate_mask, curriculum_ratio = self.gate.select(reliability_score.detach(), pseudo_labels.detach(), current_step, score_floor_override=scheduled_gate_floor)
         loss_cls = F.cross_entropy(logits_source, source_y)
         if self.base_align == "cdan":
-            loss_alignment, align_metrics = self.aligner(
-                logits_source=logits_source,
-                features_source=features_source,
-                logits_target=logits_target_align,
-                features_target=features_target_align,
-            )
+            loss_alignment, align_metrics = self.aligner(logits_source=logits_source, features_source=features_source, logits_target=logits_target_align, features_target=features_target_align)
         elif self.base_align == "dann":
-            loss_alignment, align_metrics = self.aligner(
-                features_source=features_source,
-                features_target=features_target_align,
-            )
+            loss_alignment, align_metrics = self.aligner(features_source=features_source, features_target=features_target_align)
         else:
-            loss_alignment, align_metrics = self.aligner(
-                source_labels=source_y,
-                logits_target=logits_target_align,
-                features_source=features_source,
-                features_target=features_target_align,
-            )
-
-        loss_mcc = (
-            self.mcc(logits_target_align)
-            if self.mcc is not None
-            else _zero(logits_target_align.device, logits_target_align.dtype)
-        )
-
+            loss_alignment, align_metrics = self.aligner(source_labels=source_y, logits_target=logits_target_align, features_source=features_source, features_target=features_target_align)
+        loss_mcc = self.mcc(logits_target_align) if self.mcc is not None else _zero(logits_target_align.device, logits_target_align.dtype)
         if gate_mask.any():
             gated_logits_target_strong = logits_target_strong[gate_mask]
             gated_pseudo_labels = pseudo_labels[gate_mask]
             if self.pseudo_use_reliability_weighting:
-                pseudo_ce_values = F.cross_entropy(
-                    gated_logits_target_strong,
-                    gated_pseudo_labels,
-                    reduction="none",
-                )
+                pseudo_ce_values = F.cross_entropy(gated_logits_target_strong, gated_pseudo_labels, reduction="none")
                 pseudo_weights = reliability_score[gate_mask].detach()
                 loss_pseudo = self._weighted_mean(pseudo_ce_values, pseudo_weights)
             else:
-                pseudo_ce_values = F.cross_entropy(
-                    gated_logits_target_strong,
-                    gated_pseudo_labels,
-                    reduction="none",
-                )
+                pseudo_ce_values = F.cross_entropy(gated_logits_target_strong, gated_pseudo_labels, reduction="none")
                 loss_pseudo = pseudo_ce_values.mean()
             gated_teacher_features = teacher_features[gate_mask]
             gated_target_proto_features = features_target_align[gate_mask]
@@ -770,31 +639,11 @@ class RCTAMethod(SingleSourceMethodBase):
             gated_teacher_features = teacher_features[:0]
             gated_pseudo_labels = pseudo_labels[:0]
             gated_target_proto_features = features_target_align[:0]
-
-        loss_source_proto = self._prototype_attraction_loss(
-            features_source,
-            source_y,
-            reference_prototypes,
-            prototype_active,
-        )
-        loss_target_proto = self._prototype_attraction_loss(
-            gated_target_proto_features,
-            gated_pseudo_labels,
-            reference_prototypes,
-            prototype_active,
-        )
+        loss_source_proto = self._prototype_attraction_loss(features_source, source_y, reference_prototypes, prototype_active)
+        loss_target_proto = self._prototype_attraction_loss(gated_target_proto_features, gated_pseudo_labels, reference_prototypes, prototype_active)
         loss_proto_separation = self._prototype_separation_loss(reference_prototypes, prototype_active)
-        loss_prototype = (
-            loss_source_proto
-            + loss_target_proto
-            + self.prototype_separation_weight * loss_proto_separation
-        )
-
-        consistency_values = F.kl_div(
-            torch.log_softmax(logits_target_strong, dim=1),
-            teacher_probabilities,
-            reduction="none",
-        ).sum(dim=1)
+        loss_prototype = loss_source_proto + loss_target_proto + self.prototype_separation_weight * loss_proto_separation
+        consistency_values = F.kl_div(torch.log_softmax(logits_target_strong, dim=1), teacher_probabilities, reduction="none").sum(dim=1)
         if self.consistency_gate_only:
             consistency_weights = gate_mask.to(dtype=consistency_values.dtype)
         else:
@@ -802,35 +651,14 @@ class RCTAMethod(SingleSourceMethodBase):
         if self.consistency_reliability_power != 1.0:
             consistency_weights = consistency_weights.clamp_min(_EPSILON).pow(self.consistency_reliability_power)
         loss_consistency = self._weighted_mean(consistency_values, consistency_weights)
-
         lambda_pseudo = self._ramp_weight(self.pseudo_label_weight, current_step, 0, self.pseudo_warmup_steps)
-        lambda_prototype = self._ramp_weight(
-            self.prototype_weight,
-            current_step,
-            self.prototype_start_step,
-            self.prototype_warmup_steps,
-        )
-        lambda_consistency = self._ramp_weight(
-            self.consistency_weight,
-            current_step,
-            self.consistency_start_step,
-            self.consistency_warmup_steps,
-        )
-
-        total_loss = (
-            loss_cls
-            + align_metrics["lambda_alignment"] * loss_alignment
-            + self.mcc_weight * loss_mcc
-            + lambda_pseudo * loss_pseudo
-            + lambda_prototype * loss_prototype
-            + lambda_consistency * loss_consistency
-        )
-
+        lambda_prototype = self._ramp_weight(self.prototype_weight, current_step, self.prototype_start_step, self.prototype_warmup_steps)
+        lambda_consistency = self._ramp_weight(self.consistency_weight, current_step, self.consistency_start_step, self.consistency_warmup_steps)
+        total_loss = loss_cls + align_metrics["lambda_alignment"] * loss_alignment + self.mcc_weight * loss_mcc + lambda_pseudo * loss_pseudo + lambda_prototype * loss_prototype + lambda_consistency * loss_consistency
         self._cached_source_features = features_source.detach().clone()
         self._cached_source_labels = source_y.detach().clone()
         self._cached_target_features = gated_teacher_features.detach().clone()
         self._cached_target_labels = gated_pseudo_labels.detach().clone()
-
         kept_count = int(gate_mask.sum().item())
         batch_size_target = max(int(target_x.shape[0]), 1)
         metrics = {
@@ -849,9 +677,7 @@ class RCTAMethod(SingleSourceMethodBase):
             "lambda_consistency": float(lambda_consistency),
             "acc_source": accuracy_from_logits(logits_source, source_y),
             "gate_mean_score": float(reliability_score.mean().item()),
-            "pseudo_kept_mean_reliability": (
-                float(reliability_score[gate_mask].mean().item()) if gate_mask.any() else 0.0
-            ),
+            "pseudo_kept_mean_reliability": float(reliability_score[gate_mask].mean().item()) if gate_mask.any() else 0.0,
             "gate_accept_ratio": float(kept_count / batch_size_target),
             "gate_curriculum_ratio": float(curriculum_ratio),
             "gate_score_floor": float(scheduled_gate_floor),
@@ -862,25 +688,13 @@ class RCTAMethod(SingleSourceMethodBase):
 
     def after_optimizer_step(self) -> dict[str, float]:
         self._ema_update_teacher()
-        self._update_prototype_bank(
-            self._cached_source_features,
-            self._cached_source_labels,
-            prototypes=self.source_prototypes,
-            counts=self.source_prototype_counts,
-        )
-        self._update_prototype_bank(
-            self._cached_target_features,
-            self._cached_target_labels,
-            prototypes=self.target_prototypes,
-            counts=self.target_prototype_counts,
-        )
+        self._update_prototype_bank(self._cached_source_features, self._cached_source_labels, prototypes=self.source_prototypes, counts=self.source_prototype_counts)
+        self._update_prototype_bank(self._cached_target_features, self._cached_target_labels, prototypes=self.target_prototypes, counts=self.target_prototype_counts)
         self.step_num += 1
-
         self._cached_source_features = None
         self._cached_source_labels = None
         self._cached_target_features = None
         self._cached_target_labels = None
-
         return {
             "teacher_ema_decay": float(self.teacher_ema_decay),
             "source_prototype_active_classes": float((self.source_prototype_counts > 0).sum().item()),

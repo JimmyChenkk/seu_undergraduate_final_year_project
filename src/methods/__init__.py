@@ -134,6 +134,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             gate_curriculum_steps=int(loss.get("gate_curriculum_steps", 1000)),
             pseudo_label_weight=float(loss.get("pseudo_label_weight", 0.2)),
             pseudo_warmup_steps=int(loss.get("pseudo_warmup_steps", 0)),
+            pseudo_use_reliability_weighting=bool(loss.get("pseudo_use_reliability_weighting", True)),
+            pseudo_confidence_power=float(loss.get("pseudo_confidence_power", 1.0)),
             prototype_weight=float(loss.get("prototype_weight", 0.1)),
             prototype_start_step=int(loss.get("prototype_start_step", 0)),
             prototype_warmup_steps=(
@@ -145,6 +147,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             consistency_warmup_steps=(
                 None if loss.get("consistency_warmup_steps") is None else int(loss.get("consistency_warmup_steps"))
             ),
+            consistency_gate_only=bool(loss.get("consistency_gate_only", False)),
+            consistency_reliability_power=float(loss.get("consistency_reliability_power", 1.0)),
             prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
             prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
             augment_kwargs={
