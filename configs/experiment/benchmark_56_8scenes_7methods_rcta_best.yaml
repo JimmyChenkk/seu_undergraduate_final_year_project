@@ -38,11 +38,12 @@ runtime:
 
 automation:
   methods:
+    - dan
     - deepjdot
     - rcta
     - dann
     - cdan
-    - dan
+    # - dan
     - coral
     - source_only
   multisource_scenes:
@@ -57,12 +58,23 @@ automation:
     - mode6->mode3
 
 method_overrides:
-  source_only: {}
+  source_only:
+    optimization:
+      epochs: 84
   coral:
+    optimization:
+      epochs: 84
     loss:
-      align_mean: false
+      adapt_mean: true
+      align_mean: true
       normalize_covariance: true
+      adaptation_weight: 0.45
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 1200
+      adaptation_schedule_alpha: 10.0
   deepjdot:
+    optimization:
+      epochs: 84
     loss:
       adaptation_schedule: warm_start
       adaptation_weight: 0.45
@@ -73,84 +85,88 @@ method_overrides:
       sinkhorn_num_iter_max: 400
       normalize_feature_cost: true
   dan:
+    optimization:
+      epochs: 84
     loss:
-      adaptation_weight: 0.55
-      adaptation_schedule: warm_start
+      adaptation_weight: 0.08
+      adaptation_schedule: constant
       adaptation_max_steps: 1200
       adaptation_schedule_alpha: 10.0
-      kernel_scales: [0.0625, 0.125, 0.25, 0.5, 1.0, 2.0]
-      linear_mmd: true
+      kernel_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
+      linear_mmd: false
   cdan:
     loss:
-      adaptation_weight: 0.35
+      adaptation_weight: 0.45
       adaptation_schedule: warm_start
       adaptation_max_steps: 1200
       adaptation_schedule_alpha: 10.0
-      grl_lambda: 1.0
+      grl_lambda: 1.1
       grl_warm_start: true
       grl_max_iters: 1200
       randomized: true
-      randomized_dim: 256
+      randomized_dim: 512
       entropy_conditioning: true
-      mcc_weight: 0.03
+      mcc_weight: 0.06
       mcc_temperature: 2.0
-      domain_hidden_dim: 256
-      domain_num_hidden_layers: 2
+      domain_hidden_dim: 384
+      domain_num_hidden_layers: 3
     runtime:
       model_selection: hybrid_source_eval_inverse_entropy
       early_stopping_metric: hybrid_source_eval_inverse_entropy
       selection_weights:
-        source_eval: 0.7
-        target_entropy: 0.3
+        source_eval: 0.85
+        target_entropy: 0.15
       early_stopping_weights:
-        source_eval: 0.7
-        target_entropy: 0.3
-      early_stopping_patience: 10
-      early_stopping_min_delta: 0.0005
+        source_eval: 0.85
+        target_entropy: 0.15
+      early_stopping_patience: 12
+      early_stopping_min_delta: 0.0003
       early_stopping_min_epochs: 24
   dann:
+    optimization:
+      epochs: 84
     loss:
-      adaptation_weight: 0.55
+      adaptation_weight: 0.40
       adaptation_schedule: warm_start
       adaptation_max_steps: 1200
       adaptation_schedule_alpha: 10.0
-      grl_lambda: 1.0
+      grl_lambda: 0.8
       grl_warm_start: true
       grl_max_iters: 1200
       domain_hidden_dim: 256
       domain_num_hidden_layers: 2
   rcta:
     optimization:
-      epochs: 96
+      epochs: 84
     loss:
       base_align: cdan
-      teacher_ema_decay: 0.997
-      teacher_temperature: 1.15
-      mcc_weight: 0.05
+      teacher_ema_decay: 0.995
+      teacher_temperature: 1.3
+      mcc_weight: 0.06
       reliability_weights:
-        cal_conf: 1.0
-        inv_entropy: 0.8
+        cal_conf: 1.1
+        inv_entropy: 1.0
         consistency: 1.0
         proto_sim: 0.7
-      gate_score_floor_start: 0.35
-      gate_score_floor_end: 0.55
-      gate_score_floor_schedule_steps: 1400
-      gate_accept_ratio_start: 0.20
-      gate_accept_ratio_end: 0.60
-      gate_curriculum_steps: 1400
+      gate_score_floor_start: 0.32
+      gate_score_floor_end: 0.50
+      gate_score_floor_schedule_steps: 1200
+      gate_accept_ratio_start: 0.25
+      gate_accept_ratio_end: 0.70
+      gate_curriculum_steps: 1200
       pseudo_label_weight: 0.22
-      pseudo_warmup_steps: 1200
+      pseudo_warmup_steps: 800
       pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.4
+      pseudo_confidence_power: 1.2
       prototype_weight: 0.12
-      prototype_start_step: 1000
-      prototype_warmup_steps: 1200
-      prototype_separation_weight: 0.08
+      prototype_start_step: 700
+      prototype_warmup_steps: 800
+      prototype_separation_weight: 0.10
       consistency_weight: 0.06
-      consistency_start_step: 800
-      consistency_warmup_steps: 1200
+      consistency_start_step: 600
+      consistency_warmup_steps: 800
       consistency_gate_only: true
-      consistency_reliability_power: 1.1
+      consistency_reliability_power: 1.0
       prototype_momentum: 0.95
       prototype_separation_margin: 0.20
       alignment_start_step: 600
@@ -169,7 +185,7 @@ method_overrides:
         domain_hidden_dim: 256
         domain_num_hidden_layers: 2
       dann:
-        adaptation_weight: 0.40
+        adaptation_weight: 0.45
         adaptation_schedule: warm_start
         adaptation_max_steps: 1200
         adaptation_schedule_alpha: 10.0
@@ -179,16 +195,16 @@ method_overrides:
         domain_hidden_dim: 256
         domain_num_hidden_layers: 2
       deepjdot:
-        adaptation_weight: 0.40
-        adaptation_schedule: linear
-        adaptation_max_steps: 2000
+        adaptation_weight: 0.45
+        adaptation_schedule: warm_start
+        adaptation_max_steps: 1200
         adaptation_schedule_alpha: 10.0
-        reg_dist: 0.2
-        reg_cl: 0.5
+        reg_dist: 0.20
+        reg_cl: 1.00
         normalize_feature_cost: true
-        transport_solver: sinkhorn
-        sinkhorn_reg: 0.1
-        sinkhorn_num_iter_max: 300
+        transport_solver: emd
+        sinkhorn_reg: 0.2
+        sinkhorn_num_iter_max: 400
 
 notes:
   - Benchmark config for 7 methods across 8 scenarios on domains 2/3/5/6.
