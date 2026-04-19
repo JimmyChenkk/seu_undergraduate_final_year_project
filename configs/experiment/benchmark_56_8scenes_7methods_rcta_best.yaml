@@ -24,17 +24,17 @@ runtime:
   early_stopping_interval: 5
   final_epoch_evaluation: true
   final_selection_evaluation: true
-  model_selection: hybrid_source_eval_inverse_entropy
-  early_stopping_metric: hybrid_source_eval_inverse_entropy
+  model_selection: hybrid_source_eval_target_confidence
+  early_stopping_metric: hybrid_source_eval_target_confidence
   selection_weights:
-    source_eval: 0.70
-    target_entropy: 0.30
+    source_eval: 0.80
+    target_confidence: 0.20
   early_stopping_weights:
-    source_eval: 0.70
-    target_entropy: 0.30
-  early_stopping_patience: 10
+    source_eval: 0.80
+    target_confidence: 0.20
+  early_stopping_patience: 14
   early_stopping_min_delta: 0.0005
-  early_stopping_min_epochs: 24
+  early_stopping_min_epochs: 28
 
 automation:
   methods:
@@ -46,11 +46,11 @@ automation:
     # - dan
     - coral
     - source_only
-  multisource_scenes:
-    - mode2-mode3-mode5->mode6
-    - mode2-mode3-mode6->mode5
-    - mode2-mode5-mode6->mode3
-    - mode3-mode5-mode6->mode2
+  # multisource_scenes:
+  #   - mode2-mode3-mode5->mode6
+  #   - mode2-mode3-mode6->mode5
+  #   - mode2-mode5-mode6->mode3
+  #   - mode3-mode5-mode6->mode2
   single_source_scenes:
     - mode2->mode5
     - mode5->mode2
@@ -111,17 +111,17 @@ method_overrides:
       domain_hidden_dim: 384
       domain_num_hidden_layers: 3
     runtime:
-      model_selection: hybrid_source_eval_inverse_entropy
-      early_stopping_metric: hybrid_source_eval_inverse_entropy
+      model_selection: hybrid_source_eval_target_confidence
+      early_stopping_metric: hybrid_source_eval_target_confidence
       selection_weights:
-        source_eval: 0.85
-        target_entropy: 0.15
+        source_eval: 0.80
+        target_confidence: 0.20
       early_stopping_weights:
-        source_eval: 0.85
-        target_entropy: 0.15
-      early_stopping_patience: 12
-      early_stopping_min_delta: 0.0003
-      early_stopping_min_epochs: 24
+        source_eval: 0.80
+        target_confidence: 0.20
+      early_stopping_patience: 14
+      early_stopping_min_delta: 0.0005
+      early_stopping_min_epochs: 28
   dann:
     optimization:
       epochs: 84
