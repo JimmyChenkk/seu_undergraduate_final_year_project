@@ -96,7 +96,8 @@ def _cache_key(
     num_workers: int,
     pin_memory: bool,
     persistent_workers: bool,
-    fold_name: str,
+    source_fold_name: str,
+    target_fold_name: str,
 ) -> str:
     payload = {
         "setting": setting.setting_name,
@@ -106,7 +107,8 @@ def _cache_key(
         "num_workers": int(num_workers),
         "pin_memory": bool(pin_memory),
         "persistent_workers": bool(persistent_workers),
-        "fold_name": str(fold_name),
+        "source_fold_name": str(source_fold_name),
+        "target_fold_name": str(target_fold_name),
         "normalization": config.normalization,
         "normalization_scope": config.normalization_scope,
         "channels_first": bool(config.channels_first),
@@ -228,7 +230,8 @@ def prepare_benchmark_data(
     """Prepare loaders for single-source or multi-source benchmark experiments."""
 
     interface = TEDADatasetInterface(config)
-    selected_fold = fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
+    source_fold_name = getattr(config, "source_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
+    target_fold_name = getattr(config, "target_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
     cache_key = _cache_key(
         config=config,
         setting=setting,
@@ -236,7 +239,8 @@ def prepare_benchmark_data(
         num_workers=num_workers,
         pin_memory=pin_memory,
         persistent_workers=persistent_workers,
-        fold_name=selected_fold,
+        source_fold_name=source_fold_name,
+        target_fold_name=target_fold_name,
     )
     cache_path = _cache_path(config, cache_key)
 
@@ -244,40 +248,44 @@ def prepare_benchmark_data(
     target_split: DomainSplitTensors
     cache_hit = False
     if cache_path.exists():
-        payload = np.load(cache_path, allow_pickle=False)
-        split_names = [reference.domain.name for reference in setting.source_domains]
-        source_splits = []
-        for index, domain_name in enumerate(split_names):
-            source_splits.append(
-                _build_domain_split_from_arrays(
-                    domain_id=domain_name,
-                    train_x=payload[f"source_{index}_train_x"],
-                    train_y=payload[f"source_{index}_train_y"],
-                    eval_x=payload[f"source_{index}_eval_x"],
-                    eval_y=payload[f"source_{index}_eval_y"],
-                    train_indices=payload[f"source_{index}_train_indices"],
-                    eval_indices=payload[f"source_{index}_eval_indices"],
+        try:
+            payload = np.load(cache_path, allow_pickle=False)
+            split_names = [reference.domain.name for reference in setting.source_domains]
+            source_splits = []
+            for index, domain_name in enumerate(split_names):
+                source_splits.append(
+                    _build_domain_split_from_arrays(
+                        domain_id=domain_name,
+                        train_x=payload[f"source_{index}_train_x"],
+                        train_y=payload[f"source_{index}_train_y"],
+                        eval_x=payload[f"source_{index}_eval_x"],
+                        eval_y=payload[f"source_{index}_eval_y"],
+                        train_indices=payload[f"source_{index}_train_indices"],
+                        eval_indices=payload[f"source_{index}_eval_indices"],
+                    )
                 )
+            target_split = _build_domain_split_from_arrays(
+                domain_id=setting.target_domain.domain.name,
+                train_x=payload["target_train_x"],
+                train_y=payload["target_train_y"],
+                eval_x=payload["target_eval_x"],
+                eval_y=payload["target_eval_y"],
+                train_indices=payload["target_train_indices"],
+                eval_indices=payload["target_eval_indices"],
             )
-        target_split = _build_domain_split_from_arrays(
-            domain_id=setting.target_domain.domain.name,
-            train_x=payload["target_train_x"],
-            train_y=payload["target_train_y"],
-            eval_x=payload["target_eval_x"],
-            eval_y=payload["target_eval_y"],
-            train_indices=payload["target_train_indices"],
-            eval_indices=payload["target_eval_indices"],
-        )
-        cache_hit = True
-    else:
+            cache_hit = True
+        except Exception:
+            cache_path.unlink(missing_ok=True)
+            cache_hit = False
+    if not cache_hit:
         source_splits = [
-            load_domain_split(interface, reference.domain.name, fold_name=selected_fold)
+            load_domain_split(interface, reference.domain.name, fold_name=source_fold_name)
             for reference in setting.source_domains
         ]
         target_split = load_domain_split(
             interface,
             setting.target_domain.domain.name,
-            fold_name=selected_fold,
+            fold_name=target_fold_name,
         )
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_payload: dict[str, np.ndarray] = {}

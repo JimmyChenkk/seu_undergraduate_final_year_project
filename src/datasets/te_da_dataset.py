@@ -61,6 +61,8 @@ class TEDADatasetConfig:
     inspection_report_path: Path = Path("data/benchmark/te_raw_data_inspection.md")
     raw_file_pattern: str = "*.pickle"
     preferred_fold: str = DEFAULT_FOLD_NAME
+    source_fold: str | None = None
+    target_fold: str | None = None
     normalization: str = "standardization"
     normalization_scope: str = "domain"
     channels_first: bool = True
@@ -81,6 +83,8 @@ class TEDADatasetConfig:
             ),
             raw_file_pattern=str(loading.get("raw_file_pattern", "*.pickle")),
             preferred_fold=str(protocol.get("preferred_fold", DEFAULT_FOLD_NAME)),
+            source_fold=(str(protocol.get("source_fold")) if protocol.get("source_fold") is not None else None),
+            target_fold=(str(protocol.get("target_fold")) if protocol.get("target_fold") is not None else None),
             normalization=str(loading.get("normalization", "standardization")),
             normalization_scope=str(loading.get("normalization_scope", "domain")),
             channels_first=bool(loading.get("channels_first", True)),
@@ -577,7 +581,11 @@ class TEDADatasetInterface:
         """Load the authoritative fold indices for one domain."""
 
         payload = self.load_raw_domain_payload(domain_id)
-        fold_key = fold_name or self.config.preferred_fold
+        default_fold = self.config.preferred_fold
+        if fold_name is None:
+            fold_key = default_fold
+        else:
+            fold_key = fold_name
         folds = payload["Folds"]
         if fold_key not in folds:
             available = sorted(str(key) for key in folds.keys())

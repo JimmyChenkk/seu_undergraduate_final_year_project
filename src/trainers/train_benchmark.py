@@ -421,7 +421,9 @@ def build_run_paths(
     method_name: str,
     scenario_id: str,
     backbone_name: str,
-    fold_name: str,
+    fold_name: str | None = None,
+    source_fold_name: str | None = None,
+    target_fold_name: str | None = None,
     batch_root_name: str | None = None,
 ) -> dict[str, Any]:
     """Create per-run output paths under ``runs/``."""
@@ -433,6 +435,8 @@ def build_run_paths(
         scenario_id=scenario_id,
         backbone_name=backbone_name,
         fold_name=fold_name,
+        source_fold_name=source_fold_name,
+        target_fold_name=target_fold_name,
         batch_root_name=batch_root_name or tracking_config.get("batch_root_name"),
     )
     return {
@@ -1287,6 +1291,8 @@ def main() -> None:
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
     selected_fold = str(protocol_payload.get("preferred_fold", data_config.preferred_fold))
+    source_fold = str(protocol_payload.get("source_fold", selected_fold))
+    target_fold = str(protocol_payload.get("target_fold", selected_fold))
 
     set_seed(int(experiment_payload.get("seed", 42)))
     setting = build_setting(data_config, data_payload, experiment_payload)
@@ -1305,8 +1311,12 @@ def main() -> None:
         scenario_id=scenario_id,
         backbone_name=backbone_name,
         fold_name=selected_fold,
+        source_fold_name=source_fold,
+        target_fold_name=target_fold,
         batch_root_name=args.batch_root_name,
     )
+    data_config.source_fold = source_fold
+    data_config.target_fold = target_fold
     prepared_data = prepare_benchmark_data(
         config=data_config,
         setting=setting,

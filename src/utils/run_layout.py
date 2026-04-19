@@ -54,7 +54,9 @@ def build_run_name(
     method_name: str,
     scenario_id: str,
     backbone_name: str,
-    fold_name: str,
+    fold_name: str | None = None,
+    source_fold_name: str | None = None,
+    target_fold_name: str | None = None,
 ) -> str:
     """Build names like ``20260402_120000_dann_mode2_to_mode5_fcn_fold1``."""
 
@@ -63,8 +65,14 @@ def build_run_name(
         normalize_token(method_name, lowercase=True),
         normalize_token(scenario_id, lowercase=True),
         normalize_token(backbone_name, lowercase=True),
-        normalize_fold_name(fold_name),
     ]
+    if source_fold_name is not None or target_fold_name is not None:
+        parts.append(
+            f"src{normalize_fold_name(source_fold_name or fold_name or 'Fold 1')}__"
+            f"tgt{normalize_fold_name(target_fold_name or fold_name or 'Fold 1')}"
+        )
+    else:
+        parts.append(normalize_fold_name(fold_name or "Fold 1"))
     return "_".join(parts)
 
 
@@ -88,7 +96,9 @@ def build_run_layout(
     method_name: str,
     scenario_id: str,
     backbone_name: str,
-    fold_name: str,
+    fold_name: str | None = None,
+    source_fold_name: str | None = None,
+    target_fold_name: str | None = None,
     timestamp: str | None = None,
     batch_root_name: str | None = None,
 ) -> RunLayout:
@@ -105,6 +115,8 @@ def build_run_layout(
         scenario_id=scenario_id,
         backbone_name=backbone_name,
         fold_name=fold_name,
+        source_fold_name=source_fold_name,
+        target_fold_name=target_fold_name,
     )
     run_name, run_root = _reserve_run_root(base_dir, desired_run_name)
     layout = RunLayout(
