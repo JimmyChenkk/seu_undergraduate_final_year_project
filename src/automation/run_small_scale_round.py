@@ -6,6 +6,7 @@ import argparse
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+import random
 import subprocess
 import tempfile
 from typing import Any, Iterable
@@ -206,21 +207,38 @@ def build_run_plan(
         all_scenes=all_scenes,
         include_multisource_targets=include_multisource_targets,
     )
-    runs = [
-        {
-            "method_name": method_name,
-            "setting": str(scene["setting"]),
-            "source_domains": [str(item) for item in scene["source_domains"]],
-            "target_domain": str(scene["target_domain"]),
-            "label": str(scene["label"]),
-        }
-        for scene in scene_settings
-        for method_name in methods
-    ]
+    protocol_override = experiment_payload.get("protocol_override", {})
+    random_fold_enabled = bool(protocol_override.get("random_fold_enabled", False))
+    source_folds = [str(item) for item in protocol_override.get("source_folds", [1, 2, 3, 4, 5])]
+    target_folds = [str(item) for item in protocol_override.get("target_folds", [1, 2, 3, 4, 5])]
+    preferred_fold = str(protocol_override.get("preferred_fold", "Fold 1"))
+    rng = random.SystemRandom() if random_fold_enabled else random.Random(int(experiment_payload.get("seed", 42)))
+    runs = []
+    for scene in scene_settings:
+        sampled_source_fold = rng.choice(source_folds) if random_fold_enabled else preferred_fold
+        sampled_target_fold = rng.choice(target_folds) if random_fold_enabled else preferred_fold
+        for method_name in methods:
+            runs.append(
+                {
+                    "method_name": method_name,
+                    "setting": str(scene["setting"]),
+                    "source_domains": [str(item) for item in scene["source_domains"]],
+                    "target_domain": str(scene["target_domain"]),
+                    "label": str(scene["label"]),
+                    "source_fold": sampled_source_fold,
+                    "target_fold": sampled_target_fold,
+                }
+            )
     return {
         "methods": methods,
         "scene_settings": scene_settings,
         "runs": runs,
+        "fold_policy": {
+            "random_fold_enabled": random_fold_enabled,
+            "source_folds": source_folds,
+            "target_folds": target_folds,
+            "preferred_fold": preferred_fold,
+        },
     }
 
 
@@ -268,15 +286,29 @@ def main() -> None:
     scene_settings = plan["scene_settings"]
     run_plan = plan["runs"]
     experiment_name = str(base_experiment.get("experiment_name", "batch_run"))
+    fold_policy = plan.get("fold_policy", {})
     print(
         f"Planned {len(run_plan)} runs from {len(scene_settings)} settings x {len(methods)} methods "
         f"using {args.experiment_config}."
     )
     if args.plan_only:
+        print(
+            "Fold policy: "
+            f"random={fold_policy.get('random_fold_enabled', False)}, "
+            f"source_choices={fold_policy.get('source_folds', [])}, "
+            f"target_choices={fold_policy.get('target_folds', [])}, "
+            f"preferred={fold_policy.get('preferred_fold', 'Fold 1')}"
+        )
         for run in run_plan:
+            scene_label = run['label']
+            fold_text = (
+                f"src{run['source_fold']}__tgt{run['target_fold']}"
+                if fold_policy.get('random_fold_enabled', False)
+                else f"fold={fold_policy.get('preferred_fold', 'Fold 1')}"
+            )
             print(
                 f"{run['method_name']}: {','.join(run['source_domains'])} -> "
-                f"{run['target_domain']} ({run['setting']})"
+                f"{run['target_domain']} ({scene_label}; {fold_text})"
             )
         return
 
@@ -291,7 +323,7 @@ def main() -> None:
                 raise FileNotFoundError(f"Method config not found: {method_config_path}")
 
             experiment_payload = deepcopy(base_experiment)
-            experiment_payload["experiment_name"] = f"{experiment_name}_{run['label']}"
+            experiment_payload["experiment_name"] = f"{experiment_name}_{run['label']}_src{run['source_fold']}__tgt{run['target_fold']}"
             experiment_payload.setdefault("tracking", {})
             experiment_payload["tracking"]["batch_root_name"] = batch_root_name
             experiment_payload.setdefault("runtime", {})
@@ -306,6 +338,8 @@ def main() -> None:
                     "source_domains": [str(item) for item in run["source_domains"]],
                     "target_domain": str(run["target_domain"]),
                     "preferred_fold": "Fold 1",
+                    "source_fold": str(run["source_fold"]),
+                    "target_fold": str(run["target_fold"]),
                 }
             )
 

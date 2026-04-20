@@ -1323,7 +1323,7 @@ def main() -> None:
     target_fold_default = _normalize_fold_value(protocol_payload.get("target_fold", selected_fold), selected_fold)
     random_fold_enabled = _resolve_random_fold_enabled(protocol_payload)
     rng_seed = int(experiment_payload.get("seed", 42))
-    rng = random.Random(rng_seed)
+    rng = random.SystemRandom() if random_fold_enabled else random.Random(rng_seed)
     source_fold_choices = [str(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
     target_fold_choices = [str(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
     source_fold = _sample_fold_name(source_fold_choices, rng) if random_fold_enabled else source_fold_default
