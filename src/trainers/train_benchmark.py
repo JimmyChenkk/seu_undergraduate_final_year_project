@@ -437,10 +437,21 @@ def _resolve_random_fold_enabled(protocol_payload: dict[str, Any]) -> bool:
     return bool(protocol_payload.get("random_fold_enabled", False))
 
 
+def _canonicalize_fold_name(fold_name: Any) -> str:
+    text = str(fold_name).strip()
+    if not text:
+        return "Fold 1"
+    lowered = text.lower()
+    if lowered.startswith("fold"):
+        suffix = text[4:].strip()
+        return f"Fold {suffix}" if suffix else "Fold 1"
+    return f"Fold {text}"
+
+
 def _sample_fold_name(available_folds: list[str], rng: random.Random) -> str:
     if not available_folds:
         raise ValueError("No fold choices available for random fold sampling.")
-    return str(rng.choice(available_folds))
+    return _canonicalize_fold_name(rng.choice(available_folds))
 
 
 def build_run_paths(
@@ -1324,8 +1335,8 @@ def main() -> None:
     random_fold_enabled = _resolve_random_fold_enabled(protocol_payload)
     rng_seed = int(experiment_payload.get("seed", 42))
     rng = random.SystemRandom() if random_fold_enabled else random.Random(rng_seed)
-    source_fold_choices = [str(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
-    target_fold_choices = [str(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
+    source_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
+    target_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
     source_fold = _sample_fold_name(source_fold_choices, rng) if random_fold_enabled else source_fold_default
     target_fold = _sample_fold_name(target_fold_choices, rng) if random_fold_enabled else target_fold_default
 
