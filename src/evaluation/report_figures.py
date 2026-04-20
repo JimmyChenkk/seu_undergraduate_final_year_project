@@ -124,8 +124,20 @@ def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Pat
     if not subset:
         return
 
+    method_order = [
+        "source_only",
+        "coral",
+        "dan",
+        "dann",
+        "cdan",
+        "deepjdot",
+        "rcta",
+        "target_only",
+    ]
+    method_rank = {name: index for index, name in enumerate(method_order)}
+
     scenarios = sorted(set(row["scenario_id"] for row in subset))
-    methods = sorted(set(row["method"] for row in subset))
+    methods = sorted(set(row["method"] for row in subset), key=lambda name: method_rank.get(name, len(method_order)))
     matrix = np.full((len(scenarios), len(methods)), np.nan, dtype=float)
     for row in subset:
         scenario_index = scenarios.index(row["scenario_id"])
