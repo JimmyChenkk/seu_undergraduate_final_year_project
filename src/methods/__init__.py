@@ -9,6 +9,7 @@ from .deepjdot import DeepJDOTMethod
 from .dann import DANNMethod
 from .rcta import RCTAMethod
 from .source_only import SourceOnlyMethod
+from .target_only import TargetOnlyMethod
 
 
 def build_method(method_config, *, num_classes: int, in_channels: int, input_length: int, num_sources: int):
@@ -38,6 +39,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
     }
     if method_name == "source_only":
         return SourceOnlyMethod(**shared_kwargs)
+    if method_name == "target_only":
+        return TargetOnlyMethod(**shared_kwargs)
     if method_name == "cdan":
         return CDANMethod(
             adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
@@ -212,5 +215,6 @@ __all__ = [
     "DANNMethod",
     "RCTAMethod",
     "SourceOnlyMethod",
+    "TargetOnlyMethod",
     "build_method",
 ]

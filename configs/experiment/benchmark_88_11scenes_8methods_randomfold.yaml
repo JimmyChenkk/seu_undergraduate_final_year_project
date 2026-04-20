@@ -1,4 +1,4 @@
-experiment_name: benchmark_77_11scenes_7methods_randomfold
+experiment_name: benchmark_88_11scenes_8methods_randomfold
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -38,13 +38,16 @@ runtime:
 
 automation:
   methods:
+    - deepjdot
+    - rcta
     - source_only
+    - target_only
     - coral
     - dan
     - dann
     - cdan
-    - deepjdot
-    - rcta
+    # - deepjdot
+    # - rcta
   single_source_scenes:
     - mode3->mode6
     - mode6->mode3
@@ -65,6 +68,9 @@ automation:
 
 method_overrides:
   source_only:
+    optimization:
+      epochs: 84
+  target_only:
     optimization:
       epochs: 84
   coral:
@@ -239,7 +245,7 @@ protocol_override:
     note: "Random fold mode can sample any fold in {1,2,3,4,5} for source and target."
 
 notes:
-  - 7 methods x 11 scenes = 77 runs.
+  - 8 methods x 11 scenes = 88 runs.
   - 8 single-source scenes: 3->6, 6->3, 1->4, 1->5, 4->5, 4->1, 5->1, 5->4.
   - 3 multi-source-to-single scenes: 1&4->5, 1&5->4, 4&5->1.
   - Fold policy: do not pin Fold 1; randomly sample source and target folds from {1,2,3,4,5} for each scene/run.
