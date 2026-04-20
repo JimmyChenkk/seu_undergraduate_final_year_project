@@ -14,7 +14,8 @@
   - `scripts/` 放命令行入口。
   - `tests/` 放自动化验证。
   - `paper/` 放论文模板、正文与图表材料。
-  - `external/` 与 `refs/` 放外部参考代码和资料。
+  - `external/` 统一放置通过 `git clone` 获取的开源代码资料库。
+  - `refs/` 仅放参考文献、论文、教程或其他相关文档资料。
 
 ## 目录概览
 
@@ -91,7 +92,8 @@ workspace/
   - 例如 `manifest.json`、数据勘察报告等。
   - 当前构建流程只生成小型元数据，不复制原始大数组。
 - 缓存和临时产物放在 `data/cache/`。
-- `external/` 与 `refs/` 默认视为只读参考区，不应直接在其中开发实验代码。
+- `external/` 默认视为开源代码镜像区，不应在其中直接开发实验代码。
+- `refs/` 默认视为文档与文献参考区，不应在其中直接开发实验代码。
 
 ## 环境准备
 
@@ -272,6 +274,9 @@ flowchart TD
 ## 外部来源链接
 
 以下链接用于记录本项目曾使用过的外部仓库、模板与数据源，便于后续重新 `git clone`、手动下载或回溯来源。
+
+- `external/` 中记录的是可直接 `git clone` 的开源代码仓库。
+- `refs/` 中记录的是论文、教程、综述或其他文档类资料。
 
 - 原始数据集（Tennessee Eastman Process Domain Adaptation, Kaggle）：
   https://www.kaggle.com/datasets/eddardd/tennessee-eastman-process-domain-adaptation?resource=download
