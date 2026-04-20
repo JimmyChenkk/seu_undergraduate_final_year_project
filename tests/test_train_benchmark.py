@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import random
 import unittest
 
 from src.evaluation.review import build_run_review
 from src.trainers.train_benchmark import (
+    _resolve_run_fold_names,
     _resolve_metric_score,
     apply_method_overrides,
     apply_method_runtime_defaults,
@@ -12,6 +14,27 @@ from src.trainers.train_benchmark import (
 
 
 class TrainBenchmarkTests(unittest.TestCase):
+    def test_explicit_run_folds_override_random_sampling(self) -> None:
+        protocol_payload = {
+            "preferred_fold": "Fold 1",
+            "random_fold_enabled": True,
+            "source_folds": [1, 2, 3, 4, 5],
+            "target_folds": [1, 2, 3, 4, 5],
+            "source_fold": "2",
+            "target_fold": "4",
+        }
+
+        selected_fold, source_fold, target_fold, random_fold_enabled = _resolve_run_fold_names(
+            protocol_payload=protocol_payload,
+            default_fold="Fold 1",
+            rng=random.Random(42),
+        )
+
+        self.assertTrue(random_fold_enabled)
+        self.assertEqual(selected_fold, "Fold 1")
+        self.assertEqual(source_fold, "Fold 2")
+        self.assertEqual(target_fold, "Fold 4")
+
     def test_apply_method_runtime_defaults_sets_runtime_without_overriding_experiment(self) -> None:
         experiment_payload = {
             "runtime": {

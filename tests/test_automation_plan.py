@@ -48,6 +48,23 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertEqual(plan["scene_settings"][6]["source_domains"], ["mode2", "mode5", "mode6"])
         self.assertEqual(plan["scene_settings"][7]["source_domains"], ["mode3", "mode5", "mode6"])
 
+    def test_benchmark_88_random_fold_plan_reuses_one_fold_pair_per_scene(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/benchmark_88_11scenes_8methods_randomfold.yaml")
+        plan = build_run_plan(payload)
+
+        self.assertEqual(len(plan["methods"]), 8)
+        self.assertEqual(len(plan["scene_settings"]), 11)
+        self.assertEqual(len(plan["runs"]), 88)
+
+        fold_pairs_by_scene: dict[str, set[tuple[str, str]]] = {}
+        for run in plan["runs"]:
+            fold_pairs_by_scene.setdefault(str(run["label"]), set()).add(
+                (str(run["source_fold"]), str(run["target_fold"]))
+            )
+
+        self.assertEqual(set(fold_pairs_by_scene.keys()), {str(item["label"]) for item in plan["scene_settings"]})
+        self.assertTrue(all(len(fold_pairs) == 1 for fold_pairs in fold_pairs_by_scene.values()))
+
 
 if __name__ == "__main__":
     unittest.main()

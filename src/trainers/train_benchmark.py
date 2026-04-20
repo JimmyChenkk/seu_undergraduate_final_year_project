@@ -437,6 +437,13 @@ def _resolve_random_fold_enabled(protocol_payload: dict[str, Any]) -> bool:
     return bool(protocol_payload.get("random_fold_enabled", False))
 
 
+def _has_explicit_fold_override(protocol_payload: dict[str, Any], fold_key: str) -> bool:
+    if fold_key not in protocol_payload:
+        return False
+    value = protocol_payload.get(fold_key)
+    return value is not None and bool(str(value).strip())
+
+
 def _canonicalize_fold_name(fold_name: Any) -> str:
     text = str(fold_name).strip()
     if not text:
@@ -452,6 +459,41 @@ def _sample_fold_name(available_folds: list[str], rng: random.Random) -> str:
     if not available_folds:
         raise ValueError("No fold choices available for random fold sampling.")
     return _canonicalize_fold_name(rng.choice(available_folds))
+
+
+def _resolve_run_fold_names(
+    *,
+    protocol_payload: dict[str, Any],
+    default_fold: str,
+    rng: random.Random,
+) -> tuple[str, str, str, bool]:
+    selected_fold = _canonicalize_fold_name(
+        _normalize_fold_value(
+            protocol_payload.get("preferred_fold", default_fold),
+            default_fold,
+        )
+    )
+    source_fold_default = _canonicalize_fold_name(
+        _normalize_fold_value(protocol_payload.get("source_fold", selected_fold), selected_fold)
+    )
+    target_fold_default = _canonicalize_fold_name(
+        _normalize_fold_value(protocol_payload.get("target_fold", selected_fold), selected_fold)
+    )
+    random_fold_enabled = _resolve_random_fold_enabled(protocol_payload)
+    source_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
+    target_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
+
+    if random_fold_enabled and not _has_explicit_fold_override(protocol_payload, "source_fold"):
+        source_fold = _sample_fold_name(source_fold_choices, rng)
+    else:
+        source_fold = source_fold_default
+
+    if random_fold_enabled and not _has_explicit_fold_override(protocol_payload, "target_fold"):
+        target_fold = _sample_fold_name(target_fold_choices, rng)
+    else:
+        target_fold = target_fold_default
+
+    return selected_fold, source_fold, target_fold, random_fold_enabled
 
 
 def build_run_paths(
@@ -1329,16 +1371,14 @@ def main() -> None:
     data_config = TEDADatasetConfig.from_dict(data_payload)
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
-    selected_fold = _normalize_fold_value(protocol_payload.get("preferred_fold", data_config.preferred_fold), data_config.preferred_fold)
-    source_fold_default = _normalize_fold_value(protocol_payload.get("source_fold", selected_fold), selected_fold)
-    target_fold_default = _normalize_fold_value(protocol_payload.get("target_fold", selected_fold), selected_fold)
     random_fold_enabled = _resolve_random_fold_enabled(protocol_payload)
     rng_seed = int(experiment_payload.get("seed", 42))
     rng = random.SystemRandom() if random_fold_enabled else random.Random(rng_seed)
-    source_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
-    target_fold_choices = [_canonicalize_fold_name(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
-    source_fold = _sample_fold_name(source_fold_choices, rng) if random_fold_enabled else source_fold_default
-    target_fold = _sample_fold_name(target_fold_choices, rng) if random_fold_enabled else target_fold_default
+    selected_fold, source_fold, target_fold, random_fold_enabled = _resolve_run_fold_names(
+        protocol_payload=protocol_payload,
+        default_fold=data_config.preferred_fold,
+        rng=rng,
+    )
 
     data_config.random_fold_enabled = random_fold_enabled
     set_seed(rng_seed)
