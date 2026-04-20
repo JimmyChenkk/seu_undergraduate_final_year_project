@@ -230,8 +230,13 @@ def prepare_benchmark_data(
     """Prepare loaders for single-source or multi-source benchmark experiments."""
 
     interface = TEDADatasetInterface(config)
-    source_fold_name = getattr(config, "source_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
-    target_fold_name = getattr(config, "target_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
+    random_fold_enabled = bool(getattr(config, "random_fold_enabled", False))
+    if random_fold_enabled:
+        source_fold_name = getattr(config, "source_fold", None) or fold_name or DEFAULT_FOLD_NAME
+        target_fold_name = getattr(config, "target_fold", None) or fold_name or DEFAULT_FOLD_NAME
+    else:
+        source_fold_name = getattr(config, "source_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
+        target_fold_name = getattr(config, "target_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
     cache_key = _cache_key(
         config=config,
         setting=setting,

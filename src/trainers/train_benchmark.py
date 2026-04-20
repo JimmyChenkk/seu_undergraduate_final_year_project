@@ -415,6 +415,34 @@ def build_scenario_id(source_domains: list[str], target_domain: str) -> str:
     return f"{source_part}_to_{target_domain}"
 
 
+def build_run_scene_label(source_domains: list[str], target_domain: str) -> str:
+    """Create a human-readable scene label such as ``1_to_4`` or ``1_4_to_5``."""
+
+    def _short(domain_name: str) -> str:
+        text = str(domain_name).strip().lower()
+        if text.startswith("mode"):
+            return text.replace("mode", "")
+        return text
+
+    source_part = "_".join(_short(domain) for domain in source_domains)
+    return f"{source_part}_to_{_short(target_domain)}"
+
+
+def _normalize_fold_value(fold_value: Any, default: str) -> str:
+    text = str(fold_value).strip()
+    return text if text else default
+
+
+def _resolve_random_fold_enabled(protocol_payload: dict[str, Any]) -> bool:
+    return bool(protocol_payload.get("random_fold_enabled", False))
+
+
+def _sample_fold_name(available_folds: list[str], rng: random.Random) -> str:
+    if not available_folds:
+        raise ValueError("No fold choices available for random fold sampling.")
+    return str(rng.choice(available_folds))
+
+
 def build_run_paths(
     *,
     experiment_config: dict[str, Any],
@@ -1290,11 +1318,19 @@ def main() -> None:
     data_config = TEDADatasetConfig.from_dict(data_payload)
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
-    selected_fold = str(protocol_payload.get("preferred_fold", data_config.preferred_fold))
-    source_fold = str(protocol_payload.get("source_fold", selected_fold))
-    target_fold = str(protocol_payload.get("target_fold", selected_fold))
+    selected_fold = _normalize_fold_value(protocol_payload.get("preferred_fold", data_config.preferred_fold), data_config.preferred_fold)
+    source_fold_default = _normalize_fold_value(protocol_payload.get("source_fold", selected_fold), selected_fold)
+    target_fold_default = _normalize_fold_value(protocol_payload.get("target_fold", selected_fold), selected_fold)
+    random_fold_enabled = _resolve_random_fold_enabled(protocol_payload)
+    rng_seed = int(experiment_payload.get("seed", 42))
+    rng = random.Random(rng_seed)
+    source_fold_choices = [str(item) for item in protocol_payload.get("source_folds", [1, 2, 3, 4, 5])]
+    target_fold_choices = [str(item) for item in protocol_payload.get("target_folds", [1, 2, 3, 4, 5])]
+    source_fold = _sample_fold_name(source_fold_choices, rng) if random_fold_enabled else source_fold_default
+    target_fold = _sample_fold_name(target_fold_choices, rng) if random_fold_enabled else target_fold_default
 
-    set_seed(int(experiment_payload.get("seed", 42)))
+    data_config.random_fold_enabled = random_fold_enabled
+    set_seed(rng_seed)
     setting = build_setting(data_config, data_payload, experiment_payload)
     batch_size = int(method_payload.get("optimization", {}).get("batch_size", 32))
     runtime_payload = experiment_payload.get("runtime", {})
@@ -1305,10 +1341,11 @@ def main() -> None:
     source_domain_ids = [reference.domain.name for reference in setting.source_domains]
     target_domain_id = setting.target_domain.domain.name
     scenario_id = build_scenario_id(source_domain_ids, target_domain_id)
+    run_scene_label = build_run_scene_label(source_domain_ids, target_domain_id)
     run_paths = build_run_paths(
         experiment_config=experiment_payload,
         method_name=method_name,
-        scenario_id=scenario_id,
+        scenario_id=run_scene_label,
         backbone_name=backbone_name,
         fold_name=selected_fold,
         source_fold_name=source_fold,
@@ -1324,7 +1361,7 @@ def main() -> None:
         num_workers=num_workers,
         pin_memory=pin_memory,
         persistent_workers=persistent_workers,
-        fold_name=selected_fold,
+        fold_name=selected_fold if not random_fold_enabled else None,
     )
 
     method_result = run_deep_experiment(
@@ -1342,6 +1379,7 @@ def main() -> None:
         "source_domains": [split.domain_id for split in prepared_data.source_splits],
         "target_domain": prepared_data.target_split.domain_id,
         "scenario_id": scenario_id,
+        "scene_label": run_scene_label,
         "backbone_name": backbone_name,
         "fold_name": selected_fold,
         "timestamp": run_paths["timestamp"],
