@@ -312,6 +312,8 @@ def render_inspection_markdown(inspection: dict[str, Any]) -> str:
 
         lines.append(f"- Top-level keys: `{item.get('top_level_keys', [])}`")
         lines.append(f"- Required keys present: `{item.get('required_keys_present', {})}`")
+        if not all(bool(value) for value in item.get("required_keys_present", {}).values()):
+            all_ready = False
         lines.append("")
         lines.append("| Key | Type | Shape | Length | Dtype | Extra |")
         lines.append("| --- | --- | --- | --- | --- | --- |")

@@ -779,7 +779,7 @@ def _evaluate_target_metrics(
 ) -> dict[str, Any]:
     """Compute target-side accuracy metrics independently of analysis export."""
 
-    from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix
+    from sklearn.metrics import accuracy_score, confusion_matrix, recall_score
 
     target_chunk = _collect_loader_outputs(
         model,
@@ -799,7 +799,10 @@ def _evaluate_target_metrics(
         }
 
     target_accuracy = float(accuracy_score(labels, predictions))
-    target_balanced_accuracy = float(balanced_accuracy_score(labels, predictions))
+    present_labels = sorted(set(int(label) for label in labels.tolist()))
+    target_balanced_accuracy = float(
+        recall_score(labels, predictions, labels=present_labels, average="macro", zero_division=0)
+    )
     target_confusion = confusion_matrix(labels, predictions, labels=list(range(29)))
     return {
         "target_eval_acc": target_accuracy,
@@ -822,7 +825,7 @@ def export_analysis_artifacts(
     """Persist embeddings and prediction traces for later figures."""
 
     np = _import_numpy()
-    from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix
+    from sklearn.metrics import accuracy_score, confusion_matrix, recall_score
 
     ensure_parent(analysis_path)
     source_chunks = []
@@ -867,8 +870,15 @@ def export_analysis_artifacts(
     )
 
     target_accuracy = float(accuracy_score(target_chunk["labels"], target_chunk["predictions"]))
+    present_labels = sorted(set(int(label) for label in target_chunk["labels"].tolist()))
     target_balanced_accuracy = float(
-        balanced_accuracy_score(target_chunk["labels"], target_chunk["predictions"])
+        recall_score(
+            target_chunk["labels"],
+            target_chunk["predictions"],
+            labels=present_labels,
+            average="macro",
+            zero_division=0,
+        )
     )
     target_confusion = confusion_matrix(
         target_chunk["labels"],
@@ -1056,7 +1066,7 @@ def run_deep_experiment(
             or should_force_final_eval
         )
 
-        source_train_acc = float(summary.get("acc_source_train", 0.0))
+        source_train_acc = float(summary.get("acc_source_train", summary.get("acc_source", 0.0)))
         source_eval_acc = last_valid_source_eval_acc
         target_eval_acc = last_valid_target_eval_acc
         target_proxy_metrics = deepcopy(last_valid_target_proxy_metrics)
@@ -1215,6 +1225,16 @@ def run_deep_experiment(
         selected_source_eval_acc = _latest_history_metric(history, "acc_source_eval")
         selected_target_eval_acc = _latest_history_metric(history, "target_eval_acc")
 
+    selected_target_metrics = _evaluate_target_metrics(
+        model,
+        prepared_data.target_eval_loader,
+        device,
+        domain_name=prepared_data.target_split.domain_id,
+        max_batches=evaluation_max_batches,
+        non_blocking=transfer_non_blocking,
+    )
+    selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
+
     result = {
         "method_name": str(method_config["method_name"]),
         "history": history,
@@ -1232,6 +1252,8 @@ def run_deep_experiment(
         "selected_source_train_acc": float(selected_source_train_acc),
         "selected_source_eval_acc": None if selected_source_eval_acc is None else float(selected_source_eval_acc),
         "selected_target_eval_acc": None if selected_target_eval_acc is None else float(selected_target_eval_acc),
+        "target_eval_balanced_acc": float(selected_target_metrics["target_eval_balanced_acc"]),
+        "target_confusion_matrix": selected_target_metrics["target_confusion_matrix"],
         "selected_target_train_mean_confidence": (
             None
             if selected_summary is None or selected_summary.get("target_train_mean_confidence") is None
@@ -1290,6 +1312,10 @@ def run_deep_experiment(
             non_blocking=transfer_non_blocking,
         )
         result.update(analysis_summary)
+        result["target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
+        result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
+        result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
+        result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
 
     result["cache_key"] = getattr(prepared_data, "cache_key", None)
     result["cache_hit"] = bool(getattr(prepared_data, "cache_hit", False))
@@ -1319,9 +1345,13 @@ def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any
     from src.evaluation.report_figures import export_run_review_figures
 
     export_run_review_figures(analysis_path, run_paths["figures_dir"])
-    figure_paths["tsne_domain"] = str(run_paths["figures_dir"] / "tsne_domain.png")
-    figure_paths["tsne_class"] = str(run_paths["figures_dir"] / "tsne_class.png")
-    figure_paths["confusion_matrix"] = str(run_paths["figures_dir"] / "confusion_matrix.png")
+    for key, filename in {
+        "tsne_domain": "tsne_domain.png",
+        "tsne_class": "tsne_class.png",
+        "confusion_matrix": "confusion_matrix.png",
+    }.items():
+        figure_path = run_paths["figures_dir"] / filename
+        figure_paths[key] = str(figure_path) if figure_path.exists() else None
     return figure_paths
 
 

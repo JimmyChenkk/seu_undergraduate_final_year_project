@@ -215,7 +215,12 @@ def deepjdot_loss(
     features_target = torch.nan_to_num(features_target, nan=0.0, posinf=1e6, neginf=-1e6)
     logits_target = torch.nan_to_num(logits_target, nan=0.0, posinf=1e6, neginf=-1e6)
     num_classes = max(int(logits_target.shape[1]), 1)
-    source_labels = source_labels.long().clamp(min=0, max=num_classes - 1)
+    source_labels = source_labels.long()
+    if source_labels.min() < 0 or source_labels.max() >= num_classes:
+        raise ValueError(
+            f"DeepJDOT source labels must be in [0, {num_classes - 1}], "
+            f"got min={int(source_labels.min())}, max={int(source_labels.max())}."
+        )
 
     feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
     if normalize_feature_cost:
@@ -250,6 +255,15 @@ def deepjdot_loss(
             1.0 / target_size,
             device=features_target.device,
             dtype=features_target.dtype,
+        )
+    if sample_weights.numel() < source_size:
+        raise ValueError(
+            f"DeepJDOT source sample_weights length {sample_weights.numel()} is smaller than source batch {source_size}."
+        )
+    if target_sample_weights.numel() < target_size:
+        raise ValueError(
+            "DeepJDOT target_sample_weights length "
+            f"{target_sample_weights.numel()} is smaller than target batch {target_size}."
         )
     sample_weights = sample_weights[:source_size].to(device=features_source.device, dtype=features_source.dtype)
     target_sample_weights = target_sample_weights[:target_size].to(

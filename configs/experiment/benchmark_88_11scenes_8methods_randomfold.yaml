@@ -57,10 +57,6 @@ automation:
     - mode4->mode1
     - mode5->mode1
     - mode5->mode4
-  multisource_targets:
-    - mode5
-    - mode4
-    - mode1
   multisource_scenes:
     - mode1+mode4->mode5
     - mode1+mode5->mode4
@@ -77,7 +73,6 @@ method_overrides:
     optimization:
       epochs: 84
     loss:
-      adapt_mean: true
       align_mean: true
       normalize_covariance: true
       adaptation_weight: 0.45
@@ -239,7 +234,7 @@ protocol_override:
   fold_sampling:
     strategy: random
     random_per_scene: true
-    random_per_run: true
+    random_per_run: false
     source_fold_choices: [1, 2, 3, 4, 5]
     target_fold_choices: [1, 2, 3, 4, 5]
     note: "Random fold mode can sample any fold in {1,2,3,4,5} for source and target."
@@ -248,5 +243,5 @@ notes:
   - 8 methods x 11 scenes = 88 runs.
   - 8 single-source scenes: 3->6, 6->3, 1->4, 1->5, 4->5, 4->1, 5->1, 5->4.
   - 3 multi-source-to-single scenes: 1&4->5, 1&5->4, 4&5->1.
-  - Fold policy: do not pin Fold 1; randomly sample source and target folds from {1,2,3,4,5} for each scene/run.
+  - Fold policy: do not pin Fold 1; randomly sample one source/target fold pair from {1,2,3,4,5} per scene and reuse it across methods.
   - The runtime and method overrides lean conservative/stable to reduce the chance of very poor method-specific behavior in the larger benchmark.

@@ -14,15 +14,21 @@ cd "${ROOT_DIR}"
 resolve_python_runner "export_figures.sh"
 
 ARGS=()
-if [[ $# -ge 2 && "$1" == "--output-dir" ]]; then
-  ARGS+=("--output-dir" "$2")
-  shift 2
-fi
-
 POSITIONAL=("$@")
 INDEX=0
 while [[ ${INDEX} -lt ${#POSITIONAL[@]} ]]; do
   ITEM="${POSITIONAL[${INDEX}]}"
+  if [[ "${ITEM}" == "--output-dir" ]]; then
+    VALUE_INDEX=$((INDEX + 1))
+    if [[ ${VALUE_INDEX} -ge ${#POSITIONAL[@]} ]]; then
+      echo "export_figures.sh: --output-dir requires one output directory" >&2
+      exit 1
+    fi
+    ARGS+=("--output-dir" "${POSITIONAL[${VALUE_INDEX}]}")
+    INDEX=$((INDEX + 2))
+    continue
+  fi
+
   if [[ "${ITEM}" == "--compare" ]]; then
     LEFT_INDEX=$((INDEX + 1))
     RIGHT_INDEX=$((INDEX + 2))

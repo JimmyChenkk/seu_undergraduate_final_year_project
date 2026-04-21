@@ -297,6 +297,8 @@ class RCTATests(unittest.TestCase):
             self.assertIn("teacher_ema_decay", summary)
             self.assertIn("source_prototype_active_classes", summary)
             self.assertIn("target_prototype_active_classes", summary)
+            self.assertIn("target_eval_balanced_acc", result)
+            self.assertIn("target_confusion_matrix", result)
 
             metrics_path = temp_root / "tables" / "result.json"
             save_json(

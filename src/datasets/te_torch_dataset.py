@@ -71,13 +71,14 @@ def _make_loader(
     persistent_workers: bool,
 ) -> DataLoader:
     dataset = TensorDataset(x, y)
+    drop_last = bool(shuffle and len(dataset) >= batch_size)
     loader_kwargs = {
         "batch_size": batch_size,
         "shuffle": shuffle,
         "num_workers": num_workers,
         "pin_memory": pin_memory,
         "persistent_workers": persistent_workers and num_workers > 0,
-        "drop_last": shuffle,
+        "drop_last": drop_last,
     }
     if num_workers > 0:
         loader_kwargs["prefetch_factor"] = 4

@@ -11,7 +11,10 @@ from typing import Any
 def _coerce_float(value: Any) -> float | None:
     if value is None:
         return None
-    number = float(value)
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
     if not math.isfinite(number):
         return None
     return number

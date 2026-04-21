@@ -46,11 +46,11 @@ automation:
     # - dan
     - coral
     - source_only
-  # multisource_scenes:
-  #   - mode2-mode3-mode5->mode6
-  #   - mode2-mode3-mode6->mode5
-  #   - mode2-mode5-mode6->mode3
-  #   - mode3-mode5-mode6->mode2
+  multisource_scenes:
+    - mode2-mode3-mode5->mode6
+    - mode2-mode3-mode6->mode5
+    - mode2-mode5-mode6->mode3
+    - mode3-mode5-mode6->mode2
   single_source_scenes:
     - mode2->mode5
     - mode5->mode2
@@ -65,7 +65,6 @@ method_overrides:
     optimization:
       epochs: 84
     loss:
-      adapt_mean: true
       align_mean: true
       normalize_covariance: true
       adaptation_weight: 0.45
