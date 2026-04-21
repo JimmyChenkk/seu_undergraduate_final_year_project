@@ -608,7 +608,7 @@ def _evaluate_unlabeled_target_proxy(
             x_batch = x_batch.to(device, non_blocking=non_blocking)
             with torch.autocast(device_type=device.type, enabled=amp_enabled):
                 logits = model.predict_logits(x_batch)
-            probabilities = torch.softmax(logits, dim=1)
+            probabilities = torch.softmax(logits.float(), dim=1)
             confidence = probabilities.max(dim=1).values
             entropy = -(
                 probabilities * torch.log(probabilities.clamp_min(1e-8))

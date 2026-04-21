@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from src.evaluation.report_figures import _domain_visual_styles
+from src.evaluation.report_figures import _domain_visual_styles, _sort_methods_for_mean_chart
 
 
 class ReportFiguresTests(unittest.TestCase):
@@ -28,6 +28,12 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(styles["source:mode2"]["color"], "#E69F00")
         self.assertEqual(styles["target:mode4"]["color"], "#0072B2")
         self.assertEqual(styles["target:mode5"]["color"], "#009E73")
+
+    def test_mean_accuracy_method_order_places_source_only_first(self) -> None:
+        methods = _sort_methods_for_mean_chart(["target_only", "dan", "source_only", "deepjdot"])
+
+        self.assertEqual(methods[0], "source_only")
+        self.assertEqual(methods[1:], ["dan", "deepjdot", "target_only"])
 
 
 if __name__ == "__main__":

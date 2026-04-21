@@ -88,6 +88,12 @@ def _titleize_setting_name(setting_name: str) -> str:
     return setting_name.replace("_", "-").title()
 
 
+def _sort_methods_for_mean_chart(methods) -> list[str]:
+    """Keep the no-adaptation baseline visually anchored on the left."""
+
+    return sorted((str(method) for method in methods), key=lambda name: (name != "source_only", name))
+
+
 def export_mean_bar_chart(
     rows: list[dict],
     output_path: Path,
@@ -103,7 +109,7 @@ def export_mean_bar_chart(
     for row in subset:
         grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
 
-    methods = sorted(grouped)
+    methods = _sort_methods_for_mean_chart(grouped)
     values = [np.mean(grouped[method]) for method in methods]
 
     plt.figure(figsize=(10, 5))
