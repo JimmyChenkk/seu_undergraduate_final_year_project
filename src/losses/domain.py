@@ -182,17 +182,18 @@ def deepjdot_loss(
     reg_cl: float = 1.0,
     sample_weights: torch.Tensor | None = None,
     target_sample_weights: torch.Tensor | None = None,
-    normalize_feature_cost: bool = True,
-    solver: str = "sinkhorn",
+    normalize_feature_cost: bool = False,
+    solver: str = "emd",
     sinkhorn_reg: float = 0.05,
     sinkhorn_num_iter_max: int = 100,
 ) -> torch.Tensor:
-    """Compute the DeepJDOT minibatch OT loss.
+    """Compute the minibatch DeepJDOT loss with a fixed OT coupling.
 
-    The reference DeepJDOT objective combines a feature-space transport cost and
-    a class-conditional cost, then solves the minibatch OT problem. We default to
-    an entropic Sinkhorn solver for stability, while still allowing exact EMD for
-    strict comparisons with legacy code.
+    This follows the reference DeepJDOT training recipe: compute the OT plan
+    from the current minibatch using squared feature distance plus squared
+    distance between source one-hot labels and target class probabilities, then
+    optimize the network with that plan fixed. The optimized loss uses the same
+    feature distance together with gamma-weighted target cross entropy.
     """
 
     try:
@@ -200,19 +201,21 @@ def deepjdot_loss(
     except ImportError as exc:  # pragma: no cover - dependency error is environment-specific
         raise ImportError("DeepJDOT requires the POT package (import ot).") from exc
 
-    batch_size = min(features_source.shape[0], features_target.shape[0], source_labels.shape[0], logits_target.shape[0])
-    if batch_size == 0:
+    source_size = min(features_source.shape[0], source_labels.shape[0])
+    target_size = min(features_target.shape[0], logits_target.shape[0])
+    if source_size == 0 or target_size == 0:
         return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
 
-    source_labels = source_labels[:batch_size]
-    logits_target = logits_target[:batch_size]
-    features_source = features_source[:batch_size]
-    features_target = features_target[:batch_size]
+    source_labels = source_labels[:source_size]
+    features_source = features_source[:source_size]
+    logits_target = logits_target[:target_size]
+    features_target = features_target[:target_size]
 
     features_source = torch.nan_to_num(features_source, nan=0.0, posinf=1e6, neginf=-1e6)
     features_target = torch.nan_to_num(features_target, nan=0.0, posinf=1e6, neginf=-1e6)
     logits_target = torch.nan_to_num(logits_target, nan=0.0, posinf=1e6, neginf=-1e6)
-    source_labels = source_labels.long().clamp(min=0, max=max(int(logits_target.shape[1]) - 1, 0))
+    num_classes = max(int(logits_target.shape[1]), 1)
+    source_labels = source_labels.long().clamp(min=0, max=num_classes - 1)
 
     feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
     if normalize_feature_cost:
@@ -220,47 +223,73 @@ def deepjdot_loss(
     feature_cost = torch.nan_to_num(feature_cost, nan=1e6, posinf=1e6, neginf=1e6)
 
     target_log_probs = F.log_softmax(logits_target.float(), dim=1).to(dtype=logits_target.dtype)
-    class_cost = -target_log_probs[:, source_labels].transpose(0, 1)
-    class_cost = torch.nan_to_num(class_cost, nan=1e6, posinf=1e6, neginf=1e6)
-    total_cost = reg_dist * feature_cost + reg_cl * class_cost
-    total_cost = torch.nan_to_num(total_cost, nan=1e6, posinf=1e6, neginf=1e6)
+    target_probabilities = target_log_probs.exp()
+    source_one_hot = F.one_hot(source_labels, num_classes=num_classes).to(dtype=target_probabilities.dtype)
+    class_cost_for_plan = torch.cdist(source_one_hot, target_probabilities, p=2).pow(2)
+    class_cost_for_plan = torch.nan_to_num(class_cost_for_plan, nan=1e6, posinf=1e6, neginf=1e6)
+    class_cost_for_loss = -target_log_probs[:, source_labels].transpose(0, 1)
+    class_cost_for_loss = torch.nan_to_num(class_cost_for_loss, nan=1e6, posinf=1e6, neginf=1e6)
+    transport_cost = reg_dist * feature_cost + reg_cl * class_cost_for_plan
+    loss_cost = reg_dist * feature_cost + reg_cl * class_cost_for_loss
 
-    if not torch.isfinite(total_cost).all():
-        return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
+    if not torch.isfinite(transport_cost).all() or not torch.isfinite(loss_cost).all():
+        raise RuntimeError("DeepJDOT encountered a non-finite transport cost.")
 
-    if features_source.device.type == "cuda":
-        total_cost = total_cost.float()
+    cost_for_solver = transport_cost.detach().double().cpu()
 
     if sample_weights is None:
         sample_weights = torch.full(
-            (batch_size,),
-            1.0 / batch_size,
+            (source_size,),
+            1.0 / source_size,
             device=features_source.device,
             dtype=features_source.dtype,
         )
     if target_sample_weights is None:
         target_sample_weights = torch.full(
-            (batch_size,),
-            1.0 / batch_size,
+            (target_size,),
+            1.0 / target_size,
             device=features_target.device,
             dtype=features_target.dtype,
         )
+    sample_weights = sample_weights[:source_size].to(device=features_source.device, dtype=features_source.dtype)
+    target_sample_weights = target_sample_weights[:target_size].to(
+        device=features_target.device,
+        dtype=features_target.dtype,
+    )
+    if not torch.isfinite(sample_weights).all() or not torch.isfinite(target_sample_weights).all():
+        raise RuntimeError("DeepJDOT received non-finite sample weights.")
+    sample_weights_sum = sample_weights.sum()
+    target_sample_weights_sum = target_sample_weights.sum()
+    if sample_weights_sum <= 0 or target_sample_weights_sum <= 0:
+        raise RuntimeError("DeepJDOT sample weights must have positive mass.")
+    sample_weights = sample_weights / sample_weights_sum
+    target_sample_weights = target_sample_weights / target_sample_weights_sum
 
     solver_name = solver.strip().lower()
+    sample_weights_np = sample_weights.detach().double().cpu().numpy()
+    target_sample_weights_np = target_sample_weights.detach().double().cpu().numpy()
+    cost_np = cost_for_solver.numpy()
     if solver_name in {"sinkhorn", "entropic", "regularized"}:
-        try:
-            return ot.sinkhorn2(
-                sample_weights,
-                target_sample_weights,
-                total_cost,
-                reg=max(float(sinkhorn_reg), 1e-3),
-                numItermax=max(int(sinkhorn_num_iter_max), 10),
-            )
-        except Exception:
-            return ot.emd2(sample_weights, target_sample_weights, total_cost)
+        gamma_np = ot.sinkhorn(
+            sample_weights_np,
+            target_sample_weights_np,
+            cost_np,
+            reg=max(float(sinkhorn_reg), 1e-6),
+            numItermax=max(int(sinkhorn_num_iter_max), 10),
+        )
     if solver_name in {"emd", "exact"}:
-        return ot.emd2(sample_weights, target_sample_weights, total_cost)
-    raise ValueError(f"Unsupported DeepJDOT solver: {solver}")
+        gamma_np = ot.emd(sample_weights_np, target_sample_weights_np, cost_np)
+    if solver_name not in {"sinkhorn", "entropic", "regularized", "emd", "exact"}:
+        raise ValueError(f"Unsupported DeepJDOT solver: {solver}")
+
+    gamma = torch.as_tensor(gamma_np, device=features_source.device, dtype=loss_cost.dtype)
+    if not torch.isfinite(gamma).all():
+        raise RuntimeError("DeepJDOT transport solver returned a non-finite coupling.")
+    gamma_sum = gamma.sum()
+    if gamma_sum <= 0:
+        raise RuntimeError("DeepJDOT transport solver returned an empty coupling.")
+    gamma = gamma / gamma_sum
+    return (gamma.detach() * loss_cost).sum()
 
 
 class GradientReverseFunction(Function):

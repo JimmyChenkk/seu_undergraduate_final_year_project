@@ -18,15 +18,15 @@ class DeepJDOTMethod(SingleSourceMethodBase):
     def __init__(
         self,
         *,
-        adaptation_weight: float = 0.4,
-        adaptation_schedule: str = "linear",
+        adaptation_weight: float = 1.0,
+        adaptation_schedule: str = "constant",
         adaptation_max_steps: int = 2000,
         adaptation_schedule_alpha: float = 10.0,
-        reg_dist: float = 0.2,
-        reg_cl: float = 0.5,
-        normalize_feature_cost: bool = True,
-        transport_solver: str = "sinkhorn",
-        sinkhorn_reg: float = 0.1,
+        reg_dist: float = 0.1,
+        reg_cl: float = 1.0,
+        normalize_feature_cost: bool = False,
+        transport_solver: str = "emd",
+        sinkhorn_reg: float = 0.05,
         sinkhorn_num_iter_max: int = 300,
         **kwargs,
     ) -> None:
@@ -64,13 +64,11 @@ class DeepJDOTMethod(SingleSourceMethodBase):
             sinkhorn_num_iter_max=self.sinkhorn_num_iter_max,
         )
         loss_alignment = torch.as_tensor(loss_alignment, device=loss_cls.device, dtype=loss_cls.dtype)
-        if not torch.isfinite(loss_alignment).item():
-            loss_alignment = torch.zeros_like(loss_alignment)
 
         current_weight = self.alignment_scheduler.step()
         loss_total = loss_cls + current_weight * loss_alignment
         if not torch.isfinite(loss_total).item():
-            loss_total = loss_cls
+            raise RuntimeError("DeepJDOT produced a non-finite total loss.")
 
         return MethodStepOutput(
             loss=loss_total,

@@ -13,16 +13,16 @@ optimization:
 
 loss:
   name: deepjdot
-  adaptation_weight: 0.4
-  adaptation_schedule: linear
+  adaptation_weight: 1.0
+  adaptation_schedule: constant
   adaptation_max_steps: 2000
   adaptation_schedule_alpha: 10.0
-  reg_dist: 0.2
-  reg_cl: 0.5
-  normalize_feature_cost: true
-  transport_solver: sinkhorn
-  sinkhorn_reg: 0.1
-  sinkhorn_num_iter_max: 300
+  reg_dist: 0.1
+  reg_cl: 1.0
+  normalize_feature_cost: false
+  transport_solver: emd
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 100
 
 notes:
-  - DeepJDOT baseline with normalized feature transport cost, warm-start alignment weight, and Sinkhorn OT for stability.
+  - DeepJDOT baseline following the reference fixed-coupling EMD objective with alpha=0.1, beta=1.0, and lambda_ot=1.0.

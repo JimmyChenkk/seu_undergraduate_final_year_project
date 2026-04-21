@@ -85,13 +85,13 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
     if method_name == "deepjdot":
         return DeepJDOTMethod(
             adaptation_weight=float(loss.get("adaptation_weight", 1.0)),
-            adaptation_schedule=str(loss.get("adaptation_schedule", "warm_start")),
+            adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
             adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
             adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
             reg_dist=float(loss.get("reg_dist", 0.1)),
             reg_cl=float(loss.get("reg_cl", 1.0)),
-            normalize_feature_cost=bool(loss.get("normalize_feature_cost", True)),
-            transport_solver=str(loss.get("transport_solver", "sinkhorn")),
+            normalize_feature_cost=bool(loss.get("normalize_feature_cost", False)),
+            transport_solver=str(loss.get("transport_solver", "emd")),
             sinkhorn_reg=float(loss.get("sinkhorn_reg", 0.05)),
             sinkhorn_num_iter_max=int(loss.get("sinkhorn_num_iter_max", 100)),
             **shared_kwargs,
@@ -200,7 +200,10 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                 "adaptation_schedule_alpha": float(deepjdot_loss.get("adaptation_schedule_alpha", 10.0)),
                 "reg_dist": float(deepjdot_loss.get("reg_dist", 0.1)),
                 "reg_cl": float(deepjdot_loss.get("reg_cl", 1.0)),
-                "normalize_feature_cost": bool(deepjdot_loss.get("normalize_feature_cost", True)),
+                "normalize_feature_cost": bool(deepjdot_loss.get("normalize_feature_cost", False)),
+                "transport_solver": str(deepjdot_loss.get("transport_solver", "emd")),
+                "sinkhorn_reg": float(deepjdot_loss.get("sinkhorn_reg", 0.05)),
+                "sinkhorn_num_iter_max": int(deepjdot_loss.get("sinkhorn_num_iter_max", 100)),
             },
             **shared_kwargs,
         )

@@ -93,13 +93,16 @@ def _method_config(*, base_align: str = "cdan", gate_score_floor: float = 0.0) -
                 "domain_num_hidden_layers": 1,
             },
             "deepjdot": {
-                "adaptation_weight": 0.5,
+                "adaptation_weight": 1.0,
                 "adaptation_schedule": "constant",
                 "adaptation_max_steps": 8,
                 "adaptation_schedule_alpha": 10.0,
                 "reg_dist": 0.1,
                 "reg_cl": 1.0,
-                "normalize_feature_cost": True,
+                "normalize_feature_cost": False,
+                "transport_solver": "emd",
+                "sinkhorn_reg": 0.05,
+                "sinkhorn_num_iter_max": 100,
             },
         },
     }

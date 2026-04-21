@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import unittest
 
 import torch
@@ -10,6 +11,7 @@ from src.losses.domain import (
     ConditionalDomainAdversarialLoss,
     MinimumClassConfusionLoss,
     MultipleKernelMaximumMeanDiscrepancy,
+    deepjdot_loss,
     entropy,
 )
 
@@ -122,6 +124,78 @@ class DomainLossTests(unittest.TestCase):
         self.assertTrue(torch.isclose(loss_value, expected_loss))
         self.assertAlmostEqual(acc_value, expected_acc)
         self.assertFalse(torch.isclose(expected_loss, old_split_loss))
+
+    @unittest.skipUnless(importlib.util.find_spec("ot") is not None, "POT is required for DeepJDOT")
+    def test_deepjdot_matches_reference_fixed_coupling_objective(self) -> None:
+        import ot
+
+        source_labels = torch.tensor([0, 2, 1], dtype=torch.long)
+        features_source = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]],
+            dtype=torch.float32,
+        )
+        features_target = torch.tensor(
+            [[0.2, 0.1], [0.9, 0.2], [0.1, 0.8]],
+            dtype=torch.float32,
+        )
+        target_probabilities = torch.tensor(
+            [[0.80, 0.10, 0.10], [0.20, 0.25, 0.55], [0.10, 0.75, 0.15]],
+            dtype=torch.float32,
+        )
+        logits_target = target_probabilities.log()
+        reg_dist = 0.1
+        reg_cl = 1.0
+
+        loss_value = deepjdot_loss(
+            source_labels,
+            logits_target,
+            features_source,
+            features_target,
+            reg_dist=reg_dist,
+            reg_cl=reg_cl,
+            normalize_feature_cost=False,
+            solver="emd",
+        )
+
+        feature_cost = torch.cdist(features_source, features_target, p=2).pow(2)
+        source_one_hot = F.one_hot(source_labels, num_classes=3).float()
+        plan_class_cost = torch.cdist(source_one_hot, target_probabilities, p=2).pow(2)
+        transport_cost = reg_dist * feature_cost + reg_cl * plan_class_cost
+        gamma = torch.as_tensor(
+            ot.emd(
+                torch.full((3,), 1.0 / 3.0, dtype=torch.float64).numpy(),
+                torch.full((3,), 1.0 / 3.0, dtype=torch.float64).numpy(),
+                transport_cost.double().numpy(),
+            ),
+            dtype=torch.float32,
+        )
+        target_log_probs = target_probabilities.log()
+        class_loss_cost = -target_log_probs[:, source_labels].transpose(0, 1)
+        expected = (gamma * (reg_dist * feature_cost + reg_cl * class_loss_cost)).sum()
+
+        self.assertTrue(torch.isclose(loss_value, expected, atol=1e-6))
+
+    @unittest.skipUnless(importlib.util.find_spec("ot") is not None, "POT is required for DeepJDOT")
+    def test_deepjdot_supports_rectangular_batches_and_backpropagates(self) -> None:
+        torch.manual_seed(7)
+        source_labels = torch.tensor([0, 1, 2], dtype=torch.long)
+        features_source = torch.randn(3, 4, requires_grad=True)
+        features_target = torch.randn(2, 4, requires_grad=True)
+        logits_target = torch.randn(2, 3, requires_grad=True)
+
+        loss_value = deepjdot_loss(
+            source_labels,
+            logits_target,
+            features_source,
+            features_target,
+            solver="emd",
+            normalize_feature_cost=False,
+        )
+        loss_value.backward()
+
+        self.assertGreater(float(features_source.grad.abs().sum()), 0.0)
+        self.assertGreater(float(features_target.grad.abs().sum()), 0.0)
+        self.assertGreater(float(logits_target.grad.abs().sum()), 0.0)
 
 
 if __name__ == "__main__":

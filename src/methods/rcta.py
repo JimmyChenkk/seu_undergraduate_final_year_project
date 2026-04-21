@@ -258,6 +258,9 @@ class _DeepJDOTAligner(nn.Module):
         reg_dist: float,
         reg_cl: float,
         normalize_feature_cost: bool,
+        transport_solver: str,
+        sinkhorn_reg: float,
+        sinkhorn_num_iter_max: int,
     ) -> None:
         super().__init__()
         self.scheduler = AdaptationWeightScheduler(
@@ -269,6 +272,9 @@ class _DeepJDOTAligner(nn.Module):
         self.reg_dist = float(reg_dist)
         self.reg_cl = float(reg_cl)
         self.normalize_feature_cost = bool(normalize_feature_cost)
+        self.transport_solver = str(transport_solver)
+        self.sinkhorn_reg = float(sinkhorn_reg)
+        self.sinkhorn_num_iter_max = int(sinkhorn_num_iter_max)
 
     def forward(
         self,
@@ -286,6 +292,9 @@ class _DeepJDOTAligner(nn.Module):
             reg_dist=self.reg_dist,
             reg_cl=self.reg_cl,
             normalize_feature_cost=self.normalize_feature_cost,
+            solver=self.transport_solver,
+            sinkhorn_reg=self.sinkhorn_reg,
+            sinkhorn_num_iter_max=self.sinkhorn_num_iter_max,
         )
         current_weight = self.scheduler.step()
         return loss_alignment, {

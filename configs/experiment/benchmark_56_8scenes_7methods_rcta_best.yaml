@@ -76,14 +76,14 @@ method_overrides:
     optimization:
       epochs: 84
     loss:
-      adaptation_schedule: warm_start
-      adaptation_weight: 0.45
-      reg_dist: 0.20
+      adaptation_schedule: constant
+      adaptation_weight: 1.0
+      reg_dist: 0.10
       reg_cl: 1.00
       transport_solver: emd
-      sinkhorn_reg: 0.2
-      sinkhorn_num_iter_max: 400
-      normalize_feature_cost: true
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 100
+      normalize_feature_cost: false
   dan:
     optimization:
       epochs: 84
@@ -195,16 +195,16 @@ method_overrides:
         domain_hidden_dim: 256
         domain_num_hidden_layers: 2
       deepjdot:
-        adaptation_weight: 0.45
-        adaptation_schedule: warm_start
+        adaptation_weight: 1.0
+        adaptation_schedule: constant
         adaptation_max_steps: 1200
         adaptation_schedule_alpha: 10.0
-        reg_dist: 0.20
+        reg_dist: 0.10
         reg_cl: 1.00
-        normalize_feature_cost: true
+        normalize_feature_cost: false
         transport_solver: emd
-        sinkhorn_reg: 0.2
-        sinkhorn_num_iter_max: 400
+        sinkhorn_reg: 0.05
+        sinkhorn_num_iter_max: 100
 
 notes:
   - Benchmark config for 7 methods across 8 scenarios on domains 2/3/5/6.

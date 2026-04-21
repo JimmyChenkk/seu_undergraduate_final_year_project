@@ -93,14 +93,14 @@ loss:
     domain_hidden_dim: 256
     domain_num_hidden_layers: 2
   deepjdot:
-    adaptation_weight: 0.60
-    adaptation_schedule: warm_start
+    adaptation_weight: 1.0
+    adaptation_schedule: constant
     adaptation_max_steps: 1200
     adaptation_schedule_alpha: 10.0
-    reg_dist: 0.12
+    reg_dist: 0.1
     reg_cl: 1.0
-    normalize_feature_cost: true
-    transport_solver: sinkhorn
+    normalize_feature_cost: false
+    transport_solver: emd
     sinkhorn_reg: 0.05
     sinkhorn_num_iter_max: 100
 
