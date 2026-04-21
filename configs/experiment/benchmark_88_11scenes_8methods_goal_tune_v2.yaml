@@ -14,10 +14,10 @@ runtime:
   cudnn_benchmark: true
   allow_tf32: true
   matmul_precision: high
-  num_workers: 8
-  pin_memory: true
-  persistent_workers: true
-  non_blocking_transfers: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
   show_progress: false
   evaluation_interval: 5
   selection_interval: 5

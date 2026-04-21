@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 import random
 import sys
+from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from src.evaluation.review import build_run_review, save_review
@@ -205,6 +206,7 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
             "early_stopping_params": result.get("early_stopping_params"),
             "early_stopping_best_score": result.get("early_stopping_best_score"),
         },
+        "timing": result.get("timing"),
         "figure_paths": result_payload.get("figure_paths"),
     }
 
@@ -855,6 +857,20 @@ def run_deep_experiment(
     import torch
     from src.methods import build_method
 
+    run_timer_start = perf_counter()
+    timing: dict[str, float] = {
+        "train_step_seconds": 0.0,
+        "periodic_validation_seconds": 0.0,
+        "final_selection_eval_seconds": 0.0,
+        "target_metrics_seconds": 0.0,
+        "checkpoint_seconds": 0.0,
+        "analysis_seconds": 0.0,
+    }
+    train_steps_completed = 0
+    validation_calls = 0
+    source_train_samples_seen = 0
+    target_train_samples_seen = 0
+
     optimization = method_config.get("optimization", {})
     runtime = experiment_config.get("runtime", {})
     device_name = str(experiment_config.get("device", "cpu"))
@@ -956,8 +972,11 @@ def run_deep_experiment(
         model.train()
         epoch_metrics = defaultdict(list)
         for step_index in range(steps_per_epoch):
+            step_timer_start = perf_counter()
             source_batches = [next(iterator) for iterator in source_iterators]
             target_batch = next(target_iterator)
+            source_train_samples_seen += sum(int(x_batch.shape[0]) for x_batch, _ in source_batches)
+            target_train_samples_seen += int(target_batch[0].shape[0])
 
             source_batches = [
                 (
@@ -984,6 +1003,8 @@ def run_deep_experiment(
                 epoch_metrics[key].append(value)
             for key, value in post_step_metrics.items():
                 epoch_metrics[key].append(value)
+            timing["train_step_seconds"] += perf_counter() - step_timer_start
+            train_steps_completed += 1
             if show_progress and (
                 step_index == 0
                 or step_index + 1 == steps_per_epoch
@@ -1020,6 +1041,7 @@ def run_deep_experiment(
         target_eval_acc = last_valid_target_eval_acc
         target_proxy_metrics = deepcopy(last_valid_target_proxy_metrics)
         if did_validate:
+            validation_timer_start = perf_counter()
             final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
                 model,
                 prepared_data.source_train_eval_loaders,
@@ -1056,6 +1078,8 @@ def run_deep_experiment(
             last_valid_source_eval_acc = float(source_eval_acc)
             last_valid_target_eval_acc = float(target_eval_acc)
             last_valid_target_proxy_metrics = deepcopy(target_proxy_metrics)
+            timing["periodic_validation_seconds"] += perf_counter() - validation_timer_start
+            validation_calls += 1
         summary["epoch"] = epoch_number
         summary["acc_source_train"] = float(source_train_acc)
         summary["acc_source_eval"] = None if source_eval_acc is None else float(source_eval_acc)
@@ -1137,6 +1161,7 @@ def run_deep_experiment(
     if selection_mode != "final" and selected_state_dict is not None:
         model.load_state_dict(selected_state_dict)
         if final_selection_evaluation:
+            final_selection_timer_start = perf_counter()
             selected_source_train_by_domain, selected_source_train_acc = _evaluate_domain_accuracies(
                 model,
                 prepared_data.source_train_eval_loaders,
@@ -1160,6 +1185,7 @@ def run_deep_experiment(
                 max_batches=evaluation_max_batches,
                 non_blocking=transfer_non_blocking,
             )
+            timing["final_selection_eval_seconds"] += perf_counter() - final_selection_timer_start
         else:
             selected_source_train_by_domain = final_source_train_by_domain
             selected_source_eval_by_domain = final_source_eval_by_domain
@@ -1174,6 +1200,7 @@ def run_deep_experiment(
         selected_source_eval_acc = _latest_history_metric(history, "acc_source_eval")
         selected_target_eval_acc = _latest_history_metric(history, "target_eval_acc")
 
+    target_metrics_timer_start = perf_counter()
     selected_target_metrics = _evaluate_target_metrics(
         model,
         prepared_data.target_eval_loader,
@@ -1182,6 +1209,7 @@ def run_deep_experiment(
         max_batches=evaluation_max_batches,
         non_blocking=transfer_non_blocking,
     )
+    timing["target_metrics_seconds"] += perf_counter() - target_metrics_timer_start
     selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
 
     result = {
@@ -1244,12 +1272,15 @@ def run_deep_experiment(
     }
 
     if bool(runtime.get("save_checkpoint", False)):
+        checkpoint_timer_start = perf_counter()
         checkpoint_path = run_paths["checkpoints_dir"] / "model.pt"
         ensure_parent(checkpoint_path)
         torch.save(model.state_dict(), checkpoint_path)
         result["checkpoint_path"] = str(checkpoint_path)
+        timing["checkpoint_seconds"] += perf_counter() - checkpoint_timer_start
 
     if bool(runtime.get("save_analysis", True)):
+        analysis_timer_start = perf_counter()
         analysis_summary = export_analysis_artifacts(
             model=model,
             prepared_data=prepared_data,
@@ -1265,6 +1296,7 @@ def run_deep_experiment(
         result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
         result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
         result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
+        timing["analysis_seconds"] += perf_counter() - analysis_timer_start
 
     result["cache_key"] = getattr(prepared_data, "cache_key", None)
     result["cache_hit"] = bool(getattr(prepared_data, "cache_hit", False))
@@ -1273,6 +1305,17 @@ def run_deep_experiment(
     result["cudnn_benchmark"] = bool(torch.backends.cudnn.benchmark)
     result["pin_memory"] = pin_memory_enabled
     result["non_blocking_transfers"] = bool(transfer_non_blocking)
+    timing["total_run_seconds"] = perf_counter() - run_timer_start
+    timing["train_steps_completed"] = float(train_steps_completed)
+    timing["validation_calls"] = float(validation_calls)
+    timing["source_train_samples_seen"] = float(source_train_samples_seen)
+    timing["target_train_samples_seen"] = float(target_train_samples_seen)
+    if timing["train_step_seconds"] > 0:
+        timing["train_steps_per_second"] = float(train_steps_completed / timing["train_step_seconds"])
+        timing["train_samples_per_second"] = float(
+            (source_train_samples_seen + target_train_samples_seen) / timing["train_step_seconds"]
+        )
+    result["timing"] = {key: round(float(value), 6) for key, value in timing.items()}
 
     return result
 
@@ -1394,6 +1437,7 @@ def main() -> None:
     )
     data_config.source_fold = source_fold
     data_config.target_fold = target_fold
+    prepare_timer_start = perf_counter()
     prepared_data = prepare_benchmark_data(
         config=data_config,
         setting=setting,
@@ -1403,6 +1447,7 @@ def main() -> None:
         persistent_workers=persistent_workers,
         fold_name=selected_fold if not random_fold_enabled else None,
     )
+    data_prepare_seconds = perf_counter() - prepare_timer_start
 
     method_result = run_deep_experiment(
         method_config=method_payload,
@@ -1410,6 +1455,11 @@ def main() -> None:
         prepared_data=prepared_data,
         run_paths=run_paths,
         scenario_id=scenario_id,
+    )
+    method_result.setdefault("timing", {})["data_prepare_seconds"] = round(float(data_prepare_seconds), 6)
+    method_result["timing"]["total_with_data_prepare_seconds"] = round(
+        float(method_result["timing"].get("total_run_seconds", 0.0) + data_prepare_seconds),
+        6,
     )
 
     result_payload = {
@@ -1441,7 +1491,9 @@ def main() -> None:
     result_payload["review_path"] = str(run_paths["review_path"])
     save_json(run_paths["metrics_path"], result_payload)
     save_review(run_paths["review_path"], review_payload)
-    if run_paths["batch_root"] is not None:
+    if run_paths["batch_root"] is not None and bool(
+        experiment_payload.get("runtime", {}).get("refresh_batch_outputs", True)
+    ):
         _refresh_batch_outputs(run_paths["batch_root"])
     print(json.dumps(build_terminal_summary(result_payload), indent=2, ensure_ascii=False))
 

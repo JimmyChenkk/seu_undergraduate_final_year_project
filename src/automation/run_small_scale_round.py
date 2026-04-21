@@ -339,6 +339,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _refresh_batch_outputs(batch_root: Path) -> None:
+    from src.evaluation.evaluate import export_comparison_summary
+    from src.evaluation.report_figures import export_summary_figures
+
+    summary_dir = export_comparison_summary(batch_root)
+    if summary_dir is None:
+        return
+    export_summary_figures(batch_root, summary_dir.parent / "figures")
+
+
 def main() -> None:
     args = parse_args()
     base_experiment = _load_yaml(args.experiment_config)
@@ -380,6 +390,9 @@ def main() -> None:
         return
 
     batch_root_name = args.batch_root_name or f"{build_timestamp()}_{experiment_name}"
+    should_refresh_batch_outputs = bool(
+        base_experiment.get("runtime", {}).get("refresh_batch_outputs", True)
+    )
 
     with tempfile.TemporaryDirectory(prefix="tep_batch_plan_") as temp_dir:
         temp_root = Path(temp_dir)
@@ -398,6 +411,7 @@ def main() -> None:
                 experiment_payload["runtime"]["dry_run"] = True
             experiment_payload["runtime"].setdefault("save_checkpoint", True)
             experiment_payload["runtime"].setdefault("save_analysis", True)
+            experiment_payload["runtime"]["refresh_batch_outputs"] = False
             experiment_payload.setdefault("protocol_override", {})
             experiment_payload["protocol_override"].update(
                 {
@@ -429,8 +443,11 @@ def main() -> None:
                     f"(exit code {completed.returncode})."
                 )
 
-    print(f"Batch results written under runs/{batch_root_name}")
-    print(f"Comparison summary expected at runs/{batch_root_name}/comparison_summary/")
+    batch_root = Path(str(base_experiment.get("output_dir", "runs"))) / batch_root_name
+    if should_refresh_batch_outputs:
+        _refresh_batch_outputs(batch_root)
+    print(f"Batch results written under {batch_root}")
+    print(f"Comparison summary expected at {batch_root / 'comparison_summary'}/")
 
 
 if __name__ == "__main__":
