@@ -218,7 +218,14 @@ protocol_override:
   source_domains:
     - mode3
   target_domain: mode6
+  # Global on/off switch for fold policy.
+  # - true: sample fold(s) according to the fold_sampling block below and write the sampled folds to outputs.
+  # - false: disable random folding and fall back to fixed folds (preferred_fold / explicit source_fold / target_fold).
   random_fold_enabled: true
+  # Default fold used when the policy is fixed or when a fold is not explicitly overridden.
+  preferred_fold: Fold 1
+  # Optional explicit fixed folds. When random_fold_enabled is false, these are the final folds used if set;
+  # otherwise the runtime may sample new folds unless the per-domain overrides are explicitly provided.
   source_folds:
     - 1
     - 2
@@ -231,13 +238,18 @@ protocol_override:
     - 3
     - 4
     - 5
+  # Fold sampling policy.
+  # - strategy: high-level intent; kept in result.json and comparison outputs.
+  # - random_per_scene: if true, one source/target fold pair is sampled once per scene and reused by all methods.
+  # - random_per_run: if true, each individual run may sample independently (normally keep false for fair comparisons).
+  # - choices: candidate fold ids for sampling; numbers are normalized to "Fold N" at runtime.
   fold_sampling:
     strategy: random
     random_per_scene: true
     random_per_run: false
     source_fold_choices: [1, 2, 3, 4, 5]
     target_fold_choices: [1, 2, 3, 4, 5]
-    note: "Random fold mode can sample any fold in {1,2,3,4,5} for source and target."
+    note: "Random fold mode samples one source/target fold pair from {1,2,3,4,5} per scene and reuses it across methods."
 
 notes:
   - 8 methods x 11 scenes = 88 runs.

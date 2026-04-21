@@ -63,6 +63,10 @@ class TEDADatasetConfig:
     preferred_fold: str = DEFAULT_FOLD_NAME
     source_fold: str | None = None
     target_fold: str | None = None
+    random_fold_enabled: bool = False
+    fold_strategy: str = "fixed"
+    random_per_scene: bool = False
+    random_per_run: bool = False
     normalization: str = "standardization"
     normalization_scope: str = "domain"
     channels_first: bool = True
@@ -85,6 +89,10 @@ class TEDADatasetConfig:
             preferred_fold=str(protocol.get("preferred_fold", DEFAULT_FOLD_NAME)),
             source_fold=(str(protocol.get("source_fold")) if protocol.get("source_fold") is not None else None),
             target_fold=(str(protocol.get("target_fold")) if protocol.get("target_fold") is not None else None),
+            random_fold_enabled=bool(protocol.get("random_fold_enabled", False)),
+            fold_strategy=str(protocol.get("fold_strategy", "fixed")),
+            random_per_scene=bool(protocol.get("random_per_scene", False)),
+            random_per_run=bool(protocol.get("random_per_run", False)),
             normalization=str(loading.get("normalization", "standardization")),
             normalization_scope=str(loading.get("normalization_scope", "domain")),
             channels_first=bool(loading.get("channels_first", True)),

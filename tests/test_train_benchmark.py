@@ -243,6 +243,14 @@ class TrainBenchmarkTests(unittest.TestCase):
             "method_name": "dann",
             "scenario_id": "mode1_to_mode4",
             "setting": "single_source",
+            "source_domains": ["mode1"],
+            "target_domain": "mode4",
+            "fold_name": "Fold 1",
+            "selected_fold": "Fold 1",
+            "source_fold": "Fold 2",
+            "target_fold": "Fold 4",
+            "random_fold_enabled": True,
+            "fold_strategy": "random_per_scene",
             "run_root": "runs/example",
             "result": {
                 "selected_epoch": 15,
@@ -279,6 +287,8 @@ class TrainBenchmarkTests(unittest.TestCase):
         )
         self.assertEqual(review["selection"]["model_selection_params"]["entropy_floor"], 0.5)
         self.assertEqual(review["selection"]["selected_target_train_mean_entropy"], 0.2)
+        self.assertEqual(review["run_root"], "runs/example")
+        self.assertEqual(review["selection"].get("selected_fold"), None)
 
 
 if __name__ == "__main__":
