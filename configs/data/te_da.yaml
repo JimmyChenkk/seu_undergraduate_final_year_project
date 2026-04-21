@@ -17,6 +17,9 @@ loading:
   normalization: standardization
   normalization_scope: domain
   channels_first: true
+  # Disabled by default: prepared .npz files are hundreds of MB per scene and
+  # were not worth the disk growth during benchmark tuning.
+  prepared_cache_enabled: false
 
 protocol:
   setting: single_source

@@ -96,6 +96,8 @@ workspace/
   - 例如 `manifest.json`、数据勘察报告等。
   - 当前构建流程只生成小型元数据，不复制原始大数组。
 - 缓存和临时产物放在 `data/cache/`。
+  - `data/cache/benchmark_prepared/` 是训练前切分/归一化后的大数组缓存，单个 `.npz` 可能达到数百 MB；当前默认关闭，避免 benchmark 调参时磁盘随轮次膨胀。确需测试缓存收益时，可在 `configs/data/te_da.yaml` 中显式开启 `loading.prepared_cache_enabled: true`。
+  - 关闭 prepared cache 后，已有 `data/cache/benchmark_prepared/*.npz` 不会被训练流程继续写入；确认没有训练进程正在读取时，可以安全清理这些旧缓存来回收空间。
 - `external/` 默认视为开源代码镜像区，不应在其中直接开发实验代码。
 - `refs/` 默认视为文档与文献参考区，不应在其中直接开发实验代码。
 

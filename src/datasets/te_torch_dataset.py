@@ -93,21 +93,14 @@ def _cache_key(
     *,
     config: TEDADatasetConfig,
     setting: DomainAdaptationSetting,
-    batch_size: int,
-    num_workers: int,
-    pin_memory: bool,
-    persistent_workers: bool,
     source_fold_name: str,
     target_fold_name: str,
 ) -> str:
     payload = {
+        "cache_schema": "prepared_arrays_v2",
         "setting": setting.setting_name,
         "source_domains": [reference.domain.name for reference in setting.source_domains],
         "target_domain": setting.target_domain.domain.name,
-        "batch_size": int(batch_size),
-        "num_workers": int(num_workers),
-        "pin_memory": bool(pin_memory),
-        "persistent_workers": bool(persistent_workers),
         "source_fold_name": str(source_fold_name),
         "target_fold_name": str(target_fold_name),
         "normalization": config.normalization,
@@ -241,19 +234,16 @@ def prepare_benchmark_data(
     cache_key = _cache_key(
         config=config,
         setting=setting,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-        persistent_workers=persistent_workers,
         source_fold_name=source_fold_name,
         target_fold_name=target_fold_name,
     )
     cache_path = _cache_path(config, cache_key)
+    cache_enabled = bool(getattr(config, "prepared_cache_enabled", False))
 
     source_splits: list[DomainSplitTensors]
     target_split: DomainSplitTensors
     cache_hit = False
-    if cache_path.exists():
+    if cache_enabled and cache_path.exists():
         try:
             payload = np.load(cache_path, allow_pickle=False)
             split_names = [reference.domain.name for reference in setting.source_domains]
@@ -293,22 +283,23 @@ def prepare_benchmark_data(
             setting.target_domain.domain.name,
             fold_name=target_fold_name,
         )
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_payload: dict[str, np.ndarray] = {}
-        for index, split in enumerate(source_splits):
-            cache_payload[f"source_{index}_train_x"] = split.train_x.numpy()
-            cache_payload[f"source_{index}_train_y"] = split.train_y.numpy()
-            cache_payload[f"source_{index}_eval_x"] = split.eval_x.numpy()
-            cache_payload[f"source_{index}_eval_y"] = split.eval_y.numpy()
-            cache_payload[f"source_{index}_train_indices"] = split.train_indices
-            cache_payload[f"source_{index}_eval_indices"] = split.eval_indices
-        cache_payload["target_train_x"] = target_split.train_x.numpy()
-        cache_payload["target_train_y"] = target_split.train_y.numpy()
-        cache_payload["target_eval_x"] = target_split.eval_x.numpy()
-        cache_payload["target_eval_y"] = target_split.eval_y.numpy()
-        cache_payload["target_train_indices"] = target_split.train_indices
-        cache_payload["target_eval_indices"] = target_split.eval_indices
-        np.savez_compressed(cache_path, **cache_payload)
+        if cache_enabled:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_payload: dict[str, np.ndarray] = {}
+            for index, split in enumerate(source_splits):
+                cache_payload[f"source_{index}_train_x"] = split.train_x.numpy()
+                cache_payload[f"source_{index}_train_y"] = split.train_y.numpy()
+                cache_payload[f"source_{index}_eval_x"] = split.eval_x.numpy()
+                cache_payload[f"source_{index}_eval_y"] = split.eval_y.numpy()
+                cache_payload[f"source_{index}_train_indices"] = split.train_indices
+                cache_payload[f"source_{index}_eval_indices"] = split.eval_indices
+            cache_payload["target_train_x"] = target_split.train_x.numpy()
+            cache_payload["target_train_y"] = target_split.train_y.numpy()
+            cache_payload["target_eval_x"] = target_split.eval_x.numpy()
+            cache_payload["target_eval_y"] = target_split.eval_y.numpy()
+            cache_payload["target_train_indices"] = target_split.train_indices
+            cache_payload["target_eval_indices"] = target_split.eval_indices
+            np.savez_compressed(cache_path, **cache_payload)
 
     source_train_loaders = [
         _make_loader(
@@ -374,6 +365,6 @@ def prepare_benchmark_data(
         source_eval_loaders=source_eval_loaders,
         target_train_loader=target_train_loader,
         target_eval_loader=target_eval_loader,
-        cache_key=cache_key,
+        cache_key=cache_key if cache_enabled else None,
         cache_hit=cache_hit,
     )

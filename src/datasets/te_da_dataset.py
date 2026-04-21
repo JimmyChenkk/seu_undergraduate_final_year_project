@@ -70,6 +70,7 @@ class TEDADatasetConfig:
     normalization: str = "standardization"
     normalization_scope: str = "domain"
     channels_first: bool = True
+    prepared_cache_enabled: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "TEDADatasetConfig":
@@ -96,6 +97,7 @@ class TEDADatasetConfig:
             normalization=str(loading.get("normalization", "standardization")),
             normalization_scope=str(loading.get("normalization_scope", "domain")),
             channels_first=bool(loading.get("channels_first", True)),
+            prepared_cache_enabled=bool(loading.get("prepared_cache_enabled", False)),
         )
 
 
