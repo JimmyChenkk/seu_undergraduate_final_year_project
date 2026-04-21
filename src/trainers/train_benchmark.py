@@ -286,6 +286,19 @@ def _normalize_metric_params(params: Any) -> dict[str, float]:
     return {str(key): float(value) for key, value in params.items()}
 
 
+def _resolve_fold_policy(protocol_payload: dict[str, Any]) -> dict[str, Any]:
+    return resolve_fold_policy(protocol_payload)
+
+
+def _resolve_run_fold_names(
+    *,
+    protocol_payload: dict[str, Any],
+    default_fold: str,
+    rng: random.Random,
+) -> dict[str, str | bool]:
+    return sample_fold_pair(protocol_payload, rng=rng, default_fold=default_fold)
+
+
 def _resolve_metric_score(
     summary: dict[str, float],
     metric_name: str,
@@ -1339,7 +1352,7 @@ def main() -> None:
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
     fold_policy = _resolve_fold_policy(protocol_payload)
     rng_seed = int(experiment_payload.get("seed", 42))
-    rng = random.SystemRandom() if fold_policy["enabled"] else random.Random(rng_seed)
+    rng = random.Random(rng_seed)
     fold_selection = _resolve_run_fold_names(
         protocol_payload=protocol_payload,
         default_fold=data_config.preferred_fold,

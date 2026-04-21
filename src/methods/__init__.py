@@ -135,6 +135,14 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             gate_accept_ratio_start=float(loss.get("gate_accept_ratio_start", 0.2)),
             gate_accept_ratio_end=float(loss.get("gate_accept_ratio_end", 0.7)),
             gate_curriculum_steps=int(loss.get("gate_curriculum_steps", 1000)),
+            reliable_score_floor=(
+                None if loss.get("reliable_score_floor") is None else float(loss.get("reliable_score_floor"))
+            ),
+            semi_reliable_score_floor=(
+                None if loss.get("semi_reliable_score_floor") is None else float(loss.get("semi_reliable_score_floor"))
+            ),
+            semi_reliable_consistency_weight=float(loss.get("semi_reliable_consistency_weight", 0.5)),
+            unreliable_entropy_weight=float(loss.get("unreliable_entropy_weight", 0.05)),
             pseudo_label_weight=float(loss.get("pseudo_label_weight", 0.2)),
             pseudo_warmup_steps=int(loss.get("pseudo_warmup_steps", 0)),
             pseudo_use_reliability_weighting=bool(loss.get("pseudo_use_reliability_weighting", True)),

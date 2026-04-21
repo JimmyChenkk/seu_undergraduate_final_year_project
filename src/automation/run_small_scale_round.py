@@ -278,7 +278,7 @@ def build_run_plan(
     source_folds = [str(item) for item in protocol_override.get("source_folds", [1, 2, 3, 4, 5])]
     target_folds = [str(item) for item in protocol_override.get("target_folds", [1, 2, 3, 4, 5])]
     preferred_fold = str(protocol_override.get("preferred_fold", "Fold 1"))
-    rng = random.SystemRandom() if random_fold_enabled else random.Random(int(experiment_payload.get("seed", 42)))
+    rng = random.Random(int(experiment_payload.get("seed", 42)))
     runs = []
     for scene in scene_settings:
         sampled_source_fold = rng.choice(source_folds) if random_fold_enabled else preferred_fold

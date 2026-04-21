@@ -24,16 +24,16 @@ class TrainBenchmarkTests(unittest.TestCase):
             "target_fold": "4",
         }
 
-        selected_fold, source_fold, target_fold, random_fold_enabled = _resolve_run_fold_names(
+        fold_selection = _resolve_run_fold_names(
             protocol_payload=protocol_payload,
             default_fold="Fold 1",
             rng=random.Random(42),
         )
 
-        self.assertTrue(random_fold_enabled)
-        self.assertEqual(selected_fold, "Fold 1")
-        self.assertEqual(source_fold, "Fold 2")
-        self.assertEqual(target_fold, "Fold 4")
+        self.assertTrue(fold_selection["random_fold_enabled"])
+        self.assertEqual(fold_selection["selected_fold"], "Fold 1")
+        self.assertEqual(fold_selection["source_fold"], "Fold 2")
+        self.assertEqual(fold_selection["target_fold"], "Fold 4")
 
     def test_apply_method_runtime_defaults_sets_runtime_without_overriding_experiment(self) -> None:
         experiment_payload = {
@@ -237,6 +237,58 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertIsNotNone(earlier_score)
         self.assertIsNotNone(later_score)
         self.assertGreater(earlier_score, later_score)
+
+    def test_confidence_guard_metric_can_penalize_overconfident_epoch(self) -> None:
+        weights = {
+            "source_eval": 0.85,
+            "target_confidence": 0.15,
+            "overconfidence": 1.2,
+            "domain_gap": 0.4,
+        }
+        params = {
+            "confidence_ceiling": 0.88,
+            "domain_confusion_target": 0.5,
+            "domain_gap_tolerance": 0.15,
+        }
+        earlier_epoch = {
+            "acc_source_eval": 0.84,
+            "target_train_mean_confidence": 0.82,
+            "acc_domain": 0.62,
+        }
+        later_overconfident_epoch = {
+            "acc_source_eval": 0.89,
+            "target_train_mean_confidence": 0.99,
+            "acc_domain": 0.84,
+        }
+
+        earlier_score = _resolve_metric_score(
+            earlier_epoch,
+            "hybrid_source_eval_confidence_guard",
+            weights=weights,
+            params=params,
+        )
+        later_score = _resolve_metric_score(
+            later_overconfident_epoch,
+            "hybrid_source_eval_confidence_guard",
+            weights=weights,
+            params=params,
+        )
+
+        self.assertIsNotNone(earlier_score)
+        self.assertIsNotNone(later_score)
+        self.assertGreater(earlier_score, later_score)
+
+    def test_selection_metrics_ignore_non_finite_values(self) -> None:
+        score = _resolve_metric_score(
+            {
+                "acc_source_eval": 0.9,
+                "target_train_mean_confidence": float("nan"),
+            },
+            "hybrid_source_eval_target_confidence",
+            weights={"source_eval": 0.8, "target_confidence": 0.2},
+        )
+
+        self.assertIsNone(score)
 
     def test_review_payload_keeps_selection_metadata(self) -> None:
         result_payload = {

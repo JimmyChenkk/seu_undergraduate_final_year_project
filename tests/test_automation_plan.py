@@ -65,6 +65,16 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertEqual(set(fold_pairs_by_scene.keys()), {str(item["label"]) for item in plan["scene_settings"]})
         self.assertTrue(all(len(fold_pairs) == 1 for fold_pairs in fold_pairs_by_scene.values()))
 
+    def test_random_fold_plan_is_reproducible_for_same_seed(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/benchmark_88_11scenes_8methods_goal_tune.yaml")
+        first_plan = build_run_plan(payload)
+        second_plan = build_run_plan(payload)
+
+        first_pairs = [(run["label"], run["source_fold"], run["target_fold"]) for run in first_plan["runs"]]
+        second_pairs = [(run["label"], run["source_fold"], run["target_fold"]) for run in second_plan["runs"]]
+
+        self.assertEqual(first_pairs, second_pairs)
+
 
 if __name__ == "__main__":
     unittest.main()

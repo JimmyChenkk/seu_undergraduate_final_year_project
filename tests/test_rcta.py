@@ -164,6 +164,8 @@ class RCTATests(unittest.TestCase):
             )
             self.assertIsInstance(method, RCTAMethod)
             self.assertEqual(method.base_align, base_align)
+            self.assertAlmostEqual(method.semi_reliable_consistency_weight, 0.25)
+            self.assertAlmostEqual(method.unreliable_entropy_weight, 0.08)
 
     def test_reliability_gate_applies_score_floor_and_classwise_top_ratio(self) -> None:
         gate = _ReliabilityGate(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Callable
 
 
@@ -11,6 +12,13 @@ MetricResolver = Callable[
 ]
 
 _SELECTION_METRICS: dict[str, MetricResolver] = {}
+
+
+def _finite_or_none(value: float | int | None) -> float | None:
+    if value is None:
+        return None
+    value = float(value)
+    return value if math.isfinite(value) else None
 
 
 def register_selection_metric(*names: str) -> Callable[[MetricResolver], MetricResolver]:
@@ -62,8 +70,7 @@ def _metric_source_train(
     params: dict[str, float],
 ) -> float | None:
     del weights, params
-    value = summary.get("acc_source_train")
-    return None if value is None else float(value)
+    return _finite_or_none(summary.get("acc_source_train"))
 
 
 @register_selection_metric("source_eval", "best_source_eval")
@@ -73,8 +80,7 @@ def _metric_source_eval(
     params: dict[str, float],
 ) -> float | None:
     del weights, params
-    value = summary.get("acc_source_eval")
-    return None if value is None else float(value)
+    return _finite_or_none(summary.get("acc_source_eval"))
 
 
 @register_selection_metric("target_eval", "best_target_eval", "best_target_eval_oracle")
@@ -84,8 +90,7 @@ def _metric_target_eval(
     params: dict[str, float],
 ) -> float | None:
     del weights, params
-    value = summary.get("target_eval_acc")
-    return None if value is None else float(value)
+    return _finite_or_none(summary.get("target_eval_acc"))
 
 
 @register_selection_metric("target_confidence", "best_target_confidence")
@@ -95,8 +100,7 @@ def _metric_target_confidence(
     params: dict[str, float],
 ) -> float | None:
     del weights, params
-    value = summary.get("target_train_mean_confidence")
-    return None if value is None else float(value)
+    return _finite_or_none(summary.get("target_train_mean_confidence"))
 
 
 @register_selection_metric("target_entropy", "lowest_target_entropy", "min_target_entropy")
@@ -106,8 +110,8 @@ def _metric_target_entropy(
     params: dict[str, float],
 ) -> float | None:
     del weights, params
-    value = summary.get("target_train_mean_entropy")
-    return None if value is None else -float(value)
+    value = _finite_or_none(summary.get("target_train_mean_entropy"))
+    return None if value is None else -value
 
 
 @register_selection_metric("hybrid_source_eval_target_confidence")
@@ -117,13 +121,13 @@ def _metric_hybrid_source_eval_target_confidence(
     params: dict[str, float],
 ) -> float | None:
     del params
-    source_eval = summary.get("acc_source_eval")
-    target_confidence = summary.get("target_train_mean_confidence")
+    source_eval = _finite_or_none(summary.get("acc_source_eval"))
+    target_confidence = _finite_or_none(summary.get("target_train_mean_confidence"))
     if source_eval is None or target_confidence is None:
         return None
     source_weight = float(weights.get("source_eval", 0.7))
     target_weight = float(weights.get("target_confidence", 0.3))
-    return source_weight * float(source_eval) + target_weight * float(target_confidence)
+    return source_weight * source_eval + target_weight * target_confidence
 
 
 @register_selection_metric("hybrid_source_eval_inverse_entropy")
@@ -133,13 +137,13 @@ def _metric_hybrid_source_eval_inverse_entropy(
     params: dict[str, float],
 ) -> float | None:
     del params
-    source_eval = summary.get("acc_source_eval")
-    target_entropy = summary.get("target_train_mean_entropy")
+    source_eval = _finite_or_none(summary.get("acc_source_eval"))
+    target_entropy = _finite_or_none(summary.get("target_train_mean_entropy"))
     if source_eval is None or target_entropy is None:
         return None
     source_weight = float(weights.get("source_eval", 0.7))
     entropy_weight = float(weights.get("target_entropy", 0.3))
-    return source_weight * float(source_eval) - entropy_weight * float(target_entropy)
+    return source_weight * source_eval - entropy_weight * target_entropy
 
 
 @register_selection_metric("hybrid_source_eval_entropy_guard_domain_gap")
@@ -155,9 +159,9 @@ def _metric_hybrid_source_eval_entropy_guard_domain_gap(
     desired confusion point.
     """
 
-    source_eval = summary.get("acc_source_eval")
-    target_entropy = summary.get("target_train_mean_entropy")
-    domain_accuracy = summary.get("acc_domain")
+    source_eval = _finite_or_none(summary.get("acc_source_eval"))
+    target_entropy = _finite_or_none(summary.get("target_train_mean_entropy"))
+    domain_accuracy = _finite_or_none(summary.get("acc_domain"))
     if source_eval is None or target_entropy is None or domain_accuracy is None:
         return None
 
@@ -167,7 +171,40 @@ def _metric_hybrid_source_eval_entropy_guard_domain_gap(
     entropy_floor = float(params.get("entropy_floor", 0.5))
     domain_confusion_target = float(params.get("domain_confusion_target", 0.5))
 
-    entropy_shortfall = max(0.0, entropy_floor - float(target_entropy))
-    domain_gap = abs(float(domain_accuracy) - domain_confusion_target)
+    entropy_shortfall = max(0.0, entropy_floor - target_entropy)
+    domain_gap = abs(domain_accuracy - domain_confusion_target)
     penalty = entropy_shortfall_weight * entropy_shortfall * domain_gap_weight * domain_gap
-    return source_weight * float(source_eval) - penalty
+    return source_weight * source_eval - penalty
+
+
+@register_selection_metric("hybrid_source_eval_confidence_guard")
+def _metric_hybrid_source_eval_confidence_guard(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    """Prefer strong source validation while avoiding over-confident target collapse."""
+
+    source_eval = _finite_or_none(summary.get("acc_source_eval"))
+    target_confidence = _finite_or_none(summary.get("target_train_mean_confidence"))
+    if source_eval is None or target_confidence is None:
+        return None
+
+    source_weight = float(weights.get("source_eval", 0.85))
+    confidence_weight = float(weights.get("target_confidence", 0.15))
+    overconfidence_weight = float(weights.get("overconfidence", 1.0))
+    confidence_ceiling = float(params.get("confidence_ceiling", 0.9))
+    overconfidence = max(0.0, target_confidence - confidence_ceiling)
+
+    score = source_weight * source_eval + confidence_weight * target_confidence
+    score -= overconfidence_weight * overconfidence
+
+    domain_accuracy = _finite_or_none(summary.get("acc_domain"))
+    if domain_accuracy is not None:
+        domain_gap_weight = float(weights.get("domain_gap", 0.0))
+        domain_confusion_target = float(params.get("domain_confusion_target", 0.5))
+        domain_gap_tolerance = max(float(params.get("domain_gap_tolerance", 0.0)), 0.0)
+        domain_gap = max(0.0, abs(domain_accuracy - domain_confusion_target) - domain_gap_tolerance)
+        score -= domain_gap_weight * domain_gap
+
+    return score
