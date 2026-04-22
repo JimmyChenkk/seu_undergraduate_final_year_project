@@ -341,6 +341,12 @@ def parse_args() -> argparse.Namespace:
         help="Only print the resolved run plan without launching training.",
     )
     parser.add_argument("--batch-root-name", type=str, default=None)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Override experiment seed for this batch launch without editing the YAML config.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -358,6 +364,8 @@ def _refresh_batch_outputs(batch_root: Path) -> None:
 def main() -> None:
     args = parse_args()
     base_experiment = _load_yaml(args.experiment_config)
+    if args.seed is not None:
+        base_experiment["seed"] = int(args.seed)
     plan = build_run_plan(
         base_experiment,
         cli_methods=args.methods,
