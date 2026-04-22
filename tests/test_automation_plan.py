@@ -75,6 +75,15 @@ class AutomationPlanTests(unittest.TestCase):
 
         self.assertEqual(first_pairs, second_pairs)
 
+    def test_random_fold_plan_accepts_auto_seed(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/benchmark_88_11scenes_8methods_goal_tune.yaml")
+        payload["seed"] = None
+        plan = build_run_plan(payload)
+
+        self.assertEqual(plan["seed_mode"], "auto")
+        self.assertIsInstance(plan["seed"], int)
+        self.assertEqual(len(plan["runs"]), 88)
+
 
 if __name__ == "__main__":
     unittest.main()

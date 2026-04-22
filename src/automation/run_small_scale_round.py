@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from typing import Any, Iterable
 
+from src.utils.random_seed import resolve_seed
 from src.utils.run_layout import build_timestamp
 
 
@@ -278,7 +279,8 @@ def build_run_plan(
     source_folds = [str(item) for item in protocol_override.get("source_folds", [1, 2, 3, 4, 5])]
     target_folds = [str(item) for item in protocol_override.get("target_folds", [1, 2, 3, 4, 5])]
     preferred_fold = str(protocol_override.get("preferred_fold", "Fold 1"))
-    rng = random.Random(int(experiment_payload.get("seed", 42)))
+    rng_seed, seed_mode = resolve_seed(experiment_payload.get("seed"))
+    rng = random.Random(rng_seed)
     runs = []
     for scene in scene_settings:
         sampled_source_fold = rng.choice(source_folds) if random_fold_enabled else preferred_fold
@@ -304,7 +306,11 @@ def build_run_plan(
             "source_folds": source_folds,
             "target_folds": target_folds,
             "preferred_fold": preferred_fold,
+            "seed": rng_seed,
+            "seed_mode": seed_mode,
         },
+        "seed": rng_seed,
+        "seed_mode": seed_mode,
     }
 
 
@@ -364,6 +370,8 @@ def main() -> None:
     run_plan = plan["runs"]
     experiment_name = str(base_experiment.get("experiment_name", "batch_run"))
     fold_policy = plan.get("fold_policy", {})
+    base_experiment["seed"] = int(plan["seed"])
+    base_experiment["seed_mode"] = str(plan["seed_mode"])
     print(
         f"Planned {len(run_plan)} runs from {len(scene_settings)} settings x {len(methods)} methods "
         f"using {args.experiment_config}."
@@ -372,6 +380,8 @@ def main() -> None:
         print(
             "Fold policy: "
             f"random={fold_policy.get('random_fold_enabled', False)}, "
+            f"seed={fold_policy.get('seed')}, "
+            f"seed_mode={fold_policy.get('seed_mode', 'fixed')}, "
             f"source_choices={fold_policy.get('source_folds', [])}, "
             f"target_choices={fold_policy.get('target_folds', [])}, "
             f"preferred={fold_policy.get('preferred_fold', 'Fold 1')}"

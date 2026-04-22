@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from src.evaluation.review import build_run_review, save_review
 from src.trainers.selection_metrics import resolve_selection_metric
 from src.utils.fold_policy import resolve_fold_policy, sample_fold_pair
+from src.utils.random_seed import resolve_seed
 from src.utils.run_layout import build_run_layout
 
 if TYPE_CHECKING:
@@ -1394,7 +1395,10 @@ def main() -> None:
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
     fold_policy = _resolve_fold_policy(protocol_payload)
-    rng_seed = int(experiment_payload.get("seed", 42))
+    rng_seed, seed_mode = resolve_seed(experiment_payload.get("seed"))
+    seed_mode = str(experiment_payload.get("seed_mode", seed_mode))
+    experiment_payload["seed"] = rng_seed
+    experiment_payload["seed_mode"] = seed_mode
     rng = random.Random(rng_seed)
     fold_selection = _resolve_run_fold_names(
         protocol_payload=protocol_payload,
@@ -1479,6 +1483,8 @@ def main() -> None:
         "fold_strategy": fold_strategy,
         "random_per_scene": random_per_scene,
         "random_per_run": random_per_run,
+        "seed": rng_seed,
+        "seed_mode": seed_mode,
         "timestamp": run_paths["timestamp"],
         "batch_root": str(run_paths["batch_root"]) if run_paths["batch_root"] else None,
         "run_root": str(run_paths["run_root"]),
