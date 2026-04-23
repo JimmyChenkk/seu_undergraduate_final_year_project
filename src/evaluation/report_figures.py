@@ -65,11 +65,14 @@ def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def _save_figure(path: Path) -> None:
+def _save_figure(path: Path, *, figure_format: str | None = None, keep_png_preview: bool = True) -> None:
     _, plt, _ = _runtime_dependencies()
     _ensure_dir(path.parent)
     plt.tight_layout()
-    plt.savefig(path, dpi=220, bbox_inches="tight")
+    save_format = figure_format or path.suffix.lstrip(".")
+    plt.savefig(path, format=save_format, bbox_inches="tight")
+    if keep_png_preview and path.suffix.lower() != ".png":
+        plt.savefig(path.with_suffix(".png"), format="png", bbox_inches="tight")
     plt.close()
 
 
@@ -88,6 +91,22 @@ def _titleize_setting_name(setting_name: str) -> str:
     return setting_name.replace("_", "-").title()
 
 
+def _compact_scenario_label(label: str) -> str:
+    """Shorten labels like mode1_to_mode4 to m1_m4 for heatmap axes."""
+
+    parts = str(label).split("_to_")
+    if len(parts) != 2:
+        return str(label)
+
+    def _compact_part(part: str) -> str:
+        compact = part.replace("mode", "m")
+        return compact if compact != part else part
+
+    left = _compact_part(parts[0])
+    right = _compact_part(parts[1])
+    return f"{left}_{right}"
+
+
 def _sort_methods_for_mean_chart(methods) -> list[str]:
     """Keep the no-adaptation baseline visually anchored on the left."""
 
@@ -99,6 +118,7 @@ def export_mean_bar_chart(
     output_path: Path,
     *,
     setting_name: str | None = None,
+    figure_format: str | None = None,
 ) -> None:
     np, plt, _ = _runtime_dependencies()
     subset = [row for row in rows if setting_name is None or row["setting"] == setting_name]
@@ -121,10 +141,16 @@ def export_mean_bar_chart(
         plt.title("Method Mean Target Accuracy")
     else:
         plt.title(f"{_titleize_setting_name(setting_name)} Mean Target Accuracy")
-    _save_figure(output_path)
+    _save_figure(output_path, figure_format=figure_format)
 
 
-def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Path) -> None:
+def export_setting_heatmap(
+    rows: list[dict],
+    setting_name: str,
+    output_path: Path,
+    *,
+    figure_format: str | None = None,
+) -> None:
     np, plt, _ = _runtime_dependencies()
     subset = [row for row in rows if row["setting"] == setting_name]
     if not subset:
@@ -143,6 +169,7 @@ def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Pat
     method_rank = {name: index for index, name in enumerate(method_order)}
 
     scenarios = sorted(set(row["scenario_id"] for row in subset))
+    scenario_labels = [_compact_scenario_label(scenario) for scenario in scenarios]
     methods = sorted(set(row["method"] for row in subset), key=lambda name: method_rank.get(name, len(method_order)))
     matrix = np.full((len(scenarios), len(methods)), np.nan, dtype=float)
     for row in subset:
@@ -154,7 +181,7 @@ def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Pat
     image = plt.imshow(matrix, aspect="auto", cmap="YlGnBu", vmin=0, vmax=1)
     plt.colorbar(image, label="Accuracy")
     plt.xticks(np.arange(len(methods)), methods, rotation=30)
-    plt.yticks(np.arange(len(scenarios)), scenarios)
+    plt.yticks(np.arange(len(scenarios)), scenario_labels)
     plt.title(f"{setting_name.replace('_', '-').title()} Task Heatmap")
 
     for row_index in range(matrix.shape[0]):
@@ -163,7 +190,7 @@ def export_setting_heatmap(rows: list[dict], setting_name: str, output_path: Pat
             if not np.isnan(value):
                 plt.text(col_index, row_index, f"{value:.3f}", ha="center", va="center", fontsize=8)
 
-    _save_figure(output_path)
+    _save_figure(output_path, figure_format=figure_format)
 
 
 def _fit_tsne(features: np.ndarray) -> np.ndarray:
@@ -308,7 +335,12 @@ def _plot_domain_embedding(embedding_2d, domain_groups, *, axis=None) -> None:
         )
 
 
-def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
+def export_tsne_figures(
+    artifact_path: Path,
+    output_dir: Path,
+    *,
+    figure_format: str | None = None,
+) -> None:
     np, plt, _ = _runtime_dependencies()
     payload = _load_analysis_payload(artifact_path)
     sampled = _sample_analysis_payload(payload)
@@ -344,7 +376,7 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     plt.title("Domain Fusion t-SNE")
     plt.xlabel("t-SNE-1")
     plt.ylabel("t-SNE-2")
-    _save_figure(output_dir / "tsne_domain.png")
+    _save_figure(output_dir / f"tsne_domain.{figure_format or 'png'}", figure_format=figure_format)
 
     plt.figure(figsize=(6, 5))
     scatter = plt.scatter(
@@ -359,10 +391,15 @@ def export_tsne_figures(artifact_path: Path, output_dir: Path) -> None:
     plt.title("Class Aggregation t-SNE")
     plt.xlabel("t-SNE-1")
     plt.ylabel("t-SNE-2")
-    _save_figure(output_dir / "tsne_class.png")
+    _save_figure(output_dir / f"tsne_class.{figure_format or 'png'}", figure_format=figure_format)
 
 
-def export_confusion_matrix_figure(artifact_path: Path, output_path: Path) -> None:
+def export_confusion_matrix_figure(
+    artifact_path: Path,
+    output_path: Path,
+    *,
+    figure_format: str | None = None,
+) -> None:
     np, plt, _ = _runtime_dependencies()
     payload = _load_analysis_payload(artifact_path)
     labels = payload["target_labels"]
@@ -378,13 +415,15 @@ def export_confusion_matrix_figure(artifact_path: Path, output_path: Path) -> No
     plt.xlabel("Predicted class")
     plt.ylabel("True class")
     plt.title("Target Confusion Matrix")
-    _save_figure(output_path)
+    _save_figure(output_path, figure_format=figure_format)
 
 
 def export_domain_comparison_figure(
     left_artifact: Path,
     right_artifact: Path,
     output_path: Path,
+    *,
+    figure_format: str | None = None,
 ) -> None:
     """Create a side-by-side domain-fusion t-SNE comparison figure."""
 
@@ -406,35 +445,45 @@ def export_domain_comparison_figure(
         axis.set_ylabel("t-SNE-2")
     axes[0].legend(loc="best")
     plt.suptitle("Domain Fusion Comparison")
-    _save_figure(output_path)
+    _save_figure(output_path, figure_format=figure_format)
 
 
-def export_run_review_figures(artifact_path: Path, output_dir: Path) -> None:
+def export_run_review_figures(artifact_path: Path, output_dir: Path, *, figure_format: str | None = None) -> None:
     _ensure_dir(output_dir)
     try:
-        export_tsne_figures(artifact_path, output_dir)
+        export_tsne_figures(artifact_path, output_dir, figure_format=figure_format)
     except Exception as exc:  # pragma: no cover - defensive figure export guard
         print(f"[report_figures] t-SNE export skipped for {artifact_path.name}: {exc}")
     try:
-        export_confusion_matrix_figure(artifact_path, output_dir / "confusion_matrix.png")
+        export_confusion_matrix_figure(
+            artifact_path,
+            output_dir / f"confusion_matrix.{figure_format or 'png'}",
+            figure_format=figure_format,
+        )
     except Exception as exc:  # pragma: no cover - defensive figure export guard
         print(f"[report_figures] confusion matrix export skipped for {artifact_path.name}: {exc}")
 
 
-def export_summary_figures(results_dir: Path, output_dir: Path) -> None:
+def export_summary_figures(results_dir: Path, output_dir: Path, *, figure_format: str | None = None) -> None:
     rows = load_result_rows(results_dir)
     if not rows:
         return
 
     _ensure_dir(output_dir)
-    export_mean_bar_chart(rows, output_dir / "method_mean_accuracy.png")
+    export_mean_bar_chart(rows, output_dir / f"method_mean_accuracy.{figure_format or 'png'}", figure_format=figure_format)
     for setting_name in sorted(set(str(row["setting"]) for row in rows)):
         export_mean_bar_chart(
             rows,
-            output_dir / f"{setting_name}_method_mean_accuracy.png",
+            output_dir / f"{setting_name}_method_mean_accuracy.{figure_format or 'png'}",
             setting_name=setting_name,
+            figure_format=figure_format,
         )
-        export_setting_heatmap(rows, setting_name, output_dir / f"{setting_name}_heatmap.png")
+        export_setting_heatmap(
+            rows,
+            setting_name,
+            output_dir / f"{setting_name}_heatmap.{figure_format or 'png'}",
+            figure_format=figure_format,
+        )
 
 
 def _resolve_summary_output_dir(results_dir: Path, output_dir: Path | None) -> Path:
@@ -461,6 +510,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export report-style TEP benchmark figures.")
     parser.add_argument("--results-dir", type=Path, default=Path("runs"))
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument(
+        "--figure-format",
+        choices=("png", "pdf", "svg"),
+        default="svg",
+        help="Vector-friendly default is svg; use png only when raster output is preferred.",
+    )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(
         "--compare-domain-artifacts",
@@ -482,14 +537,14 @@ def main() -> None:
 
     summary_output_dir = _resolve_summary_output_dir(args.results_dir, args.output_dir)
     if rows:
-        export_summary_figures(args.results_dir, summary_output_dir)
+        export_summary_figures(args.results_dir, summary_output_dir, figure_format=args.figure_format)
 
     for artifact_item in args.artifact:
         artifact_path = Path(artifact_item)
         if not artifact_path.exists():
             continue
         figure_dir = _resolve_artifact_output_dir(artifact_path, args.output_dir)
-        export_run_review_figures(artifact_path, figure_dir)
+        export_run_review_figures(artifact_path, figure_dir, figure_format=args.figure_format)
 
     for pair_index, (left_item, right_item) in enumerate(args.compare_domain_artifacts, start=1):
         left_path = Path(left_item)
@@ -499,7 +554,8 @@ def main() -> None:
         export_domain_comparison_figure(
             left_path,
             right_path,
-            summary_output_dir / f"domain_comparison_{pair_index}.png",
+            summary_output_dir / f"domain_comparison_{pair_index}.{args.figure_format}",
+            figure_format=args.figure_format,
         )
 
     print(f"Figures exported to {summary_output_dir}")

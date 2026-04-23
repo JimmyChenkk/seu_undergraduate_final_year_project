@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from src.evaluation.report_figures import _domain_visual_styles, _sort_methods_for_mean_chart
+from src.evaluation.report_figures import _compact_scenario_label, _domain_visual_styles, _sort_methods_for_mean_chart
 
 
 class ReportFiguresTests(unittest.TestCase):
@@ -34,6 +34,11 @@ class ReportFiguresTests(unittest.TestCase):
 
         self.assertEqual(methods[0], "source_only")
         self.assertEqual(methods[1:], ["dan", "deepjdot", "target_only"])
+
+    def test_compact_scenario_label_shortens_mode_transition_labels(self) -> None:
+        self.assertEqual(_compact_scenario_label("mode1_to_mode4"), "m1_m4")
+        self.assertEqual(_compact_scenario_label("mode6_to_mode5"), "m6_m5")
+        self.assertEqual(_compact_scenario_label("other_label"), "other_label")
 
 
 if __name__ == "__main__":
