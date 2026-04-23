@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from typing import Any, Iterable
 
+from src.utils.fold_policy import canonicalize_fold_choice
 from src.utils.random_seed import resolve_seed
 from src.utils.run_layout import build_timestamp
 
@@ -120,6 +121,100 @@ def _build_multisource_settings(scene_tokens: Iterable[str]) -> list[dict[str, o
             }
         )
     return settings
+
+
+def _mode_compact(domain_name: str) -> str:
+    return str(domain_name).replace("mode", "m")
+
+
+def _mode_number(domain_name: str) -> str:
+    return str(domain_name).replace("mode", "")
+
+
+def _scene_override_keys(scene: dict[str, object]) -> list[str]:
+    source_domains = [str(item) for item in scene["source_domains"]]
+    target_domain = str(scene["target_domain"])
+    label = str(scene["label"])
+    compact_full = "_".join([*[_mode_compact(item) for item in source_domains], _mode_compact(target_domain)])
+    compact_cluster = "_".join(
+        [_mode_compact(source_domains[0]), *[_mode_number(item) for item in source_domains[1:]], _mode_compact(target_domain)]
+    )
+    return [
+        label,
+        label.replace("-", "_"),
+        f"{'+'.join(source_domains)}->{target_domain}",
+        f"{'-'.join(source_domains)}->{target_domain}",
+        f"{'_'.join(source_domains)}_to_{target_domain}",
+        compact_full,
+        compact_cluster,
+    ]
+
+
+def _scene_fold_override(
+    scene: dict[str, object],
+    raw_overrides: Any,
+) -> dict[str, Any]:
+    keys = set(_scene_override_keys(scene))
+    if isinstance(raw_overrides, dict):
+        for key in keys:
+            value = raw_overrides.get(key)
+            if isinstance(value, dict):
+                return value
+        return {}
+    if isinstance(raw_overrides, list):
+        for item in raw_overrides:
+            if not isinstance(item, dict):
+                continue
+            scene_key = item.get("scene") or item.get("label")
+            if scene_key is not None and str(scene_key) in keys:
+                return item
+    return {}
+
+
+def _source_fold_mapping(
+    scene: dict[str, object],
+    override: dict[str, Any],
+    default_source_fold: str,
+) -> dict[str, str]:
+    source_domains = [str(item) for item in scene["source_domains"]]
+    raw_by_domain = override.get("source_folds_by_domain")
+    raw_source_folds = override.get("source_folds")
+    raw_source_fold = override.get("source_fold")
+
+    if isinstance(raw_by_domain, dict):
+        return {
+            domain_name: canonicalize_fold_choice(raw_by_domain.get(domain_name, default_source_fold))
+            for domain_name in source_domains
+        }
+    if isinstance(raw_source_folds, dict):
+        return {
+            domain_name: canonicalize_fold_choice(raw_source_folds.get(domain_name, default_source_fold))
+            for domain_name in source_domains
+        }
+    if isinstance(raw_source_folds, list):
+        return {
+            domain_name: canonicalize_fold_choice(raw_source_folds[index])
+            if index < len(raw_source_folds)
+            else canonicalize_fold_choice(default_source_fold)
+            for index, domain_name in enumerate(source_domains)
+        }
+    if isinstance(raw_source_fold, list):
+        return {
+            domain_name: canonicalize_fold_choice(raw_source_fold[index])
+            if index < len(raw_source_fold)
+            else canonicalize_fold_choice(default_source_fold)
+            for index, domain_name in enumerate(source_domains)
+        }
+
+    source_fold = canonicalize_fold_choice(raw_source_fold if raw_source_fold is not None else default_source_fold)
+    return {domain_name: source_fold for domain_name in source_domains}
+
+
+def _source_fold_display(source_domains: list[str], source_folds_by_domain: dict[str, str]) -> str:
+    ordered_folds = [source_folds_by_domain[domain_name] for domain_name in source_domains]
+    if len(set(ordered_folds)) == 1:
+        return ordered_folds[0]
+    return "+".join(ordered_folds)
 
 
 def _source_pool_from_targets(experiment_payload: dict[str, Any], target_tokens: Iterable[str]) -> list[str]:
@@ -275,26 +370,36 @@ def build_run_plan(
         include_multisource_targets=include_multisource_targets,
     )
     protocol_override = experiment_payload.get("protocol_override", {})
-    random_fold_enabled = bool(protocol_override.get("random_fold_enabled", False))
+    fold_sampling = protocol_override.get("fold_sampling", {})
+    if not isinstance(fold_sampling, dict):
+        fold_sampling = {}
+    random_fold_enabled = bool(fold_sampling.get("enabled", protocol_override.get("random_fold_enabled", False)))
     source_folds = [str(item) for item in protocol_override.get("source_folds", [1, 2, 3, 4, 5])]
     target_folds = [str(item) for item in protocol_override.get("target_folds", [1, 2, 3, 4, 5])]
     preferred_fold = str(protocol_override.get("preferred_fold", "Fold 1"))
+    scene_fold_overrides = protocol_override.get("scene_fold_overrides", {})
     rng_seed, seed_mode = resolve_seed(experiment_payload.get("seed"))
     rng = random.Random(rng_seed)
     runs = []
     for scene in scene_settings:
-        sampled_source_fold = rng.choice(source_folds) if random_fold_enabled else preferred_fold
-        sampled_target_fold = rng.choice(target_folds) if random_fold_enabled else preferred_fold
+        sampled_source_fold = canonicalize_fold_choice(rng.choice(source_folds) if random_fold_enabled else preferred_fold)
+        sampled_target_fold = canonicalize_fold_choice(rng.choice(target_folds) if random_fold_enabled else preferred_fold)
+        fold_override = _scene_fold_override(scene, scene_fold_overrides)
+        source_domains = [str(item) for item in scene["source_domains"]]
+        source_folds_by_domain = _source_fold_mapping(scene, fold_override, sampled_source_fold)
+        source_fold = _source_fold_display(source_domains, source_folds_by_domain)
+        target_fold = canonicalize_fold_choice(fold_override.get("target_fold", sampled_target_fold))
         for method_name in methods:
             runs.append(
                 {
                     "method_name": method_name,
                     "setting": str(scene["setting"]),
-                    "source_domains": [str(item) for item in scene["source_domains"]],
+                    "source_domains": source_domains,
                     "target_domain": str(scene["target_domain"]),
                     "label": str(scene["label"]),
-                    "source_fold": sampled_source_fold,
-                    "target_fold": sampled_target_fold,
+                    "source_fold": source_fold,
+                    "source_folds_by_domain": dict(source_folds_by_domain),
+                    "target_fold": target_fold,
                 }
             )
     return {
@@ -396,11 +501,7 @@ def main() -> None:
         )
         for run in run_plan:
             scene_label = run['label']
-            fold_text = (
-                f"src{run['source_fold']}__tgt{run['target_fold']}"
-                if fold_policy.get('random_fold_enabled', False)
-                else f"fold={fold_policy.get('preferred_fold', 'Fold 1')}"
-            )
+            fold_text = f"src{run['source_fold']}__tgt{run['target_fold']}"
             print(
                 f"{run['method_name']}: {','.join(run['source_domains'])} -> "
                 f"{run['target_domain']} ({scene_label}; {fold_text})"
@@ -431,16 +532,16 @@ def main() -> None:
             experiment_payload["runtime"].setdefault("save_analysis", True)
             experiment_payload["runtime"]["refresh_batch_outputs"] = False
             experiment_payload.setdefault("protocol_override", {})
-            experiment_payload["protocol_override"].update(
-                {
-                    "setting": str(run["setting"]),
-                    "source_domains": [str(item) for item in run["source_domains"]],
-                    "target_domain": str(run["target_domain"]),
-                    "preferred_fold": "Fold 1",
-                    "source_fold": str(run["source_fold"]),
-                    "target_fold": str(run["target_fold"]),
-                }
-            )
+            protocol_update = {
+                "setting": str(run["setting"]),
+                "source_domains": [str(item) for item in run["source_domains"]],
+                "target_domain": str(run["target_domain"]),
+                "preferred_fold": "Fold 1",
+                "source_fold": str(run["source_fold"]),
+                "source_folds_by_domain": dict(run.get("source_folds_by_domain", {})),
+                "target_fold": str(run["target_fold"]),
+            }
+            experiment_payload["protocol_override"].update(protocol_update)
 
             temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"
             _save_yaml(temp_experiment_path, experiment_payload)

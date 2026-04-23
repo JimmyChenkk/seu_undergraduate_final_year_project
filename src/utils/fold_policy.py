@@ -36,7 +36,10 @@ def resolve_fold_policy(protocol_payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(fold_sampling, dict):
         fold_sampling = {}
 
-    random_fold_enabled = bool(protocol_payload.get("random_fold_enabled", False))
+    if "enabled" in fold_sampling:
+        random_fold_enabled = bool(fold_sampling.get("enabled"))
+    else:
+        random_fold_enabled = bool(protocol_payload.get("random_fold_enabled", False))
     strategy = str(fold_sampling.get("strategy", "fixed" if not random_fold_enabled else "random")).strip().lower()
     if not strategy:
         strategy = "fixed" if not random_fold_enabled else "random"

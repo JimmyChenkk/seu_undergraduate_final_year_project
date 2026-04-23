@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.evaluation.review import build_run_review, save_review
 from src.trainers.selection_metrics import resolve_selection_metric
-from src.utils.fold_policy import resolve_fold_policy, sample_fold_pair
+from src.utils.fold_policy import canonicalize_fold_choice, resolve_fold_policy, sample_fold_pair
 from src.utils.random_seed import resolve_seed
 from src.utils.run_layout import build_run_layout
 
@@ -1419,13 +1419,24 @@ def main() -> None:
     data_config.random_per_run = random_per_run
     set_seed(rng_seed)
     setting = build_setting(data_config, data_payload, experiment_payload)
+    source_domain_ids = [reference.domain.name for reference in setting.source_domains]
+    raw_source_folds_by_domain = protocol_payload.get("source_folds_by_domain") or {}
+    source_folds_by_domain = {
+        domain_name: canonicalize_fold_choice(raw_source_folds_by_domain.get(domain_name, source_fold))
+        for domain_name in source_domain_ids
+    }
+    if raw_source_folds_by_domain:
+        source_fold = (
+            next(iter(source_folds_by_domain.values()))
+            if len(set(source_folds_by_domain.values())) == 1
+            else "+".join(source_folds_by_domain[domain_name] for domain_name in source_domain_ids)
+        )
     batch_size = int(method_payload.get("optimization", {}).get("batch_size", 32))
     runtime_payload = experiment_payload.get("runtime", {})
     num_workers = int(runtime_payload.get("num_workers", 0))
     pin_memory = bool(runtime_payload.get("pin_memory", False))
     persistent_workers = bool(runtime_payload.get("persistent_workers", num_workers > 0))
     backbone_name = str(method_payload.get("backbone", {}).get("name", "fcn"))
-    source_domain_ids = [reference.domain.name for reference in setting.source_domains]
     target_domain_id = setting.target_domain.domain.name
     scenario_id = build_scenario_id(source_domain_ids, target_domain_id)
     run_scene_label = build_run_scene_label(source_domain_ids, target_domain_id)
@@ -1440,6 +1451,7 @@ def main() -> None:
         batch_root_name=args.batch_root_name,
     )
     data_config.source_fold = source_fold
+    data_config.source_folds_by_domain = dict(source_folds_by_domain)
     data_config.target_fold = target_fold
     prepare_timer_start = perf_counter()
     prepared_data = prepare_benchmark_data(
@@ -1478,6 +1490,7 @@ def main() -> None:
         "fold_name": selected_fold,
         "selected_fold": selected_fold,
         "source_fold": source_fold,
+        "source_folds_by_domain": dict(source_folds_by_domain),
         "target_fold": target_fold,
         "random_fold_enabled": random_fold_enabled,
         "fold_strategy": fold_strategy,

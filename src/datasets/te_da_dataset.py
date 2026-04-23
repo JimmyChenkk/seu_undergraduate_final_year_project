@@ -62,6 +62,7 @@ class TEDADatasetConfig:
     raw_file_pattern: str = "*.pickle"
     preferred_fold: str = DEFAULT_FOLD_NAME
     source_fold: str | None = None
+    source_folds_by_domain: dict[str, str] = field(default_factory=dict)
     target_fold: str | None = None
     random_fold_enabled: bool = False
     fold_strategy: str = "fixed"
@@ -89,6 +90,10 @@ class TEDADatasetConfig:
             raw_file_pattern=str(loading.get("raw_file_pattern", "*.pickle")),
             preferred_fold=str(protocol.get("preferred_fold", DEFAULT_FOLD_NAME)),
             source_fold=(str(protocol.get("source_fold")) if protocol.get("source_fold") is not None else None),
+            source_folds_by_domain={
+                str(key): str(value)
+                for key, value in (protocol.get("source_folds_by_domain") or {}).items()
+            },
             target_fold=(str(protocol.get("target_fold")) if protocol.get("target_fold") is not None else None),
             random_fold_enabled=bool(protocol.get("random_fold_enabled", False)),
             fold_strategy=str(protocol.get("fold_strategy", "fixed")),

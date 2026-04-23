@@ -94,6 +94,7 @@ def _cache_key(
     config: TEDADatasetConfig,
     setting: DomainAdaptationSetting,
     source_fold_name: str,
+    source_fold_names_by_domain: dict[str, str],
     target_fold_name: str,
 ) -> str:
     payload = {
@@ -102,6 +103,10 @@ def _cache_key(
         "source_domains": [reference.domain.name for reference in setting.source_domains],
         "target_domain": setting.target_domain.domain.name,
         "source_fold_name": str(source_fold_name),
+        "source_fold_names_by_domain": {
+            domain_name: str(source_fold_names_by_domain[domain_name])
+            for domain_name in sorted(source_fold_names_by_domain)
+        },
         "target_fold_name": str(target_fold_name),
         "normalization": config.normalization,
         "normalization_scope": config.normalization_scope,
@@ -138,6 +143,19 @@ def _build_domain_split_from_arrays(
         train_indices=train_indices,
         eval_indices=eval_indices,
     )
+
+
+def _source_fold_names_by_domain(
+    *,
+    config: TEDADatasetConfig,
+    setting: DomainAdaptationSetting,
+    default_source_fold_name: str,
+) -> dict[str, str]:
+    raw_mapping = getattr(config, "source_folds_by_domain", {}) or {}
+    return {
+        reference.domain.name: str(raw_mapping.get(reference.domain.name, default_source_fold_name))
+        for reference in setting.source_domains
+    }
 
 
 def load_domain_split(
@@ -231,10 +249,16 @@ def prepare_benchmark_data(
     else:
         source_fold_name = getattr(config, "source_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
         target_fold_name = getattr(config, "target_fold", None) or fold_name or config.preferred_fold or DEFAULT_FOLD_NAME
+    source_fold_names = _source_fold_names_by_domain(
+        config=config,
+        setting=setting,
+        default_source_fold_name=source_fold_name,
+    )
     cache_key = _cache_key(
         config=config,
         setting=setting,
         source_fold_name=source_fold_name,
+        source_fold_names_by_domain=source_fold_names,
         target_fold_name=target_fold_name,
     )
     cache_path = _cache_path(config, cache_key)
@@ -275,7 +299,11 @@ def prepare_benchmark_data(
             cache_hit = False
     if not cache_hit:
         source_splits = [
-            load_domain_split(interface, reference.domain.name, fold_name=source_fold_name)
+            load_domain_split(
+                interface,
+                reference.domain.name,
+                fold_name=source_fold_names[reference.domain.name],
+            )
             for reference in setting.source_domains
         ]
         target_split = load_domain_split(
