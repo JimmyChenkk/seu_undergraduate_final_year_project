@@ -1,0 +1,75 @@
+\chapter{课程化优化与完整训练流程}
+
+\section{模块定位}
+第三章、第四章和第五章分别给出了 RCTA 的时序一致性、可靠性门控和双原型结构约束。它们解决的问题不同，所依赖的训练阶段也不同：基础对齐和源域分类可以从训练开始即发挥作用；伪标签和一致性约束需要模型具备初步判别能力；原型约束则更依赖稳定的类别结构。如果多个辅助目标在训练初期同时以较大权重注入，可能会破坏尚未形成的分类边界。
+
+本章对应第一章提出的挑战四：多个辅助目标的作用时机不同，若同时强行注入可能破坏训练稳定性。为此，RCTA 采用课程化优化策略，并给出完整算法流程，使各创新环节按照“先搭底座、再引入目标域监督、最后强化类条件结构”的顺序逐步发挥作用。
+
+\section{课程化损失调度}
+RCTA 的三项目标域辅助损失并不是同时、同权重地注入训练，而是按照训练步数逐步激活。若记任一辅助项的基础权重为 $\lambda$，开始步数为 $t_0$，预热长度为 $\Delta t$，则其课程化权重可统一写为
+\begin{equation}
+\lambda(t)=
+\begin{cases}
+0, & t<t_0,\\
+\lambda \cdot \min\left(\frac{t-t_0}{\Delta t},1\right), & t\ge t_0.
+\end{cases}
+\end{equation}
+其中伪标签损失较早进入训练，一致性损失与其近似同步，原型损失则略晚启动，以避免在特征空间尚未稳定时过早冻结类别结构。
+
+这一调度策略与第四章的门控机制相互配合。训练早期主要由源域监督损失和基础对齐分支主导；中期随着可靠伪标签数量增加，目标域伪监督开始发挥作用；后期则通过原型约束进一步稳定类别边界。对于多类别流程工业时序任务而言，这种渐进式策略比一开始就施加强目标域约束更稳定。
+
+\section{完整目标函数}
+结合前述各章，RCTA 的完整优化目标为
+\begin{equation}
+\mathcal{L}_{\mathrm{RCTA}}=
+\mathcal{L}_{cls}^s
++\lambda_{align}\mathcal{L}_{align}
++\lambda_{mcc}\mathcal{L}_{mcc}
++\lambda_{pl}(t)\mathcal{L}_{pl}
++\lambda_{proto}(t)\mathcal{L}_{proto}
++\lambda_{cons}(t)\mathcal{L}_{cons}.
+\end{equation}
+其中，$\mathcal{L}_{cls}^s$ 负责源域有标签监督，$\mathcal{L}_{align}$ 负责基础域对齐，$\mathcal{L}_{mcc}$ 用于抑制目标域类别混淆，$\mathcal{L}_{cons}$ 由第三章给出，$\mathcal{L}_{pl}$ 由第四章给出，$\mathcal{L}_{proto}$ 由第五章给出。
+
+从章节逻辑上看，第三章提供目标域预测的平滑来源，第四章筛选可信目标样本，第五章塑造类条件结构，本章则决定这些目标以怎样的节奏进入优化过程。四个环节共同构成完整 RCTA。
+
+\section{训练流程表}
+算法~\ref{alg:rcta-training} 给出了 RCTA 的训练流程。该流程表可在后续精修时进一步替换为更完整的流程图，但当前骨架已经明确展示了各创新环节之间的先后关系和信息流向。
+
+\begin{algorithm}[htbp]
+\caption{RCTA 训练流程}
+\label{alg:rcta-training}
+\KwIn{源域批量 $\mathcal{B}_s$，目标域批量 $\mathcal{B}_t$，学生网络参数 $\theta_{\mathrm{stu}}$，教师网络参数 $\theta_{\mathrm{tea}}$，原型记忆 $C_s,C_t$}
+\KwOut{更新后的学生网络、教师网络和双原型记忆}
+初始化学生网络、教师网络和源/目标域原型记忆\;
+\For{训练步 $t=1,2,\ldots,T$}{
+  从源域和目标域采样 $\mathcal{B}_s,\mathcal{B}_t$\;
+  计算源域分类损失 $\mathcal{L}_{cls}^s$ 和基础对齐损失 $\mathcal{L}_{align}$\;
+  对目标域样本构造弱增强 $\tilde{x}_{w}^{t}$ 与强增强 $\tilde{x}_{s}^{t}$\;
+  教师网络在弱增强视图上生成 $p^{tea}$ 和伪标签 $\hat{y}^{t}$\;
+  学生网络在强增强视图上生成 $p^{stu}$，计算一致性信息\;
+  根据置信度、逆熵、增强一致性和原型相似度计算可靠性得分 $r$\;
+  按类别执行门控，得到高可靠目标集合 $\Omega_t$\;
+  使用 $\Omega_t$ 计算伪标签损失 $\mathcal{L}_{pl}$，并更新目标域原型候选\;
+  基于源域真实标签和目标域门控伪标签更新 $C_s,C_t$\;
+  计算原型吸引与分离损失 $\mathcal{L}_{proto}$\;
+  根据课程函数得到 $\lambda_{pl}(t)$、$\lambda_{cons}(t)$、$\lambda_{proto}(t)$\;
+  汇总 $\mathcal{L}_{\mathrm{RCTA}}$ 并更新学生网络参数 $\theta_{\mathrm{stu}}$\;
+  通过 EMA 更新教师网络参数 $\theta_{\mathrm{tea}}\leftarrow\mu\theta_{\mathrm{tea}}+(1-\mu)\theta_{\mathrm{stu}}$\;
+}
+\end{algorithm}
+
+\section{递进验证中的作用}
+在第七章的实验设计中，本章模块作为 D 模块与前三个创新环节共同组成完整 RCTA。递进验证顺序为 A、A+B、A+B+C 和 A+B+C+D，其中：
+
+\begin{enumerate}
+\item A 表示第三章的教师--学生时序一致性；
+\item B 表示第四章的可靠性门控伪标签学习；
+\item C 表示第五章的双原型记忆类条件约束；
+\item D 表示本章的课程化优化与完整训练流程。
+\end{enumerate}
+
+这样的实验组织方式能够避免只给出“完整方法优于基线”的笼统结论，而是逐步说明每个创新点在解决相应痛点时是否带来可观察收益。
+
+\section{本章小结}
+本章将 RCTA 的训练节奏和完整算法流程单独成章，说明了课程化损失调度、完整目标函数和 Algorithm 流程表。至此，RCTA 的四个创新环节已经按章节展开；下一章将作为倒数第二章，围绕数据集、实验设置和递进验证结果进行统一组织。

@@ -1,0 +1,143 @@
+\chapter{跨工况迁移诊断的基准脉络}
+
+\section{任务定义与符号说明}
+本文研究的任务为单源域到单目标域的无监督领域自适应故障诊断。设源域训练样本为
+\begin{equation}
+\mathcal{D}_s=\{(x_i^s,y_i^s)\}_{i=1}^{n_s},
+\end{equation}
+其中 $x_i^s$ 为源域样本，$y_i^s\in\mathcal{Y}$ 为故障类别标签；目标域训练样本为
+\begin{equation}
+\mathcal{D}_t=\{x_j^t\}_{j=1}^{n_t},
+\end{equation}
+其中目标域标签在训练阶段不可用。本文的目标是在利用源域有标签样本和目标域无标签样本的条件下，学习一个分类模型
+\begin{equation}
+f(x)=h(\phi(x)),
+\end{equation}
+使其在目标域测试集上的风险尽可能小，其中 $\phi(\cdot)$ 表示特征提取器，$h(\cdot)$ 表示分类头。
+
+若将目标域真实风险记为
+\begin{equation}
+R_t(f)=\mathbb{E}_{(x,y)\sim P_t(x,y)}[\ell(f(x),y)],
+\end{equation}
+则无监督领域自适应的困难在于训练阶段无法直接最小化 $R_t(f)$。因此，实际训练通常采用
+\begin{equation}
+\mathcal{L}=\mathcal{L}_{cls}^s+\lambda \mathcal{L}_{adapt}+\mathcal{L}_{aux}
+\end{equation}
+的形式，其中 $\mathcal{L}_{cls}^s$ 为源域监督分类损失，$\mathcal{L}_{adapt}$ 为领域对齐损失，$\mathcal{L}_{aux}$ 为伪标签、一致性、原型或其他辅助约束项。
+
+\section{域定义与统一输入表示}
+在本文实验设定中，不同 TEP 操作模式被视为不同领域，即
+\begin{equation}
+\mathcal{M}=\{\mathrm{mode1},\mathrm{mode2},\ldots,\mathrm{mode6}\}.
+\end{equation}
+源域与目标域共享相同的标签空间，
+\begin{equation}
+\mathcal{Y}=\{0,1,\ldots,28\},
+\end{equation}
+但样本分布并不一致。输入样本采用多变量过程时序片段表示，按照 channels-first 方式组织为 $(N,C,T)$ 形状，其中 $C=34$ 表示过程变量通道数，$T=600$ 表示时间窗口长度，模型输出为 29 类工况与故障类别的预测结果。
+
+数据集的详细构成、域规模、迁移方向和实验划分放在第七章统一说明。本章只保留后续方法推导所需的共同符号与协议，使后文各创新章节能够围绕同一任务边界展开。
+
+\section{共享骨干网络}
+本文所有方法共享同一套一维全卷积网络（FCN）骨干，以降低骨干结构差异对实验结论的干扰。编码器由三层一维卷积构成，其计算过程可写为
+\begin{align}
+z^{(1)} &= \mathrm{ReLU}(\mathrm{IN}(\mathrm{Conv1D}_{9,128}(x))),\\
+z^{(2)} &= \mathrm{ReLU}(\mathrm{IN}(\mathrm{Conv1D}_{5,256}(z^{(1)}))),\\
+z^{(3)} &= \mathrm{ReLU}(\mathrm{IN}(\mathrm{Conv1D}_{3,128}(z^{(2)}))),
+\end{align}
+其中卷积核长度依次为 9、5 和 3，输出通道数依次为 128、256 和 128，$\mathrm{IN}(\cdot)$ 表示实例归一化。随后对时间维执行全局平均池化得到紧凑特征向量：
+\begin{equation}
+f=\frac{1}{T^\prime}\sum_{t=1}^{T^\prime} z^{(3)}_{:,t}\in\mathbb{R}^{128}.
+\end{equation}
+分类头采用一层隐藏维度为 128 的全连接网络：
+\begin{equation}
+p(x)=\mathrm{softmax}(W_2\,\mathrm{ReLU}(W_1 f+b_1)+b_2).
+\end{equation}
+该结构既保留了时序卷积对局部动态模式的提取能力，又避免了过于复杂的骨干网络给横向比较带来额外变量。
+
+\section{基础训练目标}
+源域监督分类损失统一采用交叉熵形式：
+\begin{equation}
+\mathcal{L}_{cls}^s=
+-\frac{1}{n_s}\sum_{i=1}^{n_s}\sum_{k=1}^{K}
+\mathbf{1}[y_i^s=k]\log p_k(x_i^s),
+\end{equation}
+其中 $K=29$，$p_k(x)$ 为模型对第 $k$ 类的预测概率。不同领域自适应方法在此基础上分别引入协方差对齐、MMD 对齐、域对抗损失、条件对抗损失或最优传输损失；本文提出的 RCTA 则进一步加入可靠伪标签、原型记忆和一致性约束。
+
+在训练脚手架层面，本文统一采用 Adam 优化器，基础学习率设为 $10^{-4}$，权重衰减设为 0。六种基线方法的训练轮数设为 70，批大小设为 32；RCTA 为了容纳更长的伪标签与原型课程调度，将训练轮数扩展为 96。对于 CDAN 与 RCTA 等更敏感的方法，额外采用最大范数为 5.0 的梯度裁剪，以减小训练过程中的数值波动对收敛稳定性的影响。
+
+\section{典型基线方法}
+本节保留六种典型基线方法的骨架说明，具体结果统一放在第七章实验章节中呈现。
+
+\subsection{Source Only}
+Source Only 仅依赖源域监督分类损失训练模型，不显式处理源域与目标域之间的分布偏移，其优化目标可写为
+\begin{equation}
+\mathcal{L}_{SO}=\mathcal{L}_{cls}^s.
+\end{equation}
+该方法可视为所有领域自适应方法的基础对照组。若某一领域自适应方法在目标域上不能显著优于 Source Only，则说明其对齐策略尚未真正缓解跨工况迁移带来的分布差异问题。
+
+\subsection{分布对齐方法}
+CORAL 通过约束源域与目标域特征协方差矩阵的一致性来减小二阶统计差异~\cite{sun2016deep}。设源域与目标域特征分别为 $F_s\in\mathbb{R}^{n_s\times d}$ 和 $F_t\in\mathbb{R}^{n_t\times d}$，对应协方差矩阵为 $C_s,C_t$，则 CORAL 损失为
+\begin{equation}
+\mathcal{L}_{coral}=
+\frac{\|C_s-C_t\|_F^2}{4d^2}.
+\end{equation}
+DAN 使用多核最大均值差异约束源域与目标域特征分布，在核空间中实现边缘分布对齐~\cite{long2015dan}。给定核函数族 $\{k_u\}_{u=1}^{U}$，其损失可表示为
+\begin{equation}
+\mathcal{L}_{mmd}=
+\left\|
+\frac{1}{n_s}\sum_{i=1}^{n_s}\varphi(f_i^s)-
+\frac{1}{n_t}\sum_{j=1}^{n_t}\varphi(f_j^t)
+\right\|_{\mathcal{H}}^2.
+\end{equation}
+这两类方法结构直接、训练相对稳定，因此适合作为基础分布对齐参照。
+
+\subsection{对抗式方法}
+DANN 在共享特征提取网络之后加入域判别器，并利用梯度反转层实现特征表示与域分类之间的对抗学习，从而逼近域不变特征~\cite{ganin2016dann}。设域标签 $d=1$ 表示源域，$d=0$ 表示目标域，域判别器为 $D(\cdot)$，则对抗损失可写为
+\begin{equation}
+\mathcal{L}_{adv}=
+-\frac{1}{n_s}\sum_{i=1}^{n_s}\log D(f_i^s)
+-\frac{1}{n_t}\sum_{j=1}^{n_t}\log(1-D(f_j^t)).
+\end{equation}
+
+CDAN 在 DANN 基础上进一步将类别预测结果纳入条件化对齐过程，使域判别器感知类别结构信息~\cite{long2018conditional}。若记分类器输出概率为 $p(x)$，则 CDAN 对特征与类别预测进行联合映射：
+\begin{equation}
+g(x)=f(x)\otimes p(x),
+\end{equation}
+其中 $\otimes$ 表示多线性组合。对抗式方法通常具有较强的适应能力，但训练稳定性和超参数敏感性也更值得关注。
+
+\subsection{最优传输方法}
+DeepJDOT 通过联合建模特征空间距离与类别预测差异，构建源域和目标域样本之间的运输代价，在深度特征学习过程中同时优化分类与跨域匹配~\cite{damodaran2018deepjdot}。设 $\gamma$ 为源域与目标域样本间的运输矩阵，则其代价函数可写为
+\begin{equation}
+\mathcal{L}_{OT}=
+\min_{\gamma\in\Pi(a,b)}
+\sum_{i,j}\gamma_{ij}
+\left(
+\alpha\|f_i^s-f_j^t\|_2^2+
+\beta\ell(y_i^s,p_j^t)
+\right).
+\end{equation}
+该方法能够提供样本级跨域关系约束，但也更容易受到批大小、代价尺度和计算开销的影响。
+
+\section{评价指标与模型选择}
+本文重点比较各方法的目标域诊断性能。评价指标主要包括目标域准确率、平衡准确率、混淆矩阵，以及反映域对齐程度和类别聚合情况的特征可视化结果。目标域准确率定义为
+\begin{equation}
+\mathrm{Acc}_t=\frac{1}{N_t^{eval}}\sum_{i=1}^{N_t^{eval}}\mathbf{1}[\hat{y}_i=y_i],
+\end{equation}
+平衡准确率定义为
+\begin{equation}
+\mathrm{BA}_t=\frac{1}{K}\sum_{k=1}^{K}
+\frac{\mathrm{TP}_k}{\mathrm{TP}_k+\mathrm{FN}_k},
+\end{equation}
+其中 $\mathrm{TP}_k$ 和 $\mathrm{FN}_k$ 分别表示第 $k$ 类的真正例和假负例数量。与普通准确率相比，平衡准确率能够更稳定地反映多类别任务下不同类别的平均识别水平。
+
+考虑到无监督领域自适应缺少统一公认的目标域有标签验证标准，本文采用基于源域评估性能与目标域无标签代理信息的混合模型选择策略。对多数方法，默认采用
+\begin{equation}
+S_{\mathrm{hyb}}=
+w_s\cdot \mathrm{Acc}_s^{eval}
+-w_h\cdot \bar{H}_t,
+\end{equation}
+其中 $\mathrm{Acc}_s^{eval}$ 为源域评估准确率，$\bar{H}_t$ 为目标域训练集上归一化预测熵的均值。该指标兼顾源域判别能力与目标域预测结构化程度，用于选择更稳健的 checkpoint。
+
+\section{本章小结}
+本章不再以单纯“相关基础”方式组织内容，而是围绕后续方法和实验所需的共同前提，说明了跨工况迁移诊断的任务定义、输入表示、共享骨干网络、基础训练目标、典型基线方法和评价指标。原数据集细节和基线实验结果被内化到第七章实验设计与递进验证中，避免形成单独的大章节割裂。

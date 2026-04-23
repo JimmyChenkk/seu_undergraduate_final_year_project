@@ -1,0 +1,83 @@
+\chapter{教师--学生时序一致性自适应}
+
+\section{模块定位}
+第二章中的基准方法主要解决源域与目标域之间的整体分布差异，但目标域样本在训练阶段没有标签，模型无法直接获得目标域分类监督。若只依赖全局域对齐，目标域特征虽然可能靠近源域特征，却不一定形成稳定的类别边界。为此，RCTA 的第一个创新环节是在强基线对齐分支之上，引入教师--学生协同和弱强双视图时序一致性，使目标域样本能够以更稳健的方式参与训练。
+
+本章对应第一章提出的挑战一：跨工况全局分布偏移显著，但单纯对齐不足以稳定利用目标域时序样本。其目标不是单独替代域对齐，而是在保留基础对齐能力的同时，为后续可靠性门控和原型约束提供更平滑的目标域预测来源。
+
+\section{RCTA 总体框架}
+设学生网络由编码器 $\phi(\cdot)$ 与分类器 $h(\cdot)$ 构成，教师网络由参数的指数滑动平均版本 $\phi_{\mathrm{tea}}(\cdot)$ 和 $h_{\mathrm{tea}}(\cdot)$ 构成。对于一个源域小批量
+\begin{equation}
+\mathcal{B}_s=\{(x_i^s,y_i^s)\}_{i=1}^{m_s}
+\end{equation}
+和一个目标域小批量
+\begin{equation}
+\mathcal{B}_t=\{x_j^t\}_{j=1}^{m_t},
+\end{equation}
+RCTA 的一次训练迭代由以下环节组成：
+
+\begin{enumerate}
+\item 源域样本经学生网络前向传播，计算监督分类损失与基础域对齐损失；
+\item 目标域样本构造弱增强与强增强双视图，教师网络在弱增强视图上生成软伪标签，学生网络在强增强视图上接受一致性约束；
+\item 利用教师置信度、逆熵、强增强一致性与原型相似度构造可靠性分数，并按类别分别筛选高可靠目标样本；
+\item 基于源域与目标域双原型记忆，对源域样本和高可靠目标样本施加原型吸引与原型分离约束；
+\item 通过课程化权重调度联合优化各项损失，并以 EMA 方式更新教师网络参数。
+\end{enumerate}
+
+本文最终采用 DANN 作为 RCTA 的基础对齐分支。一方面，DANN 的对抗对齐机制能够为源域和目标域建立较强的共享表示底座；另一方面，它的结构相对清晰，便于在其上叠加目标域伪监督和类条件约束。RCTA 的总损失可先写为
+\begin{equation}
+\mathcal{L}_{\mathrm{RCTA}}=
+\mathcal{L}_{cls}^s
++\lambda_{align}\mathcal{L}_{align}
++\lambda_{mcc}\mathcal{L}_{mcc}
++\lambda_{pl}(t)\mathcal{L}_{pl}
++\lambda_{proto}(t)\mathcal{L}_{proto}
++\lambda_{cons}(t)\mathcal{L}_{cons},
+\end{equation}
+其中 $\mathcal{L}_{align}$ 为 DANN 对抗对齐损失，$\mathcal{L}_{mcc}$ 为最小类混淆正则~\cite{jin2020mcc}，$\mathcal{L}_{pl}$、$\mathcal{L}_{proto}$ 和 $\mathcal{L}_{cons}$ 分别对应后续章节展开的伪标签、原型和一致性目标。
+
+\section{EMA 教师网络}
+为减轻目标域伪标签的瞬时波动，RCTA 不直接使用学生网络当前时刻的预测作为监督，而是引入教师网络生成更平滑的目标域概率分布~\cite{tarvainen2017meanteacher}。教师参数通过学生参数的指数滑动平均更新：
+\begin{equation}
+\theta_{\mathrm{tea}}\leftarrow
+\mu \theta_{\mathrm{tea}}+(1-\mu)\theta_{\mathrm{stu}},
+\end{equation}
+其中 $\mu$ 为 EMA 衰减系数，本文采用的 aggressive 配置中取 $\mu=0.99$。EMA 的作用可以理解为在参数空间做低通滤波，使教师输出对单步梯度扰动不那么敏感，因此更适合作为目标域伪标签来源。
+
+对目标域样本 $x_j^t$，教师网络给出的软标签分布为
+\begin{equation}
+p_{j}^{tea}=
+\mathrm{softmax}\!\left(
+\frac{h_{\mathrm{tea}}(\phi_{\mathrm{tea}}(\tilde{x}_{j,w}^t))}{T_{tea}}
+\right),
+\end{equation}
+其中 $T_{tea}$ 为教师温度参数，$\tilde{x}_{j,w}^t$ 为弱增强视图。相应的伪标签定义为
+\begin{equation}
+\hat{y}_j^t=\arg\max p_j^{tea}.
+\end{equation}
+本文在 aggressive 配置中采用 $T_{tea}=1.1$，既保留类别判别性，又避免温度过低造成的过度自信。
+
+\section{弱强双视图时序增强}
+RCTA 在目标域上采用保守的弱增强与相对困难的强增强~\cite{xie2020uda}。设随机增强算子分别为 $\mathcal{A}_w$ 与 $\mathcal{A}_s$，则有
+\begin{equation}
+\tilde{x}_{j,w}^t=\mathcal{A}_w(x_j^t),\qquad
+\tilde{x}_{j,s}^t=\mathcal{A}_s(x_j^t).
+\end{equation}
+其中弱增强主要包含轻微抖动与缩放，强增强进一步加入时间屏蔽和通道 dropout。这样的设计遵循“教师看清晰视图、学生学困难视图”的思路：教师在信息保留更多的弱增强视图上产生更稳定的软标签，学生则在受扰动更强的视图上学习鲁棒表示。
+
+对于流程工业时序数据，增强策略需要保持过程变量的语义一致性，不能破坏故障类型本身。因而本文采用的增强均控制在局部扰动范围内：抖动用于模拟传感噪声，缩放用于模拟量纲与负载轻微变化，时间屏蔽用于提升局部缺失鲁棒性，通道 dropout 用于缓解模型过度依赖少数变量的问题。后续实验章节会把该环节作为递进验证中的 A 模块。
+
+\section{一致性损失}
+对目标域样本，学生网络在强增强视图上的输出记为 $p_j^{stu}$。一致性损失采用教师分布与学生分布之间的 KL 散度：
+\begin{equation}
+\mathcal{L}_{cons}=
+\frac{1}{m_t}\sum_{j=1}^{m_t}
+w_j^{cons}\,
+D_{KL}\!\left(p_j^{tea}\,\|\,p_j^{stu}\right),
+\end{equation}
+其中 $w_j^{cons}$ 为由可靠性得分导出的样本权重。当前实现中，一致性项主要对通过门控的样本施加显式约束，并对可靠性权重做幂次放大，从而把更多梯度预算分配给更可信的目标样本。
+
+从整体结构上看，本章引入的教师--学生时序一致性解决的是“目标域样本如何进入训练”的问题；下一章进一步解决“哪些目标域样本值得相信”的问题。二者共同构成 RCTA 目标域伪监督机制的前后两层。
+
+\section{本章小结}
+本章将原 RCTA 框架中的教师网络与时序一致性环节拆分为独立章节，说明了其在全文创新链条中的位置。该环节以 DANN 对齐分支为基础，通过 EMA 教师网络和弱强双视图增强，为目标域样本提供更平滑、更鲁棒的伪监督入口，为后续可靠性门控和双原型约束奠定基础。
