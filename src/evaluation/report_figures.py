@@ -10,6 +10,9 @@ from pathlib import Path
 from src.evaluation.review import extract_core_metrics
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
+DEFAULT_PRIMARY_FIGURE_FORMAT = "svg"
+REQUIRED_FIGURE_FORMATS = ("png", "svg")
+
 
 class FigureDependencyError(RuntimeError):
     """Raised when figure-export dependencies are missing."""
@@ -65,14 +68,31 @@ def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def _save_figure(path: Path, *, figure_format: str | None = None, keep_png_preview: bool = True) -> None:
+def _resolve_primary_figure_format(figure_format: str | None, *, fallback_path: Path | None = None) -> str:
+    if figure_format:
+        return str(figure_format).lower()
+    if fallback_path is not None and fallback_path.suffix:
+        return fallback_path.suffix.lstrip(".").lower()
+    return DEFAULT_PRIMARY_FIGURE_FORMAT
+
+
+def _build_figure_output_path(path: Path, *, figure_format: str | None = None) -> Path:
+    primary_format = _resolve_primary_figure_format(figure_format, fallback_path=path)
+    return path.with_suffix(f".{primary_format}")
+
+
+def _save_figure(path: Path, *, figure_format: str | None = None) -> None:
     _, plt, _ = _runtime_dependencies()
     _ensure_dir(path.parent)
     plt.tight_layout()
-    save_format = figure_format or path.suffix.lstrip(".")
-    plt.savefig(path, format=save_format, bbox_inches="tight")
-    if keep_png_preview and path.suffix.lower() != ".png":
-        plt.savefig(path.with_suffix(".png"), format="png", bbox_inches="tight")
+    primary_format = _resolve_primary_figure_format(figure_format, fallback_path=path)
+    export_formats: list[str] = []
+    for save_format in (primary_format, *REQUIRED_FIGURE_FORMATS):
+        normalized = str(save_format).lower()
+        if normalized not in export_formats:
+            export_formats.append(normalized)
+    for save_format in export_formats:
+        plt.savefig(path.with_suffix(f".{save_format}"), format=save_format, bbox_inches="tight")
     plt.close()
 
 
@@ -376,7 +396,7 @@ def export_tsne_figures(
     plt.title("Domain Fusion t-SNE")
     plt.xlabel("t-SNE-1")
     plt.ylabel("t-SNE-2")
-    _save_figure(output_dir / f"tsne_domain.{figure_format or 'png'}", figure_format=figure_format)
+    _save_figure(_build_figure_output_path(output_dir / "tsne_domain", figure_format=figure_format), figure_format=figure_format)
 
     plt.figure(figsize=(6, 5))
     scatter = plt.scatter(
@@ -391,7 +411,7 @@ def export_tsne_figures(
     plt.title("Class Aggregation t-SNE")
     plt.xlabel("t-SNE-1")
     plt.ylabel("t-SNE-2")
-    _save_figure(output_dir / f"tsne_class.{figure_format or 'png'}", figure_format=figure_format)
+    _save_figure(_build_figure_output_path(output_dir / "tsne_class", figure_format=figure_format), figure_format=figure_format)
 
 
 def export_confusion_matrix_figure(
@@ -457,7 +477,7 @@ def export_run_review_figures(artifact_path: Path, output_dir: Path, *, figure_f
     try:
         export_confusion_matrix_figure(
             artifact_path,
-            output_dir / f"confusion_matrix.{figure_format or 'png'}",
+            _build_figure_output_path(output_dir / "confusion_matrix", figure_format=figure_format),
             figure_format=figure_format,
         )
     except Exception as exc:  # pragma: no cover - defensive figure export guard
@@ -470,18 +490,22 @@ def export_summary_figures(results_dir: Path, output_dir: Path, *, figure_format
         return
 
     _ensure_dir(output_dir)
-    export_mean_bar_chart(rows, output_dir / f"method_mean_accuracy.{figure_format or 'png'}", figure_format=figure_format)
+    export_mean_bar_chart(
+        rows,
+        _build_figure_output_path(output_dir / "method_mean_accuracy", figure_format=figure_format),
+        figure_format=figure_format,
+    )
     for setting_name in sorted(set(str(row["setting"]) for row in rows)):
         export_mean_bar_chart(
             rows,
-            output_dir / f"{setting_name}_method_mean_accuracy.{figure_format or 'png'}",
+            _build_figure_output_path(output_dir / f"{setting_name}_method_mean_accuracy", figure_format=figure_format),
             setting_name=setting_name,
             figure_format=figure_format,
         )
         export_setting_heatmap(
             rows,
             setting_name,
-            output_dir / f"{setting_name}_heatmap.{figure_format or 'png'}",
+            _build_figure_output_path(output_dir / f"{setting_name}_heatmap", figure_format=figure_format),
             figure_format=figure_format,
         )
 
@@ -514,7 +538,7 @@ def parse_args() -> argparse.Namespace:
         "--figure-format",
         choices=("png", "pdf", "svg"),
         default="svg",
-        help="Vector-friendly default is svg; use png only when raster output is preferred.",
+        help="Primary export format. All figures also emit svg and png companions for downstream use.",
     )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(
@@ -554,7 +578,10 @@ def main() -> None:
         export_domain_comparison_figure(
             left_path,
             right_path,
-            summary_output_dir / f"domain_comparison_{pair_index}.{args.figure_format}",
+            _build_figure_output_path(
+                summary_output_dir / f"domain_comparison_{pair_index}",
+                figure_format=args.figure_format,
+            ),
             figure_format=args.figure_format,
         )
 

@@ -1,15 +1,17 @@
-\chapter{实验设计与递进验证}
+\chapter{实验设计与结果组织}
 
 \section{实验章节定位}
-本章作为全文倒数第二章，统一承接前文的基准构建、方法设计和递进验证任务。与原先将“实验设定”和“基线结果”拆成独立大章的写法不同，本章把数据集介绍、统一实验协议、基线对比和 RCTA 创新点验证放在同一实验章节中，形成从任务背景到模块有效性验证的完整闭环。
+本章作为全文倒数第二章，统一承接前文的 benchmark 构建、方法设计与结果验证任务。与仅对少量场景做“点状展示”的写法不同，本文当前版本明确以
+\path{benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml}
+对应的 88-run fixed-fold benchmark 作为主实验口径。也就是说，本章首先围绕当前必须完成的正式 benchmark 给出实验组织、结果表和图件占位；至于更细粒度的模块级消融，则在本章后部作为后续补充实验计划保留结构化位置。
 
-本章的实验组织遵循第一章提出的挑战--创新点对应关系：先给出统一数据集与评价协议，再呈现基线方法结果，最后按照第三章至第六章的创新顺序进行逐步叠加验证。若将第三章、第四章、第五章和第六章分别记为 A、B、C、D，则实验验证顺序为 A、A+B、A+B+C、A+B+C+D。
+这种组织方式的好处在于：一方面，论文主结果与当前实际要跑的实验配置完全一致，避免正文口径与代码配置脱节；另一方面，第三章至第六章已经把 RCTA 的创新模块分章展开，即使暂时还没有逐模块消融结果，论文的技术逻辑仍然完整，后续只需在既有位置回填补充实验。
 
-\section{数据集与域划分}
+\section{数据集与 benchmark 场景}
 \subsection{TEP 领域自适应数据集}
-本文采用 Tennessee Eastman Process Domain Adaptation 数据集开展实验。该数据集面向跨工况迁移诊断任务构造，将 6 个操作模式视为 6 个不同领域，标签空间为 29 类，即正常工况和 28 类故障。与普通单域分类任务相比，该数据集更适合用于分析工业过程在工况切换条件下产生的分布偏移问题。
+本文采用 Tennessee Eastman Process Domain Adaptation 数据集开展实验。该数据集将 6 个操作模式视为 6 个不同领域，标签空间为 29 类，即正常工况和 28 类故障。与普通单域分类任务相比，该数据集更适合用于分析工业过程在工况切换条件下产生的分布偏移问题，并观察不同领域自适应机制对多类别工业时序诊断的影响~\cite{montesuma2023benchmark}。
 
-根据 manifest 文件，6 个域的样本规模与默认 Fold 1 划分情况如表~\ref{tab:dataset-stats} 所示。可以看到，各域样本总量均接近 2900，默认采用 5 折中的 Fold 1 作为评估集时，训练样本量约为 2300，测试样本量约为 570。这样的规模既能够支撑本文的系统化单源比较，也保留了工业时序诊断任务的复杂性。
+根据当前工作区中的 \texttt{data/benchmark/manifest.json}，6 个域的样本规模与默认 Fold 1 划分情况如表~\ref{tab:dataset-stats} 所示。可以看到，各域样本总量均接近 2900，默认采用 Fold 1 作为评估折时，训练样本量约为 2300，评估样本量约为 570。这样的规模既能够支撑本文的系统化 benchmark 比较，也保留了工业时序诊断任务的复杂性。
 
 \begin{table}[htbp]
 \centering
@@ -29,18 +31,46 @@ mode6 & 2897 & 2318 & 579 & 600$\times$34 & 29 \\
 \end{tabular}
 \end{table}
 
-\subsection{迁移任务构造}
-本文将不同运行模式之间的迁移任务表示为单源域到单目标域的无监督领域自适应场景。训练阶段仅使用源域标签和目标域无标签样本，测试阶段使用目标域标签进行性能评估。正文聚焦以下四个关键单源场景：
-\begin{equation}
-\mathrm{mode2}\rightarrow\mathrm{mode5},\quad
-\mathrm{mode3}\rightarrow\mathrm{mode6},\quad
-\mathrm{mode5}\rightarrow\mathrm{mode2},\quad
-\mathrm{mode6}\rightarrow\mathrm{mode3}.
-\end{equation}
-这四个场景覆盖了互逆迁移方向，既包含分布偏移显著的困难方向，也包含 Source Only 已具有一定可迁移性、但仍有改进空间的相对容易方向，因此能够较完整地反映方法在不同迁移难度下的表现。
+\subsection{11 个场景的 fixed-fold benchmark}
+当前 benchmark 不追求覆盖全部 30 个有向单源场景，而是采用“两簇 + 代表性多源场景”的设计。具体而言，一簇为 mode3 与 mode6 的互迁，另一簇为 mode1、mode2、mode5 之间的互迁，并在后者基础上补充 3 个多源到单目标场景。这样得到总计 11 个迁移场景，其中 8 个为单源场景，3 个为多源场景。
 
-\section{输入预处理与实验协议}
-\subsection{时序样本表示}
+表~\ref{tab:benchmark-scenes} 给出了本 benchmark 的场景构成与固定折分配。固定折策略的作用在于：所有方法在同一场景上共享相同的源折与目标折，从而避免方法之间由于折采样差异而产生额外噪声，使比较尽量聚焦于方法本身。
+
+\begin{table}[htbp]
+\centering
+\caption{88-run fixed-fold benchmark 的 11 个场景与折分配}
+\label{tab:benchmark-scenes}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+编号 & 场景类型 & 迁移场景 & 源折设置 & 目标折 \\
+\hline
+S1 & 单源 & mode3$\rightarrow$mode6 & Fold 1 & Fold 1 \\
+S2 & 单源 & mode6$\rightarrow$mode3 & Fold 1 & Fold 5 \\
+S3 & 单源 & mode1$\rightarrow$mode2 & Fold 2 & Fold 4 \\
+S4 & 单源 & mode2$\rightarrow$mode1 & Fold 5 & Fold 3 \\
+S5 & 单源 & mode1$\rightarrow$mode5 & Fold 4 & Fold 3 \\
+S6 & 单源 & mode5$\rightarrow$mode1 & Fold 4 & Fold 4 \\
+S7 & 单源 & mode2$\rightarrow$mode5 & Fold 1 & Fold 3 \\
+S8 & 单源 & mode5$\rightarrow$mode2 & Fold 3 & Fold 4 \\
+M1 & 多源 & mode1+mode2$\rightarrow$mode5 & mode1: Fold 4, mode2: Fold 1 & Fold 3 \\
+M2 & 多源 & mode1+mode5$\rightarrow$mode2 & mode1: Fold 2, mode5: Fold 3 & Fold 4 \\
+M3 & 多源 & mode2+mode5$\rightarrow$mode1 & mode2: Fold 4, mode5: Fold 4 & Fold 4 \\
+\hline
+\end{tabular}
+}
+\normalsize
+\end{table}
+
+在实验数量上，当前 benchmark 共包含 8 种方法和 11 个场景，因此总运行次数为
+\begin{equation}
+8\times 11=88.
+\end{equation}
+这一规模既明显大于只比较个别迁移方向的“小样本结果”，又仍然处于本科论文阶段可以组织与管理的范围内。
+
+\section{统一实验协议}
+\subsection{输入预处理与归一化}
 数据集中的每个样本均表示为固定长度的多变量时间窗口，可形式化写为
 \begin{equation}
 x\in\mathbb{R}^{T\times C},
@@ -49,160 +79,136 @@ x\in\mathbb{R}^{T\times C},
 \begin{equation}
 x^\prime=\mathrm{Transpose}(x)\in\mathbb{R}^{C\times T}.
 \end{equation}
-这种表示方式既保留了过程变量间的相关性，也保留了短时动态变化信息，适合由一维卷积网络沿时间维提取局部模式。所有方法均在相同输入形式下进行比较，以避免由于样本组织方式差异而引入额外干扰。
-
-\subsection{归一化与数据划分}
-为保证不同方法之间具有可比性，本文采用固定折划分区分训练样本与评估样本，并在域内执行标准化处理，以减小量纲差异对模型训练的影响。对任意一个域内通道 $c$，首先计算该域全体样本在该通道上的均值与标准差：
-\begin{equation}
-\mu_c=\frac{1}{NT}\sum_{n=1}^{N}\sum_{t=1}^{T}x_{n,t,c},\qquad
-\sigma_c=\sqrt{\frac{1}{NT}\sum_{n=1}^{N}\sum_{t=1}^{T}(x_{n,t,c}-\mu_c)^2},
-\end{equation}
-随后执行标准化：
+为保证不同方法具有可比性，本文采用域内标准化，即对每个域分别基于该域全量样本统计量执行标准化：
 \begin{equation}
 \tilde{x}_{n,t,c}=\frac{x_{n,t,c}-\mu_c}{\sigma_c+\varepsilon}.
 \end{equation}
-当前采用的策略是 \texttt{normalization\_scope=domain}，即对每个域分别基于该域全量样本统计量进行标准化，然后再按照 Fold 1 划分训练集与评估集。这一做法能够减小不同域量纲差异对特征学习的干扰，使比较尽量聚焦于领域自适应机制本身。
+其中 $\mu_c$ 和 $\sigma_c$ 为该域第 $c$ 个通道的均值和标准差。该策略对应当前数据配置中的 \path{normalization_scope=domain}。
 
-\subsection{训练与结果产物}
-各方法采用一致的数据划分、共享骨干网络和统一的数据输入格式，并在相同任务设定下进行比较。训练阶段统一遵循“源域有标签、目标域无标签”的无监督领域自适应协议；评估阶段同时记录源域表现和目标域表现，以便分析模型是否存在“源域拟合较强但目标域迁移有限”的现象。
+\subsection{方法集合与训练设置}
+当前 benchmark 涉及的 8 种方法为 Source Only、Target Only、CORAL、DAN、DANN、CDAN、DeepJDOT 和 RCTA。
+其中，Target Only 使用目标域标签进行监督训练，因此在严格意义上不属于无监督领域自适应方法，而是作为监督参考上界参与比较。其余 7 种方法中，Source Only 作为无自适应对照组，CORAL/DAN 代表统计对齐，DANN/CDAN 代表对抗式对齐，DeepJDOT 代表最优传输思想，RCTA 则是本文的改进方法。
 
-为了保证结果核对、图表生成和论文撰写过程中的一致性，训练脚手架对每次运行均保存统一结构的产物，包括 checkpoint、结果表、运行评审摘要、混淆矩阵图、t-SNE 可视化图以及分析用中间特征。实验结果统一以 \texttt{result.json} 和 \texttt{review.json} 形式保存，便于批量汇总和交叉校验。
+为降低无关变量干扰，所有方法共享同一 FCN 骨干和统一结果导出结构，但不同方法在训练轮数、对齐权重和模型选择指标上允许保留合理差异。当前 fixed-fold benchmark 中，基线方法训练轮数主要落在 84--120 之间，RCTA 训练轮数为 112；DeepJDOT 使用更大的 batch size 以支持 OT 代价计算，其余方法大体维持 batch size=32。这样的配置方式更符合 benchmark 的实际目的，即比较方法机制在合理调参后的表现，而非强行让所有方法使用完全一致但未必合适的超参数。
 
-\section{基线方法总体结果}
-表~\ref{tab:baseline-single-source} 预留了 6 种基线方法在四个关键单源场景上的目标域结果位置。考虑到当前版本需要先完成论文骨架调整，本表中的具体数值统一保留为占位实现，待最终实验结果整理完成后再统一回填。
+\subsection{运行命令与结果产物}
+当前 benchmark 的实际运行入口为仓库中的批量脚本
+\path{scripts/run_small_scale_round.sh}。对应的主实验命令为：
+
+\begin{quote}
+\small
+\ttfamily
+scripts/run\_small\_scale\_round.sh \textbackslash\\
+--experiment-config \textbackslash\\
+configs/experiment/\textbackslash\\
+benchmark\_88\_2clusters\_11scenes\_8methods\_fixedfold.yaml
+\end{quote}
+
+运行结束后，脚手架会在 \path{runs/} 目录下统一生成每次运行的
+\path{result.json}、\path{review.json}、checkpoint、分析特征文件以及图表；随后自动汇总到
+\path{comparison_summary}
+目录，形成整轮 benchmark 的 JSON/Markdown 对照表和汇总图件。也就是说，本章后续所有表格与图件理论上都可以从统一结果产物中回填，而不需要手工拼接零散结果。
+
+\section{总体 benchmark 结果占位}
+\subsection{8 个单源场景的结果表}
+表~\ref{tab:benchmark-single-source} 预留了 8 个单源场景上的 benchmark 主结果位置。考虑到当前版本的论文重点是先完成结构化写作与实验回填接口，因此表中数值暂以占位形式呈现，待 benchmark 跑完后可直接回填目标域准确率或“准确率 / 平衡准确率”双指标。
 
 \begin{table}[htbp]
 \centering
-\caption{四个关键单源场景上的基线结果（占位）}
-\label{tab:baseline-single-source}
-\small
+\caption{8 个单源场景上的主结果（占位）}
+\label{tab:benchmark-single-source}
+\scriptsize
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccc}
+\begin{tabular}{lcccccccc}
 \hline
-方法 & mode2$\rightarrow$mode5 & mode3$\rightarrow$mode6 & mode5$\rightarrow$mode2 & mode6$\rightarrow$mode3 & 平均准确率 & 平均平衡准确率 \\
+场景 & Source Only & CORAL & DAN & DANN & CDAN & DeepJDOT & RCTA & Target Only \\
 \hline
-Source Only & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-CORAL & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-DAN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-DANN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-CDAN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-DeepJDOT & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode3$\rightarrow$mode6 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode6$\rightarrow$mode3 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode1$\rightarrow$mode2 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode2$\rightarrow$mode1 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode1$\rightarrow$mode5 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode5$\rightarrow$mode1 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode2$\rightarrow$mode5 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode5$\rightarrow$mode2 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
 \hline
 \end{tabular}
 }
 \normalsize
 \end{table}
 
-在最终版本中，本节将基于该表比较不同基线方法在四个迁移方向上的整体表现，并从平均准确率、平均平衡准确率以及跨场景稳定性三个角度展开分析。基线结果还将为后续 RCTA 递进验证提供参照，尤其用于观察完整方法相对于 Source Only 和最强基线的收益。
-
-\section{创新点递进验证}
-\subsection{验证顺序设计}
-为了体现创新点针对性解决现存痛点，本章不只比较完整 RCTA 与基线方法，而是按照章节顺序进行模块递进验证。四个模块定义如下：
-
-\begin{enumerate}
-\item A：第三章的教师--学生时序一致性自适应；
-\item B：第四章的可靠性门控伪标签学习；
-\item C：第五章的双原型记忆类条件约束；
-\item D：第六章的课程化优化与完整训练流程。
-\end{enumerate}
-
-对应的实验组合为 A、A+B、A+B+C、A+B+C+D。这样的验证方式能够观察每个创新环节加入后是否带来目标域性能、类别平衡性和训练稳定性的提升。
-
-\subsection{A：教师--学生时序一致性验证}
-表~\ref{tab:ablation-a} 预留 A 模块的验证结果位置。该实验以强基线对齐分支为底座，加入 EMA 教师和弱强双视图一致性，用于判断目标域时序一致性是否能够改善跨工况迁移表现。
+\subsection{3 个多源场景的结果表}
+表~\ref{tab:benchmark-multi-source} 预留了 3 个多源场景上的主结果位置。该表的意义在于观察当前方法在“源域信息更丰富，但域间关系也更复杂”的设置下是否仍然能够保持稳定收益。
 
 \begin{table}[htbp]
 \centering
-\caption{A 模块：教师--学生时序一致性验证（占位）}
-\label{tab:ablation-a}
-\small
-\begin{tabular}{lcccc}
+\caption{3 个多源场景上的主结果（占位）}
+\label{tab:benchmark-multi-source}
+\scriptsize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
 \hline
-模型 & mode2$\rightarrow$mode5 & mode3$\rightarrow$mode6 & mode5$\rightarrow$mode2 & mode6$\rightarrow$mode3 \\
+场景 & Source Only & CORAL & DAN & DANN & CDAN & DeepJDOT & RCTA & Target Only \\
 \hline
-强基线 & 待补充 & 待补充 & 待补充 & 待补充 \\
-A & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode1+mode2$\rightarrow$mode5 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode1+mode5$\rightarrow$mode2 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+mode2+mode5$\rightarrow$mode1 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
 \hline
 \end{tabular}
+}
 \normalsize
 \end{table}
 
-\subsection{A+B：加入可靠性门控后的验证}
-表~\ref{tab:ablation-ab} 预留 A+B 组合的验证结果位置。该实验在 A 的基础上加入多因素可靠性评分和按类门控，用于判断伪标签噪声控制是否进一步提升目标域监督质量。
+\subsection{方法总体汇总表}
+为避免正文只罗列逐场景结果而缺少总体结论，表~\ref{tab:benchmark-summary} 预留了方法层面的均值汇总位置。建议在回填时至少包含：8 个单源场景平均准确率、3 个多源场景平均准确率、11 个场景总体平均准确率、总体平均平衡准确率以及相对 Source Only 的平均增益。
 
 \begin{table}[htbp]
 \centering
-\caption{A+B 模块：加入可靠性门控后的递进验证（占位）}
-\label{tab:ablation-ab}
-\small
-\begin{tabular}{lcccc}
-\hline
-模型 & mode2$\rightarrow$mode5 & mode3$\rightarrow$mode6 & mode5$\rightarrow$mode2 & mode6$\rightarrow$mode3 \\
-\hline
-A & 待补充 & 待补充 & 待补充 & 待补充 \\
-A+B & 待补充 & 待补充 & 待补充 & 待补充 \\
-\hline
-\end{tabular}
-\normalsize
-\end{table}
-
-\subsection{A+B+C：加入双原型记忆后的验证}
-表~\ref{tab:ablation-abc} 预留 A+B+C 组合的验证结果位置。该实验在可靠伪标签基础上加入源域/目标域双原型记忆和类条件结构约束，用于判断类别混叠是否得到缓解。
-
-\begin{table}[htbp]
-\centering
-\caption{A+B+C 模块：加入双原型记忆后的递进验证（占位）}
-\label{tab:ablation-abc}
-\small
-\begin{tabular}{lcccc}
-\hline
-模型 & mode2$\rightarrow$mode5 & mode3$\rightarrow$mode6 & mode5$\rightarrow$mode2 & mode6$\rightarrow$mode3 \\
-\hline
-A+B & 待补充 & 待补充 & 待补充 & 待补充 \\
-A+B+C & 待补充 & 待补充 & 待补充 & 待补充 \\
-\hline
-\end{tabular}
-\normalsize
-\end{table}
-
-\subsection{A+B+C+D：完整 RCTA 验证}
-表~\ref{tab:rcta-vs-baselines} 预留完整 RCTA 与 Source Only 以及逐场景最强基线的对比结果位置。完整 RCTA 对应 A+B+C+D，即前三个创新模块加上课程化优化与完整训练流程。
-
-\begin{table}[htbp]
-\centering
-\caption{完整 RCTA 与 Source Only 及逐场景最强基线的比较（占位）}
-\label{tab:rcta-vs-baselines}
+\caption{88-run benchmark 的方法总体汇总（占位）}
+\label{tab:benchmark-summary}
 \small
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \hline
-场景 & Source Only & 最强基线 & A+B+C & 完整 RCTA & 相对最强基线增益 \\
+方法 & 单源平均准确率 & 多源平均准确率 & 总体平均准确率 & 总体平均平衡准确率 & 相对 Source Only 平均增益 \\
 \hline
-mode2$\rightarrow$mode5 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-mode3$\rightarrow$mode6 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-mode5$\rightarrow$mode2 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
-mode6$\rightarrow$mode3 & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+Source Only & 待补充 & 待补充 & 待补充 & 待补充 & 0 \\
+CORAL & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+DAN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+DANN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+CDAN & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+DeepJDOT & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+RCTA & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
+Target Only & 待补充 & 待补充 & 待补充 & 待补充 & 待补充 \\
 \hline
 \end{tabular}
 }
-\normalsize
 \end{table}
 
-\section{定性分析图件}
-为了进一步说明各创新模块的作用机制，本节预留代表性单源场景的定性分析位置。后续将在最终结果回填后，结合具体表现选择代表性迁移方向，并补充相应的混淆矩阵与特征可视化图件。
+在最终版本中，本节将基于上述三张表从以下三个角度展开分析。第一，比较不同方法在总体平均性能上的高低，观察 RCTA 是否能够稳定优于 Source Only 和强基线。第二，区分单源场景和多源场景，判断方法收益是否具有场景依赖性。第三，利用 Target Only 这一监督参考观察当前无监督领域自适应方法距离“目标域可监督训练”还有多大差距，从而给出更有边界感的结论。
+
+\section{定性分析图件占位}
+除定量指标外，当前 benchmark 还会自动导出混淆矩阵、t-SNE 投影和汇总热力图。考虑到这些图件的最终版本依赖正式运行结果，本节先给出结构化占位，待 benchmark 跑完后可直接替换。
+
+\begin{figure}[htbp]
+\centering
+\resultplaceholder[5.0cm]{11 个场景 $\times$ 8 种方法的 benchmark 热力图待补充}
+\caption{88-run benchmark 的场景--方法热力图（占位）}
+\label{fig:benchmark-heatmap}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
 \begin{minipage}{0.49\textwidth}
 \centering
-\resultplaceholder{基线方法混淆矩阵待补充}
+\resultplaceholder{代表性场景下强基线混淆矩阵待补充}
 \par
-\footnotesize (a) Source Only 或最强基线
+\footnotesize (a) 强基线或 Source Only
 \end{minipage}
 \hfill
 \begin{minipage}{0.49\textwidth}
 \centering
-\resultplaceholder{完整 RCTA 混淆矩阵待补充}
+\resultplaceholder{代表性场景下完整 RCTA 混淆矩阵待补充}
 \par
 \footnotesize (b) 完整 RCTA
 \end{minipage}
@@ -214,14 +220,14 @@ mode6$\rightarrow$mode3 & 待补充 & 待补充 & 待补充 & 待补充 & 待补
 \centering
 \begin{minipage}{0.49\textwidth}
 \centering
-\resultplaceholder{基线方法 t-SNE 图待补充}
+\resultplaceholder{代表性场景下强基线 t-SNE 图待补充}
 \par
-\footnotesize (a) Source Only 或最强基线
+\footnotesize (a) 强基线或 Source Only
 \end{minipage}
 \hfill
 \begin{minipage}{0.49\textwidth}
 \centering
-\resultplaceholder{完整 RCTA t-SNE 图待补充}
+\resultplaceholder{代表性场景下完整 RCTA t-SNE 图待补充}
 \par
 \footnotesize (b) 完整 RCTA
 \end{minipage}
@@ -229,7 +235,30 @@ mode6$\rightarrow$mode3 & 待补充 & 待补充 & 待补充 & 待补充 & 待补
 \label{fig:rcta-tsne}
 \end{figure}
 
-待图件回填后，本节将重点观察误分类是否集中于少数类别、主对角线连续性是否增强、源域与目标域样本是否更好重叠，以及类别簇结构是否保持清晰。上述定性分析将与 A、A+B、A+B+C、A+B+C+D 的定量结果相互印证。
+在最终回填中，本节建议重点观察以下问题：误分类是否集中于少数易混类别；RCTA 是否能够提升混淆矩阵主对角线连续性；源域与目标域样本在 t-SNE 上是否形成更合理的跨域同类聚类；在多源场景中，多个源域与目标域之间是否出现更平滑的过渡结构。这些定性现象将用于支撑前文关于“稳定目标域利用”和“缓解类别混叠”的论证。
+
+\section{模块递进验证的后续占位}
+需要说明的是，当前论文周期内\textbf{必须完成的正式实验}是前述 88-run fixed-fold benchmark，而 A、A+B、A+B+C、A+B+C+D 形式的严格模块递进验证尚未被纳入当前主实验配置。因此，针对第三章至第六章各创新点的模块级消融，本节先保留结构化位置，待后续单独设计 ablation config 后再补入结果。
+
+\begin{table}[htbp]
+\centering
+\caption{RCTA 模块递进验证结果（后续专用占位）}
+\label{tab:rcta-ablation-plan}
+\small
+\begin{tabular}{lcccc}
+\hline
+模型组合 & mode2$\rightarrow$mode5 & mode3$\rightarrow$mode6 & mode5$\rightarrow$mode2 & mode6$\rightarrow$mode3 \\
+\hline
+A & 待补充 & 待补充 & 待补充 & 待补充 \\
+A+B & 待补充 & 待补充 & 待补充 & 待补充 \\
+A+B+C & 待补充 & 待补充 & 待补充 & 待补充 \\
+A+B+C+D & 待补充 & 待补充 & 待补充 & 待补充 \\
+\hline
+\end{tabular}
+\normalsize
+\end{table}
+
+保留这一占位的意义在于：正文的方法章节已经按创新点顺序展开，后续只要补上专门的 ablation 运行配置，就能够在不改论文结构的前提下形成从主 benchmark 到模块级验证的完整闭环。换言之，本文当前并非“没有消融位置”，而是“主 benchmark 先行、消融后补”。
 
 \section{本章小结}
-本章将数据集介绍、统一实验协议、基线对比和 RCTA 递进验证统一组织为倒数第二章。实验骨架按照 A、A+B、A+B+C、A+B+C+D 的顺序展开，能够逐一验证第三章至第六章创新环节的有效性，并为最终结果回填预留了表格、混淆矩阵和 t-SNE 图件位置。
+本章围绕当前实际需要执行的 88-run fixed-fold benchmark，系统说明了数据集规模、11 个场景的构成与折分配、统一实验协议、运行命令、主结果表和定性图件占位，并将严格模块消融作为后续专用占位单独说明。这样组织后，论文主实验与当前代码配置实现了一一对应，后续只需运行 benchmark 并把结果回填到本章既有结构中，即可形成完整实验论证。

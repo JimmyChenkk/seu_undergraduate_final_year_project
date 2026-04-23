@@ -1,4 +1,4 @@
-\begin{thebibliography}{13}
+\begin{thebibliography}{20}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -18,6 +18,35 @@ QIN S~J.
 \newblock Annual Reviews in Control, 2012, 36\allowbreak (2): 220-234.
 \newblock DOI: \doi{10.1016/j.arcontrol.2012.09.004}.
 
+\bibitem[Ge(2017)]{ge2017review}
+GE Z.
+\newblock Review on data-driven modeling and monitoring for plant-wide
+  industrial processes\allowbreak[J/OL].
+\newblock Chemometrics and Intelligent Laboratory Systems, 2017, 171: 16-25.
+\newblock DOI: \doi{10.1016/j.chemolab.2017.09.021}.
+
+\bibitem[Taqvi et~al.(2021)Taqvi, Zabiri, Tufa, Uddin, Fatima, and
+  Maulud]{taqvi2021review}
+TAQVI S~A~A, ZABIRI H, TUFA L~D, et~al.
+\newblock A review on data-driven learning approaches for fault detection and
+  diagnosis in chemical processes\allowbreak[J/OL].
+\newblock ChemBioEng Reviews, 2021, 8\allowbreak (3): 239-259.
+\newblock DOI: \doi{10.1002/cben.202000027}.
+
+\bibitem[Yu et~al.(2023)Yu and Zhang]{yu2023challenges}
+YU J, ZHANG Y.
+\newblock Challenges and opportunities of deep learning-based process fault
+  detection and diagnosis: A review\allowbreak[J/OL].
+\newblock Neural Computing and Applications, 2023, 35\allowbreak (1): 211-252.
+\newblock DOI: \doi{10.1007/s00521-022-08017-3}.
+
+\bibitem[Wu et~al.(2018)Wu and Zhao]{wu2018dcnn}
+WU H, ZHAO J.
+\newblock Deep convolutional neural network model based chemical process fault
+  diagnosis\allowbreak[J/OL].
+\newblock Computers \& Chemical Engineering, 2018, 115: 185-197.
+\newblock DOI: \doi{10.1016/j.compchemeng.2018.04.009}.
+
 \bibitem[Pan et~al.(2010)Pan and Yang]{pan2009survey}
 PAN S~J, YANG Q.
 \newblock A survey on transfer learning\allowbreak[J/OL].
@@ -25,11 +54,43 @@ PAN S~J, YANG Q.
   22\allowbreak (10): 1345-1359.
 \newblock DOI: \doi{10.1109/TKDE.2009.191}.
 
+\bibitem[Wu et~al.(2020)Wu and Zhao]{wu2020transfer}
+WU H, ZHAO J.
+\newblock Fault detection and diagnosis based on transfer learning for
+  multimode chemical processes\allowbreak[J/OL].
+\newblock Computers \& Chemical Engineering, 2020, 135: 106731.
+\newblock DOI: \doi{10.1016/j.compchemeng.2020.106731}.
+
+\bibitem[Wang et~al.(2020)Wang, Wu, and Yuan]{wang2020lda}
+WANG Y, WU D, YUAN X.
+\newblock {LDA}-based deep transfer learning for fault diagnosis in industrial
+  chemical processes\allowbreak[J/OL].
+\newblock Computers \& Chemical Engineering, 2020, 140: 106964.
+\newblock DOI: \doi{10.1016/j.compchemeng.2020.106964}.
+
+\bibitem[Qin et~al.(2023)Qin and Zhao]{qin2023dynamic}
+QIN R, ZHAO J.
+\newblock Cross-domain fault diagnosis for chemical processes through dynamic
+  adversarial adaptation network\allowbreak[C/OL]//\allowbreak
+Computer Aided Chemical Engineering: volume~52\quad 33rd European Symposium on
+  Computer Aided Process Engineering ({ESCAPE} 33).
+\newblock Elsevier, 2023: 867-873.
+\newblock DOI: \doi{10.1016/B978-0-443-15274-0.50139-6}.
+
 \bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
 DOWNS J~J, VOGEL E~F.
 \newblock A plant-wide industrial process control problem\allowbreak[J/OL].
 \newblock Computers \& Chemical Engineering, 1993, 17\allowbreak (3): 245-255.
 \newblock DOI: \doi{10.1016/0098-1354(93)80018-I}.
+
+\bibitem[Montesuma et~al.(2023)Montesuma, Mulas, Mboula, Corona, and
+  Souloumiac]{montesuma2023benchmark}
+MONTESUMA E~F, MULAS M, MBOULA F~N, et~al.
+\newblock Benchmarking domain adaptation for chemical processes on the
+  {Tennessee Eastman Process}\allowbreak[A/OL].
+\newblock 2023.
+\newblock arXiv: \eprint{https://arxiv.org/abs/2308.11247}{2308.11247}.
+\newblock \url{https://arxiv.org/abs/2308.11247}.
 
 \bibitem[Sun et~al.(2016)Sun and Saenko]{sun2016deep}
 SUN B, SAENKO K.
@@ -77,14 +138,14 @@ Lecture Notes in Computer Science: volume 11208\quad Computer Vision -- {ECCV}
   \url{https://openaccess.thecvf.com/content_ECCV_2018/html/Bharath_Bhushan_Damodaran_DeepJDOT_Deep_Joint_ECCV_2018_paper.html}.
 \newblock DOI: \doi{10.1007/978-3-030-01225-0_28}.
 
-\bibitem[Jin et~al.(2020)Jin, Wang, Long, and Wang]{jin2020mcc}
-JIN Y, WANG X, LONG M, et~al.
-\newblock Minimum class confusion for versatile domain
-  adaptation\allowbreak[C/OL]//\allowbreak
-Lecture Notes in Computer Science: volume 12366\quad Computer Vision -- {ECCV}
-  2020.
-\newblock Cham: Springer International Publishing, 2020: 464-480.
-\newblock DOI: \doi{10.1007/978-3-030-58589-1_28}.
+\bibitem[Lee(2013)]{lee2013pseudolabel}
+LEE D~H.
+\newblock {Pseudo-Label}: The simple and efficient semi-supervised learning
+  method for deep neural networks\allowbreak[C/OL]//\allowbreak
+{ICML} 2013 Workshop: Challenges in Representation Learning ({WREPL}).
+\newblock Atlanta, Georgia, USA, 2013.
+\newblock
+  \url{https://storage.googleapis.com/kaggle-forum-message-attachments/8924/pseudo_label_final.pdf}.
 
 \bibitem[Tarvainen et~al.(2017)Tarvainen and Valpola]{tarvainen2017meanteacher}
 TARVAINEN A, VALPOLA H.
@@ -96,24 +157,6 @@ Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
 \newblock
   \url{https://proceedings.neurips.cc/paper/2017/hash/68053af2923e00204c3ca7c6a3150cf7-Abstract.html}.
 
-\bibitem[Xie et~al.(2020)Xie, Dai, Hovy, Luong, and Le]{xie2020uda}
-XIE Q, DAI Z, HOVY E, et~al.
-\newblock Unsupervised data augmentation for consistency
-  training\allowbreak[C/OL]//\allowbreak
-Advances in Neural Information Processing Systems ({NeurIPS}): volume~33.
-\newblock Curran Associates, Inc., 2020: 6256-6268.
-\newblock
-  \url{https://proceedings.neurips.cc/paper_files/paper/2020/file/44feb0096faa8326192570788b38c1d1-Paper.pdf}.
-
-\bibitem[Lee(2013)]{lee2013pseudolabel}
-LEE D~H.
-\newblock {Pseudo-Label}: The simple and efficient semi-supervised learning
-  method for deep neural networks\allowbreak[C/OL]//\allowbreak
-{ICML} 2013 Workshop: Challenges in Representation Learning ({WREPL}).
-\newblock Atlanta, Georgia, USA, 2013.
-\newblock
-  \url{https://storage.googleapis.com/kaggle-forum-message-attachments/8924/pseudo_label_final.pdf}.
-
 \bibitem[Tanwisuth et~al.(2021)Tanwisuth, Fan, Zheng, Zhang, Zhang, Chen, and
   Zhou]{tanwisuth2021prototype}
 TANWISUTH K, FAN X, ZHENG H, et~al.
@@ -123,5 +166,14 @@ Advances in Neural Information Processing Systems ({NeurIPS}): volume~34.
 \newblock Curran Associates, Inc., 2021: 17194-17208.
 \newblock
   \url{https://proceedings.neurips.cc/paper/2021/hash/8edd72158ccd2a879f79cb2538568fdc-Abstract.html}.
+
+\bibitem[Xie et~al.(2020)Xie, Dai, Hovy, Luong, and Le]{xie2020uda}
+XIE Q, DAI Z, HOVY E, et~al.
+\newblock Unsupervised data augmentation for consistency
+  training\allowbreak[C/OL]//\allowbreak
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~33.
+\newblock Curran Associates, Inc., 2020: 6256-6268.
+\newblock
+  \url{https://proceedings.neurips.cc/paper_files/paper/2020/file/44feb0096faa8326192570788b38c1d1-Paper.pdf}.
 
 \end{thebibliography}

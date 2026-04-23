@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
-from src.evaluation.report_figures import _compact_scenario_label, _domain_visual_styles, _sort_methods_for_mean_chart
+from src.evaluation.report_figures import (
+    _build_figure_output_path,
+    _compact_scenario_label,
+    _domain_visual_styles,
+    _resolve_primary_figure_format,
+    _save_figure,
+    _sort_methods_for_mean_chart,
+)
 
 
 class ReportFiguresTests(unittest.TestCase):
@@ -39,6 +49,53 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(_compact_scenario_label("mode1_to_mode4"), "m1_m4")
         self.assertEqual(_compact_scenario_label("mode6_to_mode5"), "m6_m5")
         self.assertEqual(_compact_scenario_label("other_label"), "other_label")
+
+    def test_primary_figure_format_defaults_to_svg(self) -> None:
+        self.assertEqual(_resolve_primary_figure_format(None), "svg")
+
+    def test_build_figure_output_path_uses_primary_format_suffix(self) -> None:
+        self.assertEqual(_build_figure_output_path(Path("figures/chart")), Path("figures/chart.svg"))
+        self.assertEqual(
+            _build_figure_output_path(Path("figures/chart.png"), figure_format="pdf"),
+            Path("figures/chart.pdf"),
+        )
+
+    def test_save_figure_exports_svg_and_png_by_default(self) -> None:
+        fake_plt = mock.Mock()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "chart.svg"
+            with mock.patch(
+                "src.evaluation.report_figures._runtime_dependencies",
+                return_value=(None, fake_plt, None),
+            ):
+                _save_figure(output_path)
+
+        self.assertEqual(
+            fake_plt.savefig.call_args_list,
+            [
+                mock.call(output_path.with_suffix(".svg"), format="svg", bbox_inches="tight"),
+                mock.call(output_path.with_suffix(".png"), format="png", bbox_inches="tight"),
+            ],
+        )
+
+    def test_save_figure_keeps_requested_primary_format_and_svg_png_companions(self) -> None:
+        fake_plt = mock.Mock()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "chart.pdf"
+            with mock.patch(
+                "src.evaluation.report_figures._runtime_dependencies",
+                return_value=(None, fake_plt, None),
+            ):
+                _save_figure(output_path, figure_format="pdf")
+
+        self.assertEqual(
+            fake_plt.savefig.call_args_list,
+            [
+                mock.call(output_path.with_suffix(".pdf"), format="pdf", bbox_inches="tight"),
+                mock.call(output_path.with_suffix(".png"), format="png", bbox_inches="tight"),
+                mock.call(output_path.with_suffix(".svg"), format="svg", bbox_inches="tight"),
+            ],
+        )
 
 
 if __name__ == "__main__":
