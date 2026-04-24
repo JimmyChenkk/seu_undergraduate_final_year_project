@@ -114,8 +114,10 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
     if method_name == "rcta":
         cdan_loss = loss.get("cdan", {})
         dann_loss = loss.get("dann", {})
+        dan_loss = loss.get("dan", {})
         deepjdot_loss = loss.get("deepjdot", {})
         augment_loss = loss.get("augment", {})
+        kernel_scales = tuple(float(value) for value in dan_loss.get("kernel_scales", [0.125, 0.25, 0.5, 1.0, 2.0]))
         return RCTAMethod(
             base_align=str(loss.get("base_align", "cdan")),
             use_mcc=bool(loss.get("use_mcc", True)),
@@ -135,6 +137,8 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             gate_accept_ratio_start=float(loss.get("gate_accept_ratio_start", 0.2)),
             gate_accept_ratio_end=float(loss.get("gate_accept_ratio_end", 0.7)),
             gate_curriculum_steps=int(loss.get("gate_curriculum_steps", 1000)),
+            gate_balance_mode=str(loss.get("gate_balance_mode", "per_class_ratio")),
+            gate_max_class_fraction=float(loss.get("gate_max_class_fraction", 1.0)),
             reliable_score_floor=(
                 None if loss.get("reliable_score_floor") is None else float(loss.get("reliable_score_floor"))
             ),
@@ -164,6 +168,22 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             alignment_use_reliable_only=bool(loss.get("alignment_use_reliable_only", True)),
             prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
             prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
+            target_prototype_update_mode=str(loss.get("target_prototype_update_mode", "all")),
+            target_prototype_blend_start=float(loss.get("target_prototype_blend_start", 1.0)),
+            target_prototype_blend_end=float(loss.get("target_prototype_blend_end", 1.0)),
+            target_prototype_blend_schedule_steps=int(loss.get("target_prototype_blend_schedule_steps", 1)),
+            multi_source_weighting=bool(loss.get("multi_source_weighting", False)),
+            source_weight_temperature=float(loss.get("source_weight_temperature", 4.0)),
+            source_weight_momentum=float(loss.get("source_weight_momentum", 0.0)),
+            source_weight_floor=float(loss.get("source_weight_floor", 0.0)),
+            source_weight_proto=float(loss.get("source_weight_proto", 1.0)),
+            source_weight_confidence=float(loss.get("source_weight_confidence", 0.0)),
+            source_weight_coverage=float(loss.get("source_weight_coverage", 0.0)),
+            hybrid_aligners=[str(item) for item in loss.get("hybrid_aligners", ["dann", "cdan", "dan"])],
+            hybrid_alignment_weights={
+                str(key): float(value)
+                for key, value in (loss.get("hybrid_alignment_weights") or {}).items()
+            },
             augment_kwargs={
                 "weak_jitter_std": float(augment_loss.get("weak_jitter_std", 0.01)),
                 "weak_scaling_std": float(augment_loss.get("weak_scaling_std", 0.01)),
@@ -200,6 +220,14 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     None if dann_loss.get("domain_hidden_dim") is None else int(dann_loss.get("domain_hidden_dim"))
                 ),
                 "domain_num_hidden_layers": int(dann_loss.get("domain_num_hidden_layers", 2)),
+            },
+            dan_kwargs={
+                "adaptation_weight": float(dan_loss.get("adaptation_weight", 0.1)),
+                "adaptation_schedule": str(dan_loss.get("adaptation_schedule", "warm_start")),
+                "adaptation_max_steps": int(dan_loss.get("adaptation_max_steps", 1000)),
+                "adaptation_schedule_alpha": float(dan_loss.get("adaptation_schedule_alpha", 10.0)),
+                "kernel_scales": kernel_scales,
+                "linear_mmd": bool(dan_loss.get("linear_mmd", True)),
             },
             deepjdot_kwargs={
                 "adaptation_weight": float(deepjdot_loss.get("adaptation_weight", 1.0)),

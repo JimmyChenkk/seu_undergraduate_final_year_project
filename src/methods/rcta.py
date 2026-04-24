@@ -13,8 +13,10 @@ from torch import nn
 from src.losses import (
     ConditionalDomainAdversarialLoss,
     DomainDiscriminator,
+    GaussianKernel,
     GradientReverseLayer,
     MinimumClassConfusionLoss,
+    MultipleKernelMaximumMeanDiscrepancy,
     WarmStartGradientReverseLayer,
     deepjdot_loss,
     domain_adversarial_loss,
@@ -111,11 +113,15 @@ class _ReliabilityGate:
         accept_ratio_start: float,
         accept_ratio_end: float,
         curriculum_steps: int,
+        balance_mode: str = "per_class_ratio",
+        max_class_fraction: float = 1.0,
     ) -> None:
         self.score_floor = float(score_floor)
         self.accept_ratio_start = min(max(float(accept_ratio_start), 0.0), 1.0)
         self.accept_ratio_end = min(max(float(accept_ratio_end), 0.0), 1.0)
         self.curriculum_steps = max(int(curriculum_steps), 1)
+        self.balance_mode = str(balance_mode).strip().lower()
+        self.max_class_fraction = min(max(float(max_class_fraction), 0.0), 1.0)
 
     def curriculum_ratio(self, step_num: int) -> float:
         progress = min(max(float(step_num), 0.0) / float(self.curriculum_steps), 1.0)
@@ -136,6 +142,43 @@ class _ReliabilityGate:
 
         score_floor = self.score_floor if score_floor_override is None else float(score_floor_override)
         floor_mask = scores >= score_floor
+        if self.balance_mode in {"class_balanced", "class_balanced_budget", "balanced_budget"}:
+            class_indices_list = [
+                torch.nonzero((pseudo_labels == class_id) & floor_mask, as_tuple=False).squeeze(1)
+                for class_id in torch.unique(pseudo_labels)
+            ]
+            class_indices_list = [indices for indices in class_indices_list if indices.numel() > 0]
+            if not class_indices_list:
+                return selected, ratio
+
+            candidate_count = sum(int(indices.numel()) for indices in class_indices_list)
+            keep_budget = max(1, int(math.ceil(candidate_count * ratio)))
+            class_quota = max(1, int(math.ceil(keep_budget / float(len(class_indices_list)))))
+            if self.max_class_fraction > 0:
+                max_per_class = max(1, int(math.ceil(keep_budget * self.max_class_fraction)))
+                class_quota = min(class_quota, max_per_class)
+
+            remainder_indices = []
+            for class_indices in class_indices_list:
+                keep_count = min(class_quota, int(class_indices.numel()))
+                class_scores = scores[class_indices]
+                top_positions = torch.topk(class_scores, k=keep_count, largest=True).indices
+                kept_positions = class_indices[top_positions]
+                selected[kept_positions] = True
+                if keep_count < int(class_indices.numel()):
+                    class_selected = torch.zeros(class_indices.numel(), dtype=torch.bool, device=class_indices.device)
+                    class_selected[top_positions] = True
+                    remainder_indices.append(class_indices[~class_selected])
+
+            remaining_budget = keep_budget - int(selected.sum().item())
+            if remaining_budget > 0 and remainder_indices:
+                fallback_indices = torch.cat(remainder_indices, dim=0)
+                fallback_scores = scores[fallback_indices]
+                keep_count = min(remaining_budget, int(fallback_indices.numel()))
+                top_positions = torch.topk(fallback_scores, k=keep_count, largest=True).indices
+                selected[fallback_indices[top_positions]] = True
+            return selected, ratio
+
         for class_id in torch.unique(pseudo_labels):
             class_indices = torch.nonzero((pseudo_labels == class_id) & floor_mask, as_tuple=False).squeeze(1)
             if class_indices.numel() == 0:
@@ -230,12 +273,16 @@ class _CDANAligner(nn.Module):
         features_source: torch.Tensor,
         logits_target: torch.Tensor,
         features_target: torch.Tensor,
+        weights_source: torch.Tensor | None = None,
+        weights_target: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict[str, float]]:
         loss_alignment, domain_acc = self.loss(
             logits_source,
             features_source,
             logits_target,
             features_target,
+            weights_source=weights_source,
+            weights_target=weights_target,
         )
         current_weight = self.scheduler.step()
         return loss_alignment, {
@@ -283,12 +330,16 @@ class _DeepJDOTAligner(nn.Module):
         logits_target: torch.Tensor,
         features_source: torch.Tensor,
         features_target: torch.Tensor,
+        sample_weights: torch.Tensor | None = None,
+        target_sample_weights: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict[str, float]]:
         loss_alignment = deepjdot_loss(
             source_labels,
             logits_target,
             features_source,
             features_target,
+            sample_weights=sample_weights,
+            target_sample_weights=target_sample_weights,
             reg_dist=self.reg_dist,
             reg_cl=self.reg_cl,
             normalize_feature_cost=self.normalize_feature_cost,
@@ -349,18 +400,60 @@ class _DANNAligner(nn.Module):
         *,
         features_source: torch.Tensor,
         features_target: torch.Tensor,
+        weights_source: torch.Tensor | None = None,
+        weights_target: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict[str, float]]:
         loss_alignment, domain_acc = domain_adversarial_loss(
             features_source,
             features_target,
             discriminator=self.discriminator,
             grl=self.grl,
+            weights_source=weights_source,
+            weights_target=weights_target,
         )
         current_weight = self.scheduler.step()
         return loss_alignment, {
             "lambda_alignment": current_weight,
             "acc_domain": domain_acc,
             "grl_coeff": float(getattr(self.grl, "last_coeff", 1.0)),
+        }
+
+
+class _DANAligner(nn.Module):
+    """MK-MMD alignment branch used inside RCTA."""
+
+    def __init__(
+        self,
+        *,
+        adaptation_weight: float,
+        adaptation_schedule: str,
+        adaptation_max_steps: int,
+        adaptation_schedule_alpha: float,
+        kernel_scales: tuple[float, ...],
+        linear_mmd: bool,
+    ) -> None:
+        super().__init__()
+        self.scheduler = AdaptationWeightScheduler(
+            base_weight=adaptation_weight,
+            schedule=adaptation_schedule,
+            max_steps=adaptation_max_steps,
+            alpha=adaptation_schedule_alpha,
+        )
+        self.mkmmd = MultipleKernelMaximumMeanDiscrepancy(
+            [GaussianKernel(alpha=float(scale)) for scale in kernel_scales],
+            linear=linear_mmd,
+        )
+
+    def forward(
+        self,
+        *,
+        features_source: torch.Tensor,
+        features_target: torch.Tensor,
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        loss_alignment = self.mkmmd(features_source, features_target)
+        current_weight = self.scheduler.step()
+        return loss_alignment, {
+            "lambda_alignment": current_weight,
         }
 
 
@@ -387,6 +480,8 @@ class RCTAMethod(SingleSourceMethodBase):
         gate_accept_ratio_start: float = 0.2,
         gate_accept_ratio_end: float = 0.7,
         gate_curriculum_steps: int = 1000,
+        gate_balance_mode: str = "per_class_ratio",
+        gate_max_class_fraction: float = 1.0,
         reliable_score_floor: float | None = None,
         semi_reliable_score_floor: float | None = None,
         semi_reliable_consistency_weight: float = 0.5,
@@ -408,16 +503,30 @@ class RCTAMethod(SingleSourceMethodBase):
         alignment_use_reliable_only: bool = True,
         prototype_momentum: float = 0.9,
         prototype_separation_margin: float = 0.2,
+        target_prototype_update_mode: str = "all",
+        target_prototype_blend_start: float = 1.0,
+        target_prototype_blend_end: float = 1.0,
+        target_prototype_blend_schedule_steps: int = 1,
+        multi_source_weighting: bool = False,
+        source_weight_temperature: float = 4.0,
+        source_weight_momentum: float = 0.0,
+        source_weight_floor: float = 0.0,
+        source_weight_proto: float = 1.0,
+        source_weight_confidence: float = 0.0,
+        source_weight_coverage: float = 0.0,
+        hybrid_aligners: list[str] | tuple[str, ...] | None = None,
+        hybrid_alignment_weights: dict[str, float] | None = None,
         augment_kwargs: dict[str, Any] | None = None,
         cdan_kwargs: dict[str, Any] | None = None,
         dann_kwargs: dict[str, Any] | None = None,
+        dan_kwargs: dict[str, Any] | None = None,
         deepjdot_kwargs: dict[str, Any] | None = None,
         dropout: float = 0.1,
         **kwargs,
     ) -> None:
         super().__init__(num_classes=num_classes, dropout=dropout, **kwargs)
         self.base_align = str(base_align).strip().lower()
-        if self.base_align not in {"cdan", "dann", "deepjdot"}:
+        if self.base_align not in {"cdan", "dann", "dan", "deepjdot", "hybrid"}:
             raise KeyError(f"Unsupported RCTA base_align: {base_align}")
 
         self.teacher_ema_decay = min(max(float(teacher_ema_decay), 0.0), 0.9999)
@@ -443,6 +552,20 @@ class RCTAMethod(SingleSourceMethodBase):
         self.alignment_use_reliable_only = bool(alignment_use_reliable_only)
         self.prototype_momentum = min(max(float(prototype_momentum), 0.0), 0.9999)
         self.prototype_separation_margin = float(prototype_separation_margin)
+        self.target_prototype_update_mode = str(target_prototype_update_mode).strip().lower()
+        if self.target_prototype_update_mode not in {"all", "gated", "reliable"}:
+            raise KeyError(f"Unsupported target_prototype_update_mode: {target_prototype_update_mode}")
+        self.target_prototype_blend_start = max(float(target_prototype_blend_start), 0.0)
+        self.target_prototype_blend_end = max(float(target_prototype_blend_end), 0.0)
+        self.target_prototype_blend_schedule_steps = max(int(target_prototype_blend_schedule_steps), 1)
+        self.multi_source_weighting = bool(multi_source_weighting)
+        self.source_weight_temperature = max(float(source_weight_temperature), 0.0)
+        self.source_weight_momentum = min(max(float(source_weight_momentum), 0.0), 0.9999)
+        self.source_weight_floor = max(float(source_weight_floor), 0.0)
+        self.source_weight_proto = max(float(source_weight_proto), 0.0)
+        self.source_weight_confidence = max(float(source_weight_confidence), 0.0)
+        self.source_weight_coverage = max(float(source_weight_coverage), 0.0)
+        self._source_weight_ema: torch.Tensor | None = None
 
         self.gate_score_floor_start = float(gate_score_floor if gate_score_floor_start is None else gate_score_floor_start)
         self.gate_score_floor_end = float(gate_score_floor if gate_score_floor_end is None else gate_score_floor_end)
@@ -471,6 +594,8 @@ class RCTAMethod(SingleSourceMethodBase):
             accept_ratio_start=gate_accept_ratio_start,
             accept_ratio_end=gate_accept_ratio_end,
             curriculum_steps=gate_curriculum_steps,
+            balance_mode=gate_balance_mode,
+            max_class_fraction=gate_max_class_fraction,
         )
         self.reliability_partition = _ReliabilityPartition(
             reliable_floor=self.reliable_score_floor,
@@ -490,12 +615,46 @@ class RCTAMethod(SingleSourceMethodBase):
         self.register_buffer("target_prototype_counts", torch.zeros(num_classes, dtype=torch.long))
         self.register_buffer("step_num", torch.zeros((), dtype=torch.long))
 
-        if self.base_align == "cdan":
-            self.aligner = _CDANAligner(feature_dim=feature_dim, num_classes=num_classes, dropout=dropout, **(cdan_kwargs or {}))
-        elif self.base_align == "dann":
-            self.aligner = _DANNAligner(feature_dim=feature_dim, dropout=dropout, **(dann_kwargs or {}))
+        self.hybrid_alignment_weights: dict[str, float] = {}
+        if self.base_align == "hybrid":
+            requested_aligners = tuple(str(item).strip().lower() for item in (hybrid_aligners or ("dann", "cdan", "dan")))
+            if not requested_aligners:
+                raise ValueError("base_align='hybrid' requires at least one hybrid aligner.")
+            self.aligners = nn.ModuleDict()
+            raw_weights = hybrid_alignment_weights or {}
+            for name in requested_aligners:
+                if name in self.aligners:
+                    continue
+                self.aligners[name] = self._build_alignment_branch(
+                    name=name,
+                    feature_dim=feature_dim,
+                    num_classes=num_classes,
+                    dropout=dropout,
+                    cdan_kwargs=cdan_kwargs or {},
+                    dann_kwargs=dann_kwargs or {},
+                    dan_kwargs=dan_kwargs or {},
+                    deepjdot_kwargs=deepjdot_kwargs or {},
+                )
+                self.hybrid_alignment_weights[name] = max(float(raw_weights.get(name, 1.0)), 0.0)
+            total_hybrid_weight = sum(self.hybrid_alignment_weights.values())
+            if total_hybrid_weight <= 0:
+                total_hybrid_weight = float(len(self.hybrid_alignment_weights))
+                self.hybrid_alignment_weights = {name: 1.0 for name in self.hybrid_alignment_weights}
+            self.hybrid_alignment_weights = {
+                name: weight / total_hybrid_weight
+                for name, weight in self.hybrid_alignment_weights.items()
+            }
         else:
-            self.aligner = _DeepJDOTAligner(**(deepjdot_kwargs or {}))
+            self.aligner = self._build_alignment_branch(
+                name=self.base_align,
+                feature_dim=feature_dim,
+                num_classes=num_classes,
+                dropout=dropout,
+                cdan_kwargs=cdan_kwargs or {},
+                dann_kwargs=dann_kwargs or {},
+                dan_kwargs=dan_kwargs or {},
+                deepjdot_kwargs=deepjdot_kwargs or {},
+            )
 
         self.mcc_weight = float(mcc_weight) if use_mcc else 0.0
         self.mcc = MinimumClassConfusionLoss(mcc_temperature) if self.mcc_weight > 0 else None
@@ -504,6 +663,33 @@ class RCTAMethod(SingleSourceMethodBase):
         self._cached_source_labels: torch.Tensor | None = None
         self._cached_target_features: torch.Tensor | None = None
         self._cached_target_labels: torch.Tensor | None = None
+
+    def _build_alignment_branch(
+        self,
+        *,
+        name: str,
+        feature_dim: int,
+        num_classes: int,
+        dropout: float,
+        cdan_kwargs: dict[str, Any],
+        dann_kwargs: dict[str, Any],
+        dan_kwargs: dict[str, Any],
+        deepjdot_kwargs: dict[str, Any],
+    ) -> nn.Module:
+        if name == "cdan":
+            return _CDANAligner(
+                feature_dim=feature_dim,
+                num_classes=num_classes,
+                dropout=dropout,
+                **cdan_kwargs,
+            )
+        if name == "dann":
+            return _DANNAligner(feature_dim=feature_dim, dropout=dropout, **dann_kwargs)
+        if name == "dan":
+            return _DANAligner(**dan_kwargs)
+        if name == "deepjdot":
+            return _DeepJDOTAligner(**deepjdot_kwargs)
+        raise KeyError(f"Unsupported RCTA alignment branch: {name}")
 
     def _alignment_branch_metrics(self, align_metrics: dict[str, float]) -> dict[str, float]:
         return {key: float(value) for key, value in align_metrics.items() if key != "lambda_alignment"}
@@ -537,24 +723,88 @@ class RCTAMethod(SingleSourceMethodBase):
         features_source: torch.Tensor,
         alignment_target_logits: torch.Tensor,
         alignment_target_features: torch.Tensor,
+        source_sample_weights: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict[str, float]]:
         if current_step < self.alignment_start_step:
             return _zero(logits_source.device, logits_source.dtype), {"lambda_alignment": 0.0}
-        if self.base_align == "cdan":
-            return self.aligner(
+        if self.base_align == "hybrid":
+            total_loss = _zero(logits_source.device, logits_source.dtype)
+            metrics: dict[str, float] = {"lambda_alignment": 1.0}
+            domain_accuracies: list[float] = []
+            for name, aligner in self.aligners.items():
+                branch_loss, branch_metrics = self._compute_single_alignment_loss(
+                    name=name,
+                    aligner=aligner,
+                    source_y=source_y,
+                    logits_source=logits_source,
+                    features_source=features_source,
+                    alignment_target_logits=alignment_target_logits,
+                    alignment_target_features=alignment_target_features,
+                    source_sample_weights=source_sample_weights,
+                )
+                branch_lambda = float(branch_metrics.get("lambda_alignment", 1.0))
+                branch_weight = float(self.hybrid_alignment_weights.get(name, 1.0))
+                total_loss = total_loss + branch_weight * branch_lambda * branch_loss
+                metrics[f"loss_alignment_{name}"] = float(branch_loss.item())
+                metrics[f"lambda_alignment_{name}"] = branch_lambda
+                metrics[f"hybrid_weight_{name}"] = branch_weight
+                if "acc_domain" in branch_metrics:
+                    domain_accuracies.append(float(branch_metrics["acc_domain"]))
+                    metrics[f"acc_domain_{name}"] = float(branch_metrics["acc_domain"])
+                if "grl_coeff" in branch_metrics:
+                    metrics[f"grl_coeff_{name}"] = float(branch_metrics["grl_coeff"])
+            if domain_accuracies:
+                metrics["acc_domain"] = float(sum(domain_accuracies) / len(domain_accuracies))
+            return total_loss, metrics
+
+        return self._compute_single_alignment_loss(
+            name=self.base_align,
+            aligner=self.aligner,
+            source_y=source_y,
+            logits_source=logits_source,
+            features_source=features_source,
+            alignment_target_logits=alignment_target_logits,
+            alignment_target_features=alignment_target_features,
+            source_sample_weights=source_sample_weights,
+        )
+
+    def _compute_single_alignment_loss(
+        self,
+        *,
+        name: str,
+        aligner: nn.Module,
+        source_y: torch.Tensor,
+        logits_source: torch.Tensor,
+        features_source: torch.Tensor,
+        alignment_target_logits: torch.Tensor,
+        alignment_target_features: torch.Tensor,
+        source_sample_weights: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        if name == "cdan":
+            return aligner(
                 logits_source=logits_source,
                 features_source=features_source,
                 logits_target=alignment_target_logits,
                 features_target=alignment_target_features,
+                weights_source=source_sample_weights,
             )
-        if self.base_align == "dann":
-            return self.aligner(features_source=features_source, features_target=alignment_target_features)
-        return self.aligner(
-            source_labels=source_y,
-            logits_target=alignment_target_logits,
-            features_source=features_source,
-            features_target=alignment_target_features,
-        )
+        if name in {"dann", "dan"}:
+            if name == "dann":
+                return aligner(
+                    features_source=features_source,
+                    features_target=alignment_target_features,
+                    weights_source=source_sample_weights,
+                )
+            return aligner(features_source=features_source, features_target=alignment_target_features)
+        if name == "deepjdot":
+            return aligner(
+                source_labels=source_y,
+                logits_target=alignment_target_logits,
+                features_source=features_source,
+                features_target=alignment_target_features,
+                sample_weights=source_sample_weights,
+            )
+        raise KeyError(f"Unsupported RCTA alignment branch: {name}")
 
     def _compute_consistency_terms(
         self,
@@ -606,7 +856,19 @@ class RCTAMethod(SingleSourceMethodBase):
     def _teacher_probabilities(self, logits: torch.Tensor) -> torch.Tensor:
         return torch.softmax(logits / self.teacher_temperature, dim=1)
 
-    def _current_reference_prototypes(self, source_batch_prototypes: torch.Tensor, source_batch_active: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _target_prototype_blend_weight(self, step_num: int) -> float:
+        progress = min(max(float(step_num), 0.0) / float(self.target_prototype_blend_schedule_steps), 1.0)
+        return self.target_prototype_blend_start + (
+            self.target_prototype_blend_end - self.target_prototype_blend_start
+        ) * progress
+
+    def _current_reference_prototypes(
+        self,
+        source_batch_prototypes: torch.Tensor,
+        source_batch_active: torch.Tensor,
+        *,
+        target_blend_weight: float = 1.0,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         reference = source_batch_prototypes.clone()
         active = source_batch_active.clone()
         source_active = self.source_prototype_counts > 0
@@ -614,11 +876,14 @@ class RCTAMethod(SingleSourceMethodBase):
             reference[source_active] = self.source_prototypes[source_active]
             active = active | source_active
         target_active = self.target_prototype_counts > 0
+        target_blend_weight = max(float(target_blend_weight), 0.0)
         overlap = target_active & active
-        if overlap.any():
-            reference[overlap] = _normalize_rows(reference[overlap] + self.target_prototypes[overlap])
+        if overlap.any() and target_blend_weight > 0:
+            reference[overlap] = _normalize_rows(
+                reference[overlap] + target_blend_weight * self.target_prototypes[overlap]
+            )
         target_only = target_active & ~active
-        if target_only.any():
+        if target_only.any() and target_blend_weight > 0:
             reference[target_only] = self.target_prototypes[target_only]
             active = active | target_only
         if active.any():
@@ -636,6 +901,112 @@ class RCTAMethod(SingleSourceMethodBase):
             prototypes[class_index] = F.normalize(class_features.mean(dim=0, keepdim=True), dim=1, eps=_EPSILON)[0]
             active[class_index] = True
         return prototypes, active
+
+    def _weighted_source_batch_prototypes(
+        self,
+        features_by_source: list[torch.Tensor],
+        labels_by_source: list[torch.Tensor],
+        source_weights: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        prototypes = torch.zeros_like(self.source_prototypes)
+        active = torch.zeros_like(self.source_prototype_counts, dtype=torch.bool)
+        contribution = torch.zeros_like(self.source_prototype_counts, dtype=prototypes.dtype)
+        for source_index, (features, labels) in enumerate(zip(features_by_source, labels_by_source)):
+            source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+            if not source_active.any():
+                continue
+            weight = source_weights[source_index].to(device=prototypes.device, dtype=prototypes.dtype)
+            prototypes[source_active] += weight * source_prototypes[source_active]
+            contribution[source_active] += weight
+            active = active | source_active
+        if active.any():
+            prototypes[active] = prototypes[active] / contribution[active].clamp_min(_EPSILON).unsqueeze(1)
+            prototypes[active] = _normalize_rows(prototypes[active])
+        return prototypes, active
+
+    def _source_reliability_weights(
+        self,
+        *,
+        features_by_source: list[torch.Tensor],
+        labels_by_source: list[torch.Tensor],
+        logits_by_source: list[torch.Tensor],
+        teacher_features: torch.Tensor,
+        pseudo_labels: torch.Tensor,
+    ) -> torch.Tensor:
+        source_count = len(features_by_source)
+        device = teacher_features.device
+        dtype = teacher_features.dtype
+        if source_count <= 1 or not self.multi_source_weighting:
+            return torch.full((source_count,), 1.0 / max(source_count, 1), device=device, dtype=dtype)
+
+        proto_weight = self.source_weight_proto
+        confidence_weight = self.source_weight_confidence
+        coverage_weight = self.source_weight_coverage
+        total_score_weight = proto_weight + confidence_weight + coverage_weight
+        if total_score_weight <= 0:
+            return torch.full((source_count,), 1.0 / source_count, device=device, dtype=dtype)
+
+        scores = []
+        for features, labels, logits in zip(features_by_source, labels_by_source, logits_by_source):
+            source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+            valid = source_active[pseudo_labels]
+            coverage = valid.to(dtype=dtype).mean() if valid.numel() > 0 else torch.zeros((), device=device, dtype=dtype)
+            if valid.any():
+                proto_similarity = self._prototype_similarity(
+                    teacher_features.detach(),
+                    pseudo_labels,
+                    source_prototypes.detach(),
+                    source_active,
+                )
+                proto_score = proto_similarity[valid].mean()
+            else:
+                proto_score = torch.full((), 0.5, device=device, dtype=dtype)
+            if confidence_weight > 0:
+                source_probabilities = torch.softmax(logits.detach(), dim=1)
+                confidence = source_probabilities.gather(1, labels.unsqueeze(1)).squeeze(1).mean()
+            else:
+                confidence = torch.zeros((), device=device, dtype=dtype)
+            score = (
+                proto_weight * proto_score
+                + confidence_weight * confidence
+                + coverage_weight * coverage
+            ) / total_score_weight
+            scores.append(score.to(device=device, dtype=dtype))
+
+        raw_scores = torch.stack(scores).clamp(0.0, 1.0)
+        if self.source_weight_temperature > 0:
+            weights = torch.softmax(raw_scores * self.source_weight_temperature, dim=0)
+        else:
+            weights = raw_scores / raw_scores.sum().clamp_min(_EPSILON)
+
+        floor = min(self.source_weight_floor, 1.0 / source_count)
+        if floor > 0:
+            weights = weights * max(1.0 - floor * source_count, 0.0) + floor
+            weights = weights / weights.sum().clamp_min(_EPSILON)
+
+        if self.source_weight_momentum > 0:
+            if self._source_weight_ema is None or self._source_weight_ema.shape != weights.shape:
+                self._source_weight_ema = weights.detach()
+            else:
+                self._source_weight_ema = (
+                    self.source_weight_momentum * self._source_weight_ema.to(device=device, dtype=dtype)
+                    + (1.0 - self.source_weight_momentum) * weights.detach()
+                )
+                self._source_weight_ema = self._source_weight_ema / self._source_weight_ema.sum().clamp_min(_EPSILON)
+            weights = self._source_weight_ema.to(device=device, dtype=dtype)
+        return weights.detach()
+
+    def _source_sample_weights(
+        self,
+        source_domain_indices: torch.Tensor,
+        source_weights: torch.Tensor,
+        *,
+        dtype: torch.dtype,
+    ) -> torch.Tensor:
+        if source_domain_indices.numel() == 0:
+            return torch.empty((0,), device=source_weights.device, dtype=dtype)
+        weights = source_weights[source_domain_indices].to(dtype=dtype)
+        return weights / weights.mean().clamp_min(_EPSILON)
 
     def _normalized_entropy(self, probabilities: torch.Tensor) -> torch.Tensor:
         entropy = -(probabilities * torch.log(probabilities.clamp_min(_EPSILON))).sum(dim=1)
@@ -685,7 +1056,14 @@ class RCTAMethod(SingleSourceMethodBase):
         progress = min(max(float(step_num - start_step), 0.0) / float(warmup_steps), 1.0)
         return base_weight * progress
 
-    def _prototype_attraction_loss(self, features: torch.Tensor, labels: torch.Tensor, reference_prototypes: torch.Tensor, active_mask: torch.Tensor | None = None) -> torch.Tensor:
+    def _prototype_attraction_loss(
+        self,
+        features: torch.Tensor,
+        labels: torch.Tensor,
+        reference_prototypes: torch.Tensor,
+        active_mask: torch.Tensor | None = None,
+        sample_weights: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         if features.numel() == 0:
             return _zero(reference_prototypes.device, reference_prototypes.dtype)
         if active_mask is not None:
@@ -694,9 +1072,14 @@ class RCTAMethod(SingleSourceMethodBase):
                 return _zero(reference_prototypes.device, reference_prototypes.dtype)
             features = features[valid]
             labels = labels[valid]
+            if sample_weights is not None:
+                sample_weights = sample_weights[valid]
         prototypes = reference_prototypes[labels].detach().to(dtype=features.dtype)
         cosine = F.cosine_similarity(features, prototypes, dim=1, eps=_EPSILON)
-        return (1.0 - cosine).mean()
+        values = 1.0 - cosine
+        if sample_weights is not None:
+            return self._weighted_mean(values, sample_weights.to(device=values.device, dtype=values.dtype))
+        return values.mean()
 
     def _prototype_separation_loss(self, reference_prototypes: torch.Tensor, active_mask: torch.Tensor) -> torch.Tensor:
         active_prototypes = reference_prototypes[active_mask]
@@ -738,17 +1121,61 @@ class RCTAMethod(SingleSourceMethodBase):
                 teacher_buffer.copy_(student_buffer)
 
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
-        source_x, source_y = self.merge_source_batches(source_batches)
+        source_x_by_domain = [x_batch for x_batch, _ in source_batches]
+        source_y_by_domain = [y_batch for _, y_batch in source_batches]
+        logits_by_source: list[torch.Tensor] = []
+        features_by_source: list[torch.Tensor] = []
+        source_domain_indices = []
+        for source_index, (source_x_item, source_y_item) in enumerate(zip(source_x_by_domain, source_y_by_domain)):
+            logits_item, features_item = self.forward(source_x_item)
+            logits_by_source.append(logits_item)
+            features_by_source.append(features_item)
+            source_domain_indices.append(
+                torch.full(
+                    (int(source_y_item.shape[0]),),
+                    source_index,
+                    device=source_y_item.device,
+                    dtype=torch.long,
+                )
+            )
+        source_y = torch.cat(source_y_by_domain, dim=0)
+        logits_source = torch.cat(logits_by_source, dim=0)
+        features_source = torch.cat(features_by_source, dim=0)
+        source_domain_indices_tensor = torch.cat(source_domain_indices, dim=0)
         target_x, _ = target_batch
-        logits_source, features_source = self.forward(source_x)
         weak_target, strong_target = self.augmenter.augment_pair(target_x)
         logits_target_align, features_target_align = self.forward(weak_target)
         logits_target_strong, _ = self.forward(strong_target)
         teacher_logits, teacher_features = self._teacher_forward(weak_target)
         teacher_probabilities = self._teacher_probabilities(teacher_logits).detach()
         pseudo_labels = teacher_probabilities.argmax(dim=1)
-        source_batch_prototypes, source_batch_active = self._batch_prototypes(features_source.detach(), source_y)
-        reference_prototypes, prototype_active = self._current_reference_prototypes(source_batch_prototypes, source_batch_active)
+        current_step = int(self.step_num.item())
+        source_domain_weights = self._source_reliability_weights(
+            features_by_source=features_by_source,
+            labels_by_source=source_y_by_domain,
+            logits_by_source=logits_by_source,
+            teacher_features=teacher_features.detach(),
+            pseudo_labels=pseudo_labels.detach(),
+        )
+        source_sample_weights = self._source_sample_weights(
+            source_domain_indices_tensor,
+            source_domain_weights,
+            dtype=logits_source.dtype,
+        )
+        if self.multi_source_weighting and len(source_batches) > 1:
+            source_batch_prototypes, source_batch_active = self._weighted_source_batch_prototypes(
+                [features.detach() for features in features_by_source],
+                source_y_by_domain,
+                source_domain_weights,
+            )
+        else:
+            source_batch_prototypes, source_batch_active = self._batch_prototypes(features_source.detach(), source_y)
+        target_blend_weight = self._target_prototype_blend_weight(current_step)
+        reference_prototypes, prototype_active = self._current_reference_prototypes(
+            source_batch_prototypes,
+            source_batch_active,
+            target_blend_weight=target_blend_weight,
+        )
         student_probabilities = torch.softmax(logits_target_strong, dim=1)
         cal_conf = teacher_probabilities.max(dim=1).values.to(dtype=logits_source.dtype)
         inv_entropy = (1.0 - self._normalized_entropy(teacher_probabilities)).to(dtype=logits_source.dtype)
@@ -757,10 +1184,13 @@ class RCTAMethod(SingleSourceMethodBase):
         reliability_score = (self.reliability_weights["cal_conf"] * cal_conf + self.reliability_weights["inv_entropy"] * inv_entropy + self.reliability_weights["consistency"] * consistency_score.detach() + self.reliability_weights["proto_sim"] * proto_similarity).clamp(0.0, 1.0)
         if self.pseudo_confidence_power != 1.0:
             reliability_score = reliability_score.clamp_min(_EPSILON).pow(self.pseudo_confidence_power).clamp(0.0, 1.0)
-        current_step = int(self.step_num.item())
         scheduled_gate_floor = self._scheduled_gate_score_floor(current_step)
         gate_mask, curriculum_ratio = self.gate.select(reliability_score.detach(), pseudo_labels.detach(), current_step, score_floor_override=scheduled_gate_floor)
-        loss_cls = F.cross_entropy(logits_source, source_y)
+        if self.multi_source_weighting and len(source_batches) > 1:
+            source_ce_values = F.cross_entropy(logits_source, source_y, reduction="none")
+            loss_cls = self._weighted_mean(source_ce_values, source_sample_weights.detach())
+        else:
+            loss_cls = F.cross_entropy(logits_source, source_y)
         alignment_target_features, alignment_target_logits = self._select_alignment_inputs(
             current_step=current_step,
             gate_mask=gate_mask,
@@ -774,6 +1204,7 @@ class RCTAMethod(SingleSourceMethodBase):
             features_source=features_source,
             alignment_target_logits=alignment_target_logits,
             alignment_target_features=alignment_target_features,
+            source_sample_weights=source_sample_weights.detach(),
         )
         loss_mcc = self.mcc(alignment_target_logits) if self.mcc is not None and alignment_target_logits.numel() > 0 else _zero(logits_target_align.device, logits_target_align.dtype)
         if gate_mask.any():
@@ -791,7 +1222,17 @@ class RCTAMethod(SingleSourceMethodBase):
             loss_pseudo = _zero(logits_target_align.device, logits_target_align.dtype)
             gated_pseudo_labels = pseudo_labels[:0]
             gated_target_proto_features = features_target_align[:0]
-        loss_source_proto = self._prototype_attraction_loss(features_source, source_y, reference_prototypes, prototype_active)
+        loss_source_proto = self._prototype_attraction_loss(
+            features_source,
+            source_y,
+            reference_prototypes,
+            prototype_active,
+            sample_weights=(
+                source_sample_weights.detach()
+                if self.multi_source_weighting and len(source_batches) > 1
+                else None
+            ),
+        )
         reliable_mask, semi_reliable_mask, unreliable_mask = self.reliability_partition.split(
             reliability_score.detach(), gate_mask
         )
@@ -825,10 +1266,21 @@ class RCTAMethod(SingleSourceMethodBase):
         total_loss = loss_cls + lambda_alignment * loss_alignment + self.mcc_weight * loss_mcc + lambda_pseudo * loss_pseudo + lambda_prototype * loss_prototype + lambda_consistency * loss_consistency + self.semi_reliable_consistency_weight * semi_reliable_consistency + self.unreliable_entropy_weight * unreliable_entropy
         self._cached_source_features = features_source.detach().clone()
         self._cached_source_labels = source_y.detach().clone()
-        self._cached_target_features = teacher_features.detach().clone()
-        self._cached_target_labels = pseudo_labels.detach().clone()
+        if self.target_prototype_update_mode == "gated":
+            target_update_mask = gate_mask
+        elif self.target_prototype_update_mode == "reliable":
+            target_update_mask = reliable_mask
+        else:
+            target_update_mask = torch.ones_like(gate_mask, dtype=torch.bool)
+        self._cached_target_features = teacher_features[target_update_mask].detach().clone()
+        self._cached_target_labels = pseudo_labels[target_update_mask].detach().clone()
         kept_count = int(gate_mask.sum().item())
         batch_size_target = max(int(target_x.shape[0]), 1)
+        predicted_classes = int(torch.unique(pseudo_labels).numel())
+        kept_classes = int(torch.unique(pseudo_labels[gate_mask]).numel()) if gate_mask.any() else 0
+        source_weight_entropy = -(
+            source_domain_weights * torch.log(source_domain_weights.clamp_min(_EPSILON))
+        ).sum() / math.log(max(int(source_domain_weights.numel()), 2))
         metrics = {
             "loss_total": float(total_loss.item()),
             "loss_cls": float(loss_cls.item()),
@@ -853,10 +1305,19 @@ class RCTAMethod(SingleSourceMethodBase):
             "gate_curriculum_ratio": float(curriculum_ratio),
             "gate_score_floor": float(scheduled_gate_floor),
             "pseudo_label_kept": float(kept_count),
+            "pseudo_label_active_classes": float(predicted_classes),
+            "pseudo_label_kept_classes": float(kept_classes),
             "reliable_count": float(reliable_mask.sum().item()),
             "semi_reliable_count": float(semi_reliable_mask.sum().item()),
             "unreliable_count": float(unreliable_mask.sum().item()),
+            "target_prototype_update_count": float(target_update_mask.sum().item()),
+            "target_prototype_blend_weight": float(target_blend_weight),
+            "source_weight_entropy": float(source_weight_entropy.item()),
+            "source_weight_min": float(source_domain_weights.min().item()),
+            "source_weight_max": float(source_domain_weights.max().item()),
         }
+        for source_index, source_weight in enumerate(source_domain_weights.tolist()):
+            metrics[f"source_weight_{source_index}"] = float(source_weight)
         metrics.update({key: float(value) for key, value in self._alignment_branch_metrics(align_metrics).items() if key != "lambda_alignment"})
         return MethodStepOutput(loss=total_loss, metrics=metrics)
 

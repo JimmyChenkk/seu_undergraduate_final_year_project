@@ -84,18 +84,16 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertIsInstance(plan["seed"], int)
         self.assertEqual(len(plan["runs"]), 88)
 
-    def test_2cluster_fixed_fold_plan_uses_configured_scene_folds(self) -> None:
+    def test_mode125_fixed_fold_plan_uses_configured_scene_folds(self) -> None:
         payload = _load_yaml(ROOT / "configs/experiment/benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml")
         plan = build_run_plan(payload)
 
         self.assertEqual(len(plan["methods"]), 8)
-        self.assertEqual(len(plan["scene_settings"]), 11)
-        self.assertEqual(len(plan["runs"]), 88)
+        self.assertEqual(len(plan["scene_settings"]), 9)
+        self.assertEqual(len(plan["runs"]), 72)
         self.assertFalse(plan["fold_policy"]["random_fold_enabled"])
 
         expected = {
-            "mode3_to_mode6": ("Fold 1", {"mode3": "Fold 1"}, "Fold 1"),
-            "mode6_to_mode3": ("Fold 1", {"mode6": "Fold 1"}, "Fold 5"),
             "mode1_to_mode2": ("Fold 2", {"mode1": "Fold 2"}, "Fold 4"),
             "mode2_to_mode1": ("Fold 5", {"mode2": "Fold 5"}, "Fold 3"),
             "mode1_to_mode5": ("Fold 4", {"mode1": "Fold 4"}, "Fold 3"),

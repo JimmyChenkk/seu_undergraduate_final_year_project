@@ -41,6 +41,10 @@ loss:
   gate_accept_ratio_start: 0.12
   gate_accept_ratio_end: 0.68
   gate_curriculum_steps: 2000
+  # Default keeps the historical per-class ratio selector. Experimental runs can
+  # switch to class_balanced_budget to cap dominant pseudo-label classes.
+  gate_balance_mode: per_class_ratio
+  gate_max_class_fraction: 1.0
   pseudo_label_weight: 0.16
   pseudo_warmup_steps: 1200
   pseudo_use_reliability_weighting: true
@@ -62,6 +66,24 @@ loss:
   alignment_use_reliable_only: true
   prototype_momentum: 0.94
   prototype_separation_margin: 0.28
+  # Default preserves the original target prototype behavior.
+  target_prototype_update_mode: all
+  target_prototype_blend_start: 1.0
+  target_prototype_blend_end: 1.0
+  target_prototype_blend_schedule_steps: 1
+  # Multi-source reliability weighting is opt-in for new experiments.
+  multi_source_weighting: false
+  source_weight_temperature: 4.0
+  source_weight_momentum: 0.0
+  source_weight_floor: 0.0
+  source_weight_proto: 1.0
+  source_weight_confidence: 0.0
+  source_weight_coverage: 0.0
+  hybrid_aligners: [dann, cdan, dan]
+  hybrid_alignment_weights:
+    dann: 0.4
+    cdan: 0.4
+    dan: 0.2
   augment:
     weak_jitter_std: 0.006
     weak_scaling_std: 0.006
@@ -92,6 +114,13 @@ loss:
     grl_max_iters: 1200
     domain_hidden_dim: 256
     domain_num_hidden_layers: 2
+  dan:
+    adaptation_weight: 0.08
+    adaptation_schedule: warm_start
+    adaptation_max_steps: 1200
+    adaptation_schedule_alpha: 10.0
+    kernel_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
+    linear_mmd: false
   deepjdot:
     adaptation_weight: 1.0
     adaptation_schedule: constant
@@ -106,4 +135,4 @@ loss:
 
 notes:
   - RCTA uses reliability-aware self-training with prototype guidance and scheduled alignment.
-  - The method keeps one implementation path and supports CDAN, DANN, and DeepJDOT alignment backbones.
+  - The method keeps one implementation path and supports CDAN, DANN, DAN, DeepJDOT, hybrid alignment, and optional reliability-weighted multi-source training.

@@ -153,8 +153,8 @@ def _make_prepared_data() -> PreparedBenchmarkData:
 
 
 class RCTATests(unittest.TestCase):
-    def test_build_method_instantiates_rcta_for_both_aligners(self) -> None:
-        for base_align in ("cdan", "dann", "deepjdot"):
+    def test_build_method_instantiates_rcta_for_configured_aligners(self) -> None:
+        for base_align in ("cdan", "dann", "dan", "deepjdot", "hybrid"):
             method = build_method(
                 _method_config(base_align=base_align),
                 num_classes=29,
@@ -237,7 +237,7 @@ class RCTATests(unittest.TestCase):
 
     def test_rcta_smoke_backward_for_cdan_and_deepjdot(self) -> None:
         torch.manual_seed(1)
-        cases = ["cdan", "dann"]
+        cases = ["cdan", "dann", "dan", "hybrid"]
         if importlib.util.find_spec("ot") is not None:
             cases.append("deepjdot")
 
@@ -250,6 +250,7 @@ class RCTATests(unittest.TestCase):
                 num_sources=1,
             )
             method.train()
+            method.step_num.fill_(2)
             source_x = torch.randn(4, 34, 32)
             source_y = torch.tensor([0, 1, 2, 0], dtype=torch.long)
             target_x = torch.randn(4, 34, 32)
@@ -260,6 +261,50 @@ class RCTATests(unittest.TestCase):
 
             gradients = [parameter.grad for parameter in method.encoder.parameters() if parameter.grad is not None]
             self.assertTrue(gradients, msg=f"Expected encoder gradients for base_align={base_align}")
+
+    def test_multi_source_weighting_emits_source_weighted_alignment_metrics(self) -> None:
+        torch.manual_seed(5)
+        method_config = _method_config(base_align="hybrid", gate_score_floor=0.0)
+        method_config["loss"].update(
+            {
+                "alignment_start_step": 0,
+                "multi_source_weighting": True,
+                "source_weight_floor": 0.05,
+                "source_weight_momentum": 0.2,
+                "source_weight_confidence": 0.2,
+                "source_weight_coverage": 0.3,
+                "gate_balance_mode": "class_balanced_budget",
+                "gate_max_class_fraction": 0.5,
+            }
+        )
+        method = build_method(
+            method_config,
+            num_classes=29,
+            in_channels=34,
+            input_length=32,
+            num_sources=2,
+        )
+        method.train()
+
+        source_a_x = torch.randn(4, 34, 32)
+        source_a_y = torch.tensor([0, 1, 2, 0], dtype=torch.long)
+        source_b_x = torch.randn(4, 34, 32) + 0.5
+        source_b_y = torch.tensor([1, 2, 3, 3], dtype=torch.long)
+        target_x = torch.randn(4, 34, 32)
+        target_y = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+
+        step_output = method.compute_loss(
+            [(source_a_x, source_a_y), (source_b_x, source_b_y)],
+            (target_x, target_y),
+        )
+        step_output.loss.backward()
+
+        self.assertIn("source_weight_0", step_output.metrics)
+        self.assertIn("source_weight_1", step_output.metrics)
+        self.assertIn("source_weight_entropy", step_output.metrics)
+        self.assertIn("loss_alignment_cdan", step_output.metrics)
+        self.assertIn("loss_alignment_dann", step_output.metrics)
+        self.assertIn("loss_alignment_dan", step_output.metrics)
 
     def test_run_deep_experiment_smoke_emits_rcta_metrics(self) -> None:
         torch.manual_seed(2)

@@ -486,6 +486,8 @@ class ConditionalDomainAdversarialLoss(nn.Module):
         features_source: torch.Tensor,
         logits_target: torch.Tensor,
         features_target: torch.Tensor,
+        weights_source: torch.Tensor | None = None,
+        weights_target: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, float]:
         probabilities_source = F.softmax(logits_source, dim=1).detach()
         probabilities_target = F.softmax(logits_target, dim=1).detach()
@@ -509,6 +511,18 @@ class ConditionalDomainAdversarialLoss(nn.Module):
                 device=logits_domain.device,
                 dtype=logits_domain.dtype,
             )
+        if weights_source is not None or weights_target is not None:
+            external_weights = torch.ones_like(labels_domain)
+            if weights_source is not None:
+                external_weights[: features_source.shape[0]] = weights_source[
+                    : features_source.shape[0]
+                ].to(device=logits_domain.device, dtype=logits_domain.dtype)
+            if weights_target is not None:
+                external_weights[features_source.shape[0] :] = weights_target[
+                    : features_target.shape[0]
+                ].to(device=logits_domain.device, dtype=logits_domain.dtype)
+            weights = external_weights if weights is None else weights * external_weights
+            weights = weights / weights.mean().clamp_min(_EPSILON)
 
         loss_domain = F.binary_cross_entropy_with_logits(
             logits_domain,

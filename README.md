@@ -1,12 +1,12 @@
 # 领域自适应流程工业故障诊断研究工作区
 
-本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前项目方向以 `goal.md` 为准，主线聚焦 `benchmark_88_11scenes_8methods_randomfold`：11 个迁移设置、8 种方法，共 88 个主要结果点。
+本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前主线聚焦 `benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml` 的 mode1/2/5 fixed-fold 握手协议：9 个迁移设置、8 种方法，共 72 个主要结果点。
 
 ## 项目说明
 
 - 研究主题：流程工业故障诊断中的领域自适应。
 - 数据集：Tennessee Eastman Process Domain Adaptation，原始 `.pickle` 文件统一放在 `data/raw/`。
-- 默认任务设置：以 `goal.md` 定义的 11 个迁移设置为准，包含 8 个单源到单目标场景与 3 个多源到单目标场景。
+- 默认任务设置：以 mode1、mode2、mode5 三个域之间的握手协议为准，包含 6 个单源到单目标场景与 3 个多源到单目标场景。
 - 当前对比方法：`Target-Only`、`RCTA`、`DeepJDOT`、`CDAN`、`DANN`、`DAN`、`CORAL`、`Source-Only`。
 - 当前理想结果：`Target-Only` 最高，`RCTA` 位居第二，`DeepJDOT` 或 OT/JDOT 类方法保持第 3 到第 4 的靠前水平，常规 DA 方法整体不弱于合理基线，`Source-Only` 垫底；除 `Source-Only` 外，目标域指标原则上不低于 0.70。
 - 工作区分工：
@@ -20,7 +20,7 @@
 
 ## 目录概览
 
-以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。`tests/` 已加入自动化验证目录，当前工作区会优先围绕 `goal.md` 和 `benchmark_88` 所定义的目标持续收敛。
+以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。`tests/` 已加入自动化验证目录，当前工作区会优先围绕 mode1/2/5 fixed-fold 主线目标持续收敛。
 
 ```text
 workspace/
@@ -37,6 +37,7 @@ workspace/
 │  │  ├─ quick_debug.yaml
 │  │  ├─ benchmark_72.yaml
 │  │  ├─ benchmark_56_8scenes_7methods_rcta_best.yaml
+│  │  ├─ benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml
 │  │  ├─ benchmark_88_11scenes_8methods_randomfold.yaml
 │  │  └─ rcta_*.yaml
 │  └─ method/
@@ -150,9 +151,9 @@ bash scripts/run_small_scale_round.sh \
   --experiment-config configs/experiment/benchmark_72.yaml \
   --plan-only
 
-# 预览当前 benchmark_88 主线计划（11 设置 x 8 方法 = 88 runs）
+# 预览当前 mode1/2/5 fixed-fold 主线计划（9 设置 x 8 方法 = 72 runs）
 bash scripts/run_small_scale_round.sh \
-  --experiment-config configs/experiment/benchmark_88_11scenes_8methods_randomfold.yaml \
+  --experiment-config configs/experiment/benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml \
   --plan-only
 
 # 预览旧的 RCTA 8 场景 / 7 方法计划
@@ -263,19 +264,19 @@ flowchart TD
   `source_only`、`target_only`、`coral`、`dan`、`dann`、`cdan`、`deepjdot`、`rcta`。
 - 数据配置默认入口为 `configs/data/te_da.yaml`。
 - 常用实验配置位于 `configs/experiment/`，包括：
-  `quick_debug.yaml`、`benchmark_72.yaml`、`benchmark_56_8scenes_7methods_rcta_best.yaml`、`benchmark_88_11scenes_8methods_randomfold.yaml`。
+  `quick_debug.yaml`、`benchmark_72.yaml`、`benchmark_56_8scenes_7methods_rcta_best.yaml`、`benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml`。
 - `run_small_scale_round.sh` 默认读取 experiment 配置里的 `automation` 计划。
 - 默认 `quick_debug` 计划会批量运行以下场景：
   `mode1->mode4`、`mode4->mode1`。
-- `benchmark_88_11scenes_8methods_randomfold.yaml` 是当前主线配置：
-  8 个单源设置 + 3 个多源设置，再与 8 种方法做笛卡尔展开，共 88 runs。
+- `benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml` 是当前主线配置：
+  mode1/2/5 三个域之间 6 个有向单源设置 + 3 个二源到单目标设置，再与 8 种方法做笛卡尔展开，共 72 runs。
 - `benchmark_56_8scenes_7methods_rcta_best.yaml` 保留为旧的 RCTA 稳定性参考配置：
   8 个场景 + 7 种方法，共 56 runs。
 - `benchmark_72.yaml` 保留为历史 72-run 基准计划：
   6 个代表性单源设置 + 6 个五源到单目标设置，再与 6 种方法做笛卡尔展开。
 - 各方法的基础参数保留在 `configs/method/*.yaml`；如果某个方法需要默认的运行时策略（例如专属选模 / 早停指标），可在方法配置里声明 `runtime_defaults`，再由 experiment 配置显式覆盖。
 - 当前阶段的实验级单独调参入口仍放在 experiment 配置里的 `method_overrides`，其优先级高于方法里的 `runtime_defaults`。
-- 当前 `benchmark_88` 主线默认早停 / 选模策略使用 `hybrid_source_eval_target_confidence`，即将 `source_eval` 与目标域无标签置信度代理融合；`source_eval` 仍保留为诊断指标。
+- 当前 fixed-fold 主线默认早停 / 选模策略使用 `hybrid_source_eval_target_confidence`，即将 `source_eval` 与目标域无标签置信度代理融合；`source_eval` 仍保留为诊断指标。
 - 如果某个注册 metric 还需要额外标量参数，可以在 experiment 或 method 的 `runtime_defaults` 里通过 `selection_params` / `early_stopping_params` 传入，而权重项继续放在 `selection_weights` / `early_stopping_weights`。
 - 目前内置的 `hybrid_source_eval_entropy_guard_domain_gap` 适合 adversarial DA 方法：当目标域熵已经异常偏低、但域判别准确率离理想混淆点还较远时，会惩罚这类过度自信 checkpoint。
 

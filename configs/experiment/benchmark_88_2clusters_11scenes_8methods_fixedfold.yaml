@@ -1,4 +1,4 @@
-experiment_name: benchmark_88_2clusters_11scenes_8methods_fixedfold
+experiment_name: benchmark_72_mode125_9scenes_8methods_fixedfold
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -49,8 +49,6 @@ automation:
     # - deepjdot
     # - rcta
   single_source_scenes:
-    - mode3->mode6
-    - mode6->mode3
     - mode1->mode2
     - mode2->mode1
     - mode1->mode5
@@ -196,7 +194,25 @@ method_overrides:
       early_stopping_min_delta: 0.0005
       early_stopping_min_epochs: 40
     loss:
-      base_align: dann
+      base_align: hybrid
+      hybrid_aligners: [dann, cdan, dan]
+      hybrid_alignment_weights:
+        dann: 0.20
+        cdan: 0.35
+        dan: 0.45
+      gate_balance_mode: class_balanced_budget
+      gate_max_class_fraction: 0.34
+      target_prototype_update_mode: gated
+      target_prototype_blend_start: 0.0
+      target_prototype_blend_end: 0.75
+      target_prototype_blend_schedule_steps: 1800
+      multi_source_weighting: true
+      source_weight_temperature: 4.0
+      source_weight_momentum: 0.30
+      source_weight_floor: 0.05
+      source_weight_proto: 1.0
+      source_weight_confidence: 0.15
+      source_weight_coverage: 0.35
       teacher_ema_decay: 0.992
       teacher_temperature: 1.3
       mcc_weight: 0.04
@@ -262,6 +278,13 @@ method_overrides:
         grl_max_iters: 1800
         domain_hidden_dim: 256
         domain_num_hidden_layers: 2
+      dan:
+        adaptation_weight: 0.12
+        adaptation_schedule: warm_start
+        adaptation_max_steps: 1200
+        adaptation_schedule_alpha: 10.0
+        kernel_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
+        linear_mmd: false
       deepjdot:
         adaptation_weight: 1.0
         adaptation_schedule: constant
@@ -277,8 +300,8 @@ method_overrides:
 protocol_override:
   setting: fixed_fold
   source_domains:
-    - mode3
-  target_domain: mode6
+    - mode1
+  target_domain: mode2
   # Global on/off switch for fold policy.
   # - true: sample fold(s) according to the fold_sampling block below and write the sampled folds to outputs.
   # - false: disable random folding and fall back to fixed folds (preferred_fold / explicit source_fold / target_fold).
@@ -313,12 +336,6 @@ protocol_override:
     target_fold_choices: [1, 2, 3, 4, 5]
     note: "Random fold mode is disabled; each scene uses the explicit fixed source/target fold assignment below."
   scene_fold_overrides:
-    m3_m6:
-      source_fold: 1
-      target_fold: 1
-    m6_m3:
-      source_fold: 1
-      target_fold: 5
     m1_m2:
       source_fold: 2
       target_fold: 4
@@ -354,11 +371,11 @@ protocol_override:
       target_fold: 4
 
 notes:
-  - 8 methods x 11 scenes = 88 runs.
-  - "Two clusters: {3,6} and {1,2,5}."
-  - "8 single-source scenes: 3->6, 6->3, 1->2, 2->1, 1->5, 5->1, 2->5, 5->2."
+  - 8 methods x 9 scenes = 72 runs.
+  - "Mode-1/2/5 handshake protocol: all directed single-source pairs plus leave-one-domain-out two-source scenes."
+  - "6 single-source scenes: 1->2, 2->1, 1->5, 5->1, 2->5, 5->2."
   - "3 multi-source-to-single scenes: 1&2->5, 1&5->2, 2&5->1."
   - "Fold policy: random fold is disabled; each scene uses the explicit fixed folds in protocol_override.scene_fold_overrides."
   - "Based on goal-tune v2 method overrides, keeping the same 8 methods and training hyperparameters."
   - DeepJDOT is dialed back toward the better v2 probe: lower OT weight / reg_dist, larger batch, longer warm start, and source-aware selection.
-  - RCTA is strengthened from v1's conservative gate: warmer pseudo/prototype/consistency learning with a guarded but less restrictive selection metric.
+  - RCTA uses the current in-place strengthened path: hybrid DANN/CDAN/DAN alignment, class-balanced pseudo-label gating, guarded target prototype updates, and reliability-weighted multi-source training.
