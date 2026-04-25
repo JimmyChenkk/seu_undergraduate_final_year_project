@@ -125,6 +125,14 @@ class AutomationPlanTests(unittest.TestCase):
             self.assertEqual(run["source_folds_by_domain"], source_folds_by_domain)
             self.assertEqual(run["target_fold"], target_fold)
 
+    def test_rcta_mode125_ablation_uses_three_cumulative_stages(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/rcta_mode125_ablation_fixedfold.yaml")
+        plan = build_run_plan(payload)
+
+        self.assertEqual(plan["methods"], ["rcta_a_temporal", "rcta_ab_reliable", "rcta_abc_full"])
+        self.assertEqual(len(plan["scene_settings"]), 9)
+        self.assertEqual(len(plan["runs"]), 27)
+
 
 if __name__ == "__main__":
     unittest.main()

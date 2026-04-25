@@ -102,9 +102,13 @@ def apply_method_overrides(
         return experiment_payload, method_payload
 
     method_name = str(method_payload.get("method_name", "")).strip().lower()
+    method_display_name = str(method_payload.get("method_display_name", "")).strip().lower()
     merged_experiment = deepcopy(experiment_payload)
     merged_method = deepcopy(method_payload)
-    for key in ("*", "all", method_name):
+    override_keys = ["*", "all", method_name]
+    if method_display_name and method_display_name not in override_keys:
+        override_keys.append(method_display_name)
+    for key in override_keys:
         override_payload = overrides.get(key)
         if not isinstance(override_payload, dict):
             continue
@@ -969,6 +973,7 @@ def run_deep_experiment(
     early_stopped = False
     epochs = int(optimization.get("epochs", 1))
     method_name = str(method_config["method_name"])
+    method_display_name = str(method_config.get("method_display_name", method_name))
     for epoch_index in range(epochs):
         model.train()
         epoch_metrics = defaultdict(list)
@@ -1012,7 +1017,7 @@ def run_deep_experiment(
                 or (step_index + 1) % progress_update_interval == 0
             ):
                 _emit_step_progress(
-                    method_name=method_name,
+                    method_name=method_display_name,
                     scenario_id=scenario_id,
                     epoch_index=epoch_index,
                     epochs=epochs,
@@ -1090,7 +1095,7 @@ def run_deep_experiment(
         history.append(summary)
         if show_progress:
             _emit_epoch_summary(
-                method_name=method_name,
+                method_name=method_display_name,
                 scenario_id=scenario_id,
                 epoch_index=epoch_index,
                 epochs=epochs,
@@ -1146,7 +1151,7 @@ def run_deep_experiment(
                 ):
                     early_stopped = True
                     _emit_early_stop_notice(
-                        method_name=method_name,
+                        method_name=method_display_name,
                         scenario_id=scenario_id,
                         epoch_index=epoch_index,
                         epochs=epochs,
@@ -1214,7 +1219,8 @@ def run_deep_experiment(
     selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
 
     result = {
-        "method_name": str(method_config["method_name"]),
+        "method_name": method_display_name,
+        "method_base_name": method_name,
         "history": history,
         "source_train_acc_by_domain": selected_source_train_by_domain,
         "source_eval_acc_by_domain": selected_source_eval_by_domain,
@@ -1288,7 +1294,7 @@ def run_deep_experiment(
             device=device,
             analysis_path=run_paths["analysis_path"],
             scenario_id=scenario_id,
-            method_name=str(method_config["method_name"]),
+            method_name=method_display_name,
             max_batches=analysis_max_batches,
             non_blocking=transfer_non_blocking,
         )
@@ -1339,9 +1345,9 @@ def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any
 
     export_run_review_figures(analysis_path, run_paths["figures_dir"])
     for key, filename in {
-        "tsne_domain": "tsne_domain.png",
-        "tsne_class": "tsne_class.png",
-        "confusion_matrix": "confusion_matrix.png",
+        "tsne_domain": "tsne_domain.svg",
+        "tsne_class": "tsne_class.svg",
+        "confusion_matrix": "confusion_matrix.svg",
     }.items():
         figure_path = run_paths["figures_dir"] / filename
         figure_paths[key] = str(figure_path) if figure_path.exists() else None
@@ -1386,6 +1392,7 @@ def main() -> None:
         method_payload,
     )
     method_name = str(method_payload.get("method_name", "")).lower()
+    method_display_name = str(method_payload.get("method_display_name", method_name)).lower()
     ensure_dependencies(method_name, experiment_payload, method_payload)
 
     from src.datasets.te_da_dataset import TEDADatasetConfig
@@ -1442,7 +1449,7 @@ def main() -> None:
     run_scene_label = build_run_scene_label(source_domain_ids, target_domain_id)
     run_paths = build_run_paths(
         experiment_config=experiment_payload,
-        method_name=method_name,
+        method_name=method_display_name,
         scenario_id=run_scene_label,
         backbone_name=backbone_name,
         fold_name=selected_fold,
@@ -1480,7 +1487,8 @@ def main() -> None:
 
     result_payload = {
         "experiment_name": experiment_payload.get("experiment_name"),
-        "method_name": method_payload.get("method_name"),
+        "method_name": method_display_name,
+        "method_base_name": method_name,
         "setting": prepared_data.setting.setting_name,
         "source_domains": [split.domain_id for split in prepared_data.source_splits],
         "target_domain": prepared_data.target_split.domain_id,

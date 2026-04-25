@@ -94,9 +94,13 @@ def _cache_key(
     config: TEDADatasetConfig,
     setting: DomainAdaptationSetting,
     source_fold_name: str,
-    source_fold_names_by_domain: dict[str, str],
+    source_fold_names_by_domain: dict[str, str] | None = None,
     target_fold_name: str,
 ) -> str:
+    source_fold_names_by_domain = source_fold_names_by_domain or {
+        reference.domain.name: source_fold_name
+        for reference in setting.source_domains
+    }
     payload = {
         "cache_schema": "prepared_arrays_v2",
         "setting": setting.setting_name,

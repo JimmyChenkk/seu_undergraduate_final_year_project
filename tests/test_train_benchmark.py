@@ -326,9 +326,9 @@ class TrainBenchmarkTests(unittest.TestCase):
         review = build_run_review(
             result_payload,
             figure_paths={
-                "tsne_domain": "runs/example/figures/tsne_domain.png",
-                "tsne_class": "runs/example/figures/tsne_class.png",
-                "confusion_matrix": "runs/example/figures/confusion_matrix.png",
+                "tsne_domain": "runs/example/figures/tsne_domain.svg",
+                "tsne_class": "runs/example/figures/tsne_class.svg",
+                "confusion_matrix": "runs/example/figures/confusion_matrix.svg",
             },
         )
 

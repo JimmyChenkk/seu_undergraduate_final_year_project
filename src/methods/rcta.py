@@ -1123,29 +1123,33 @@ class RCTAMethod(SingleSourceMethodBase):
     def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
         source_x_by_domain = [x_batch for x_batch, _ in source_batches]
         source_y_by_domain = [y_batch for _, y_batch in source_batches]
-        logits_by_source: list[torch.Tensor] = []
-        features_by_source: list[torch.Tensor] = []
-        source_domain_indices = []
-        for source_index, (source_x_item, source_y_item) in enumerate(zip(source_x_by_domain, source_y_by_domain)):
-            logits_item, features_item = self.forward(source_x_item)
-            logits_by_source.append(logits_item)
-            features_by_source.append(features_item)
-            source_domain_indices.append(
-                torch.full(
-                    (int(source_y_item.shape[0]),),
-                    source_index,
-                    device=source_y_item.device,
-                    dtype=torch.long,
-                )
-            )
+        source_lengths = [int(y_batch.shape[0]) for y_batch in source_y_by_domain]
         source_y = torch.cat(source_y_by_domain, dim=0)
-        logits_source = torch.cat(logits_by_source, dim=0)
-        features_source = torch.cat(features_by_source, dim=0)
+        source_x = torch.cat(source_x_by_domain, dim=0)
+        logits_source, features_source = self.forward(source_x)
+        logits_by_source = list(logits_source.split(source_lengths, dim=0))
+        features_by_source = list(features_source.split(source_lengths, dim=0))
+        source_domain_indices = [
+            torch.full(
+                (source_length,),
+                source_index,
+                device=source_y.device,
+                dtype=torch.long,
+            )
+            for source_index, source_length in enumerate(source_lengths)
+        ]
         source_domain_indices_tensor = torch.cat(source_domain_indices, dim=0)
         target_x, _ = target_batch
         weak_target, strong_target = self.augmenter.augment_pair(target_x)
-        logits_target_align, features_target_align = self.forward(weak_target)
-        logits_target_strong, _ = self.forward(strong_target)
+        logits_target_combined, features_target_combined = self.forward(
+            torch.cat([weak_target, strong_target], dim=0)
+        )
+        target_batch_size = int(target_x.shape[0])
+        logits_target_align, logits_target_strong = logits_target_combined.split(
+            [target_batch_size, target_batch_size],
+            dim=0,
+        )
+        features_target_align = features_target_combined[:target_batch_size]
         teacher_logits, teacher_features = self._teacher_forward(weak_target)
         teacher_probabilities = self._teacher_probabilities(teacher_logits).detach()
         pseudo_labels = teacher_probabilities.argmax(dim=1)

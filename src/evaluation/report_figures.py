@@ -11,7 +11,26 @@ from src.evaluation.review import extract_core_metrics
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
 DEFAULT_PRIMARY_FIGURE_FORMAT = "svg"
-REQUIRED_FIGURE_FORMATS = ("png", "svg")
+REQUIRED_FIGURE_FORMATS = ("svg",)
+
+METHOD_ORDER = [
+    "source_only",
+    "coral",
+    "dan",
+    "dann",
+    "cdan",
+    "deepjdot",
+    "rcta",
+    "rcta_m0_base_da",
+    "rcta_m1_temporal_mt",
+    "rcta_m2_reliability_gate",
+    "rcta_m3_dual_proto_static",
+    "rcta_m4_full",
+    "rcta_a_temporal",
+    "rcta_ab_reliable",
+    "rcta_abc_full",
+    "target_only",
+]
 
 
 class FigureDependencyError(RuntimeError):
@@ -130,7 +149,21 @@ def _compact_scenario_label(label: str) -> str:
 def _sort_methods_for_mean_chart(methods) -> list[str]:
     """Keep the no-adaptation baseline visually anchored on the left."""
 
-    return sorted((str(method) for method in methods), key=lambda name: (name != "source_only", name))
+    method_rank = {name: index for index, name in enumerate(METHOD_ORDER)}
+    return sorted(
+        (str(method) for method in methods),
+        key=lambda name: (method_rank.get(name, len(METHOD_ORDER)), name),
+    )
+
+
+def _sort_methods_for_heatmap(methods) -> list[str]:
+    """Use the paper-stage order for ablations instead of arbitrary set order."""
+
+    method_rank = {name: index for index, name in enumerate(METHOD_ORDER)}
+    return sorted(
+        (str(method) for method in methods),
+        key=lambda name: (method_rank.get(name, len(METHOD_ORDER)), name),
+    )
 
 
 def export_mean_bar_chart(
@@ -176,21 +209,9 @@ def export_setting_heatmap(
     if not subset:
         return
 
-    method_order = [
-        "source_only",
-        "coral",
-        "dan",
-        "dann",
-        "cdan",
-        "deepjdot",
-        "rcta",
-        "target_only",
-    ]
-    method_rank = {name: index for index, name in enumerate(method_order)}
-
     scenarios = sorted(set(row["scenario_id"] for row in subset))
     scenario_labels = [_compact_scenario_label(scenario) for scenario in scenarios]
-    methods = sorted(set(row["method"] for row in subset), key=lambda name: method_rank.get(name, len(method_order)))
+    methods = _sort_methods_for_heatmap(set(row["method"] for row in subset))
     matrix = np.full((len(scenarios), len(methods)), np.nan, dtype=float)
     for row in subset:
         scenario_index = scenarios.index(row["scenario_id"])
@@ -536,9 +557,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
         "--figure-format",
-        choices=("png", "pdf", "svg"),
+        choices=("pdf", "svg"),
         default="svg",
-        help="Primary export format. All figures also emit svg and png companions for downstream use.",
+        help="Primary export format. SVG is always emitted; PNG companion export is disabled for now.",
     )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(

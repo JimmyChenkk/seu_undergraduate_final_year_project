@@ -1,0 +1,116 @@
+experiment_name: rcta_mode125_ablation_fixedfold
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: false
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+
+automation:
+  methods:
+    - rcta_a_temporal
+    - rcta_ab_reliable
+    - rcta_abc_full
+  single_source_scenes:
+    - mode1->mode2
+    - mode2->mode1
+    - mode1->mode5
+    - mode5->mode1
+    - mode2->mode5
+    - mode5->mode2
+  multisource_scenes:
+    - mode1+mode2->mode5
+    - mode1+mode5->mode2
+    - mode2+mode5->mode1
+
+protocol_override:
+  setting: fixed_fold
+  source_domains:
+    - mode1
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Mode1/2/5 ablation reuses the same fixed folds as the current mode125 benchmark."
+  scene_fold_overrides:
+    m1_m2:
+      source_fold: 2
+      target_fold: 4
+    m2_m1:
+      source_fold: 5
+      target_fold: 3
+    m1_m5:
+      source_fold: 4
+      target_fold: 3
+    m5_m1:
+      source_fold: 4
+      target_fold: 4
+    m2_m5:
+      source_fold: 1
+      target_fold: 3
+    m5_m2:
+      source_fold: 3
+      target_fold: 4
+    m1_2_m5:
+      source_folds_by_domain:
+        mode1: 4
+        mode2: 1
+      target_fold: 3
+    m1_5_m2:
+      source_folds_by_domain:
+        mode1: 2
+        mode5: 3
+      target_fold: 4
+    m2_5_m1:
+      source_folds_by_domain:
+        mode2: 4
+        mode5: 4
+      target_fold: 4
+
+notes:
+  - 3 cumulative RCTA stages x 9 mode1/2/5 handshake scenes = 27 ablation runs.
+  - A: hybrid alignment with mean-teacher temporal consistency.
+  - A+B: A plus reliability-gated pseudo-label learning.
+  - A+B+C: A+B plus dual prototypes, curriculum, and multi-source reliability weighting.
+  - Base-only and final integration are not separate paper rows; they are covered by the main benchmark and the complete A+B+C method.
+  - save_analysis=false keeps this ablation focused on tables and heatmaps; rerun selected paper examples with analysis enabled when t-SNE/confusion figures are needed.
+  - Batch size 64 and fused RCTA forward passes are used to improve GPU occupancy relative to the previous 5-stage batch.
+  - Fold policy is intentionally identical to configs/experiment/benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml for mode1/2/5 scenes.
