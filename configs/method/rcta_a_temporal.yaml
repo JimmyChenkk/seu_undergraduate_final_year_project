@@ -8,7 +8,7 @@ backbone:
 
 optimization:
   epochs: 112
-  batch_size: 64
+  batch_size: 32
   learning_rate: 0.0001
   weight_decay: 0.0
   max_grad_norm: 5.0
@@ -43,16 +43,16 @@ loss:
     inv_entropy: 1.0
     consistency: 1.0
     proto_sim: 0.0
-  gate_score_floor_start: 0.56
-  gate_score_floor_end: 0.56
+  gate_score_floor_start: 0.50
+  gate_score_floor_end: 0.50
   gate_score_floor_schedule_steps: 1
-  gate_accept_ratio_start: 0.72
-  gate_accept_ratio_end: 0.72
+  gate_accept_ratio_start: 0.76
+  gate_accept_ratio_end: 0.76
   gate_curriculum_steps: 1
   gate_balance_mode: per_class_ratio
   gate_max_class_fraction: 1.0
-  reliable_score_floor: 0.66
-  semi_reliable_score_floor: 0.44
+  reliable_score_floor: 0.62
+  semi_reliable_score_floor: 0.42
   semi_reliable_consistency_weight: 0.0
   unreliable_entropy_weight: 0.0
   pseudo_label_weight: 0.0
@@ -63,7 +63,7 @@ loss:
   prototype_start_step: 0
   prototype_warmup_steps: 0
   prototype_separation_weight: 0.0
-  consistency_weight: 0.06
+  consistency_weight: 0.08
   consistency_start_step: 0
   consistency_warmup_steps: 0
   consistency_gate_only: false

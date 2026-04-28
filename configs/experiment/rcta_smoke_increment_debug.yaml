@@ -1,0 +1,83 @@
+experiment_name: rcta_smoke_increment_debug
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 10
+  selection_interval: 10
+  early_stopping_interval: 10
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+
+automation:
+  methods:
+    - rcta_a_temporal
+    - rcta_ab_reliable
+    - rcta_abc_full
+  single_source_scenes:
+    - mode1->mode2
+  multisource_scenes:
+    - mode1+mode2->mode5
+  multisource_targets: []
+
+protocol_override:
+  setting: fixed_fold
+  source_domains:
+    - mode1
+    - mode2
+  target_domain: mode5
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Combined smoke test for monotonic staged gains on one single-source and one multi-source scene."
+  scene_fold_overrides:
+    m1_m2:
+      source_fold: 2
+      target_fold: 4
+    m1_2_m5:
+      source_folds_by_domain:
+        mode1: 4
+        mode2: 1
+      target_fold: 3
+
+notes:
+  - Combined debug experiment for staged RCTA progression.
+  - Single-source scene: mode1->mode2.
+  - Multi-source scene: mode1+mode2->mode5.
+  - Runs the same 3 cumulative RCTA stages on both scenes to check whether the increment trend generalizes.

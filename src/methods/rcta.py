@@ -521,6 +521,7 @@ class RCTAMethod(SingleSourceMethodBase):
         dann_kwargs: dict[str, Any] | None = None,
         dan_kwargs: dict[str, Any] | None = None,
         deepjdot_kwargs: dict[str, Any] | None = None,
+        track_detailed_metrics: bool = False,
         dropout: float = 0.1,
         **kwargs,
     ) -> None:
@@ -565,6 +566,7 @@ class RCTAMethod(SingleSourceMethodBase):
         self.source_weight_proto = max(float(source_weight_proto), 0.0)
         self.source_weight_confidence = max(float(source_weight_confidence), 0.0)
         self.source_weight_coverage = max(float(source_weight_coverage), 0.0)
+        self.track_detailed_metrics = bool(track_detailed_metrics)
         self._source_weight_ema: torch.Tensor | None = None
 
         self.gate_score_floor_start = float(gate_score_floor if gate_score_floor_start is None else gate_score_floor_start)
@@ -692,6 +694,9 @@ class RCTAMethod(SingleSourceMethodBase):
         raise KeyError(f"Unsupported RCTA alignment branch: {name}")
 
     def _alignment_branch_metrics(self, align_metrics: dict[str, float]) -> dict[str, float]:
+        if not self.track_detailed_metrics:
+            kept_keys = {"acc_domain", "grl_coeff"}
+            return {key: float(value) for key, value in align_metrics.items() if key in kept_keys}
         return {key: float(value) for key, value in align_metrics.items() if key != "lambda_alignment"}
 
     def _alignment_weight(self, current_step: int, align_metrics: dict[str, float]) -> float:
@@ -907,12 +912,23 @@ class RCTAMethod(SingleSourceMethodBase):
         features_by_source: list[torch.Tensor],
         labels_by_source: list[torch.Tensor],
         source_weights: torch.Tensor,
+        *,
+        precomputed_source_prototypes: list[torch.Tensor] | None = None,
+        precomputed_source_active: list[torch.Tensor] | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         prototypes = torch.zeros_like(self.source_prototypes)
         active = torch.zeros_like(self.source_prototype_counts, dtype=torch.bool)
         contribution = torch.zeros_like(self.source_prototype_counts, dtype=prototypes.dtype)
-        for source_index, (features, labels) in enumerate(zip(features_by_source, labels_by_source)):
-            source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+        source_prototypes_list = precomputed_source_prototypes
+        source_active_list = precomputed_source_active
+        if source_prototypes_list is None or source_active_list is None:
+            source_prototypes_list = []
+            source_active_list = []
+            for features, labels in zip(features_by_source, labels_by_source):
+                source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+                source_prototypes_list.append(source_prototypes)
+                source_active_list.append(source_active)
+        for source_index, (source_prototypes, source_active) in enumerate(zip(source_prototypes_list, source_active_list)):
             if not source_active.any():
                 continue
             weight = source_weights[source_index].to(device=prototypes.device, dtype=prototypes.dtype)
@@ -932,28 +948,67 @@ class RCTAMethod(SingleSourceMethodBase):
         logits_by_source: list[torch.Tensor],
         teacher_features: torch.Tensor,
         pseudo_labels: torch.Tensor,
-    ) -> torch.Tensor:
+        source_prototypes_list: list[torch.Tensor] | None = None,
+        source_active_list: list[torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
         source_count = len(features_by_source)
         device = teacher_features.device
         dtype = teacher_features.dtype
         if source_count <= 1 or not self.multi_source_weighting:
-            return torch.full((source_count,), 1.0 / max(source_count, 1), device=device, dtype=dtype)
+            return (
+                torch.full((source_count,), 1.0 / max(source_count, 1), device=device, dtype=dtype),
+                [] if source_prototypes_list is None else source_prototypes_list,
+                [] if source_active_list is None else source_active_list,
+            )
+        if source_prototypes_list is None or source_active_list is None:
+            source_prototypes_list = []
+            source_active_list = []
+            for features, labels in zip(features_by_source, labels_by_source):
+                source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+                source_prototypes_list.append(source_prototypes)
+                source_active_list.append(source_active)
 
         proto_weight = self.source_weight_proto
         confidence_weight = self.source_weight_confidence
         coverage_weight = self.source_weight_coverage
         total_score_weight = proto_weight + confidence_weight + coverage_weight
         if total_score_weight <= 0:
-            return torch.full((source_count,), 1.0 / source_count, device=device, dtype=dtype)
+            return (
+                torch.full((source_count,), 1.0 / source_count, device=device, dtype=dtype),
+                source_prototypes_list,
+                source_active_list,
+            )
+
+        if not self.track_detailed_metrics and source_count > 1:
+            source_scores = []
+            for source_active in source_active_list:
+                valid = source_active[pseudo_labels]
+                coverage = valid.to(dtype=dtype).mean() if valid.numel() > 0 else torch.zeros((), device=device, dtype=dtype)
+                source_scores.append(coverage)
+            raw_scores = torch.stack(source_scores).clamp(0.0, 1.0)
+            if self.source_weight_temperature > 0:
+                weights = torch.softmax(raw_scores * self.source_weight_temperature, dim=0)
+            else:
+                weights = raw_scores / raw_scores.sum().clamp_min(_EPSILON)
+            floor = min(self.source_weight_floor, 1.0 / source_count)
+            if floor > 0:
+                weights = weights * max(1.0 - floor * source_count, 0.0) + floor
+                weights = weights / weights.sum().clamp_min(_EPSILON)
+            return weights.detach(), source_prototypes_list, source_active_list
 
         scores = []
-        for features, labels, logits in zip(features_by_source, labels_by_source, logits_by_source):
-            source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+        teacher_features_detached = teacher_features.detach()
+        for labels, logits, source_prototypes, source_active in zip(
+            labels_by_source,
+            logits_by_source,
+            source_prototypes_list,
+            source_active_list,
+        ):
             valid = source_active[pseudo_labels]
             coverage = valid.to(dtype=dtype).mean() if valid.numel() > 0 else torch.zeros((), device=device, dtype=dtype)
             if valid.any():
                 proto_similarity = self._prototype_similarity(
-                    teacher_features.detach(),
+                    teacher_features_detached,
                     pseudo_labels,
                     source_prototypes.detach(),
                     source_active,
@@ -994,7 +1049,7 @@ class RCTAMethod(SingleSourceMethodBase):
                 )
                 self._source_weight_ema = self._source_weight_ema / self._source_weight_ema.sum().clamp_min(_EPSILON)
             weights = self._source_weight_ema.to(device=device, dtype=dtype)
-        return weights.detach()
+        return weights.detach(), source_prototypes_list, source_active_list
 
     def _source_sample_weights(
         self,
@@ -1016,9 +1071,10 @@ class RCTAMethod(SingleSourceMethodBase):
         similarity = torch.full((teacher_features.shape[0],), 0.5, device=teacher_features.device, dtype=teacher_features.dtype)
         valid = active_mask[pseudo_labels]
         if valid.any():
-            prototype_slice = reference_prototypes[pseudo_labels[valid]].to(dtype=teacher_features.dtype)
-            cosine = F.cosine_similarity(teacher_features[valid], prototype_slice, dim=1, eps=_EPSILON)
-            similarity[valid] = ((cosine + 1.0) * 0.5).to(dtype=teacher_features.dtype)
+            valid_indices = torch.nonzero(valid, as_tuple=False).squeeze(1)
+            prototype_slice = reference_prototypes[pseudo_labels[valid_indices]].to(dtype=teacher_features.dtype)
+            cosine = F.cosine_similarity(teacher_features[valid_indices], prototype_slice, dim=1, eps=_EPSILON)
+            similarity[valid_indices] = ((cosine + 1.0) * 0.5).to(dtype=teacher_features.dtype)
         return similarity
 
     def _prototype_distance(self, features: torch.Tensor, labels: torch.Tensor, reference_prototypes: torch.Tensor, active_mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -1129,21 +1185,10 @@ class RCTAMethod(SingleSourceMethodBase):
         logits_source, features_source = self.forward(source_x)
         logits_by_source = list(logits_source.split(source_lengths, dim=0))
         features_by_source = list(features_source.split(source_lengths, dim=0))
-        source_domain_indices = [
-            torch.full(
-                (source_length,),
-                source_index,
-                device=source_y.device,
-                dtype=torch.long,
-            )
-            for source_index, source_length in enumerate(source_lengths)
-        ]
-        source_domain_indices_tensor = torch.cat(source_domain_indices, dim=0)
         target_x, _ = target_batch
         weak_target, strong_target = self.augmenter.augment_pair(target_x)
-        logits_target_combined, features_target_combined = self.forward(
-            torch.cat([weak_target, strong_target], dim=0)
-        )
+        target_features_input = torch.cat([weak_target, strong_target], dim=0)
+        logits_target_combined, features_target_combined = self.forward(target_features_input)
         target_batch_size = int(target_x.shape[0])
         logits_target_align, logits_target_strong = logits_target_combined.split(
             [target_batch_size, target_batch_size],
@@ -1154,43 +1199,88 @@ class RCTAMethod(SingleSourceMethodBase):
         teacher_probabilities = self._teacher_probabilities(teacher_logits).detach()
         pseudo_labels = teacher_probabilities.argmax(dim=1)
         current_step = int(self.step_num.item())
-        source_domain_weights = self._source_reliability_weights(
+
+        source_prototypes_list: list[torch.Tensor] | None = None
+        source_active_list: list[torch.Tensor] | None = None
+        if self.prototype_weight > 0 or self.prototype_separation_weight > 0 or self.reliability_weights.get("proto_sim", 0.0) > 0 or self.target_prototype_blend_start > 0 or self.target_prototype_blend_end > 0 or self.target_prototype_update_mode != "all" or (self.multi_source_weighting and len(source_batches) > 1):
+            source_prototypes_list = []
+            source_active_list = []
+            for features, labels in zip(features_by_source, source_y_by_domain):
+                source_prototypes, source_active = self._batch_prototypes(features.detach(), labels)
+                source_prototypes_list.append(source_prototypes)
+                source_active_list.append(source_active)
+
+        source_domain_weights, source_prototypes_list, source_active_list = self._source_reliability_weights(
             features_by_source=features_by_source,
             labels_by_source=source_y_by_domain,
             logits_by_source=logits_by_source,
-            teacher_features=teacher_features.detach(),
-            pseudo_labels=pseudo_labels.detach(),
+            teacher_features=teacher_features,
+            pseudo_labels=pseudo_labels,
+            source_prototypes_list=source_prototypes_list,
+            source_active_list=source_active_list,
         )
-        source_sample_weights = self._source_sample_weights(
-            source_domain_indices_tensor,
-            source_domain_weights,
-            dtype=logits_source.dtype,
-        )
+        source_sample_weights = None
         if self.multi_source_weighting and len(source_batches) > 1:
-            source_batch_prototypes, source_batch_active = self._weighted_source_batch_prototypes(
-                [features.detach() for features in features_by_source],
-                source_y_by_domain,
+            source_domain_indices_tensor = torch.cat(
+                [
+                    torch.full(
+                        (source_length,),
+                        source_index,
+                        device=source_y.device,
+                        dtype=torch.long,
+                    )
+                    for source_index, source_length in enumerate(source_lengths)
+                ],
+                dim=0,
+            )
+            source_sample_weights = self._source_sample_weights(
+                source_domain_indices_tensor,
                 source_domain_weights,
+                dtype=logits_source.dtype,
+            )
+        use_prototype_path = bool(
+            self.prototype_weight > 0
+            or self.prototype_separation_weight > 0
+            or self.reliability_weights.get("proto_sim", 0.0) > 0
+            or self.target_prototype_blend_start > 0
+            or self.target_prototype_blend_end > 0
+            or self.target_prototype_update_mode != "all"
+        )
+        if use_prototype_path:
+            if source_domain_weights is not None:
+                source_batch_prototypes, source_batch_active = self._weighted_source_batch_prototypes(
+                    features_by_source,
+                    source_y_by_domain,
+                    source_domain_weights,
+                    precomputed_source_prototypes=source_prototypes_list,
+                    precomputed_source_active=source_active_list,
+                )
+            else:
+                source_batch_prototypes, source_batch_active = self._batch_prototypes(features_source.detach(), source_y)
+            target_blend_weight = self._target_prototype_blend_weight(current_step)
+            reference_prototypes, prototype_active = self._current_reference_prototypes(
+                source_batch_prototypes,
+                source_batch_active,
+                target_blend_weight=target_blend_weight,
             )
         else:
-            source_batch_prototypes, source_batch_active = self._batch_prototypes(features_source.detach(), source_y)
-        target_blend_weight = self._target_prototype_blend_weight(current_step)
-        reference_prototypes, prototype_active = self._current_reference_prototypes(
-            source_batch_prototypes,
-            source_batch_active,
-            target_blend_weight=target_blend_weight,
-        )
+            target_blend_weight = 0.0
+            reference_prototypes = self.source_prototypes
+            prototype_active = self.source_prototype_counts > 0
         student_probabilities = torch.softmax(logits_target_strong, dim=1)
         cal_conf = teacher_probabilities.max(dim=1).values.to(dtype=logits_source.dtype)
         inv_entropy = (1.0 - self._normalized_entropy(teacher_probabilities)).to(dtype=logits_source.dtype)
         consistency_score = student_probabilities.gather(1, pseudo_labels.unsqueeze(1)).squeeze(1)
-        proto_similarity = self._prototype_similarity(teacher_features.detach(), pseudo_labels, reference_prototypes.detach(), prototype_active).to(dtype=logits_source.dtype)
+        if use_prototype_path:
+            proto_similarity = self._prototype_similarity(teacher_features.detach(), pseudo_labels, reference_prototypes.detach(), prototype_active).to(dtype=logits_source.dtype)
+        else:
+            proto_similarity = torch.zeros_like(cal_conf)
         reliability_score = (self.reliability_weights["cal_conf"] * cal_conf + self.reliability_weights["inv_entropy"] * inv_entropy + self.reliability_weights["consistency"] * consistency_score.detach() + self.reliability_weights["proto_sim"] * proto_similarity).clamp(0.0, 1.0)
         if self.pseudo_confidence_power != 1.0:
             reliability_score = reliability_score.clamp_min(_EPSILON).pow(self.pseudo_confidence_power).clamp(0.0, 1.0)
         scheduled_gate_floor = self._scheduled_gate_score_floor(current_step)
         gate_mask, curriculum_ratio = self.gate.select(reliability_score.detach(), pseudo_labels.detach(), current_step, score_floor_override=scheduled_gate_floor)
-        if self.multi_source_weighting and len(source_batches) > 1:
+        if source_sample_weights is not None:
             source_ce_values = F.cross_entropy(logits_source, source_y, reduction="none")
             loss_cls = self._weighted_mean(source_ce_values, source_sample_weights.detach())
         else:
@@ -1208,7 +1298,7 @@ class RCTAMethod(SingleSourceMethodBase):
             features_source=features_source,
             alignment_target_logits=alignment_target_logits,
             alignment_target_features=alignment_target_features,
-            source_sample_weights=source_sample_weights.detach(),
+            source_sample_weights=(source_sample_weights.detach() if source_sample_weights is not None else None),
         )
         loss_mcc = self.mcc(alignment_target_logits) if self.mcc is not None and alignment_target_logits.numel() > 0 else _zero(logits_target_align.device, logits_target_align.dtype)
         if gate_mask.any():
@@ -1226,34 +1316,43 @@ class RCTAMethod(SingleSourceMethodBase):
             loss_pseudo = _zero(logits_target_align.device, logits_target_align.dtype)
             gated_pseudo_labels = pseudo_labels[:0]
             gated_target_proto_features = features_target_align[:0]
-        loss_source_proto = self._prototype_attraction_loss(
-            features_source,
-            source_y,
-            reference_prototypes,
-            prototype_active,
-            sample_weights=(
-                source_sample_weights.detach()
-                if self.multi_source_weighting and len(source_batches) > 1
-                else None
-            ),
-        )
-        reliable_mask, semi_reliable_mask, unreliable_mask = self.reliability_partition.split(
-            reliability_score.detach(), gate_mask
-        )
-        loss_target_proto = self._prototype_attraction_loss(
-            gated_target_proto_features, gated_pseudo_labels, reference_prototypes, prototype_active
-        )
-        loss_proto_separation = self._prototype_separation_loss(reference_prototypes, prototype_active)
-        soft_target_weights = self.reliability_partition.soft_weights(reliability_score.detach())
-        loss_soft_target_proto = self._weighted_mean(
-            1.0 - F.cosine_similarity(
-                features_target_align,
-                reference_prototypes[pseudo_labels].detach(),
-                dim=1,
-                eps=_EPSILON,
-            ),
-            soft_target_weights,
-        )
+        if use_prototype_path:
+            loss_source_proto = self._prototype_attraction_loss(
+                features_source,
+                source_y,
+                reference_prototypes,
+                prototype_active,
+                sample_weights=(
+                    source_sample_weights.detach()
+                    if self.multi_source_weighting and len(source_batches) > 1
+                    else None
+                ),
+            )
+            reliable_mask, semi_reliable_mask, unreliable_mask = self.reliability_partition.split(
+                reliability_score.detach(), gate_mask
+            )
+            loss_target_proto = self._prototype_attraction_loss(
+                gated_target_proto_features, gated_pseudo_labels, reference_prototypes, prototype_active
+            )
+            loss_proto_separation = self._prototype_separation_loss(reference_prototypes, prototype_active)
+            soft_target_weights = self.reliability_partition.soft_weights(reliability_score.detach())
+            loss_soft_target_proto = self._weighted_mean(
+                1.0 - F.cosine_similarity(
+                    features_target_align,
+                    reference_prototypes[pseudo_labels].detach(),
+                    dim=1,
+                    eps=_EPSILON,
+                ),
+                soft_target_weights,
+            )
+        else:
+            reliable_mask, semi_reliable_mask, unreliable_mask = self.reliability_partition.split(
+                reliability_score.detach(), gate_mask
+            )
+            loss_source_proto = _zero(logits_source.device, logits_source.dtype)
+            loss_target_proto = _zero(logits_source.device, logits_source.dtype)
+            loss_proto_separation = _zero(logits_source.device, logits_source.dtype)
+            loss_soft_target_proto = _zero(logits_source.device, logits_source.dtype)
         loss_prototype = loss_source_proto + loss_target_proto + 0.5 * loss_soft_target_proto + self.prototype_separation_weight * loss_proto_separation
         loss_consistency, semi_reliable_consistency, unreliable_entropy = self._compute_consistency_terms(
             student_probabilities=student_probabilities,
@@ -1280,11 +1379,6 @@ class RCTAMethod(SingleSourceMethodBase):
         self._cached_target_labels = pseudo_labels[target_update_mask].detach().clone()
         kept_count = int(gate_mask.sum().item())
         batch_size_target = max(int(target_x.shape[0]), 1)
-        predicted_classes = int(torch.unique(pseudo_labels).numel())
-        kept_classes = int(torch.unique(pseudo_labels[gate_mask]).numel()) if gate_mask.any() else 0
-        source_weight_entropy = -(
-            source_domain_weights * torch.log(source_domain_weights.clamp_min(_EPSILON))
-        ).sum() / math.log(max(int(source_domain_weights.numel()), 2))
         metrics = {
             "loss_total": float(total_loss.item()),
             "loss_cls": float(loss_cls.item()),
@@ -1303,25 +1397,25 @@ class RCTAMethod(SingleSourceMethodBase):
             "lambda_prototype": float(lambda_prototype),
             "lambda_consistency": float(lambda_consistency),
             "acc_source": accuracy_from_logits(logits_source, source_y),
-            "gate_mean_score": float(reliability_score.mean().item()),
-            "pseudo_kept_mean_reliability": float(reliability_score[gate_mask].mean().item()) if gate_mask.any() else 0.0,
             "gate_accept_ratio": float(kept_count / batch_size_target),
             "gate_curriculum_ratio": float(curriculum_ratio),
             "gate_score_floor": float(scheduled_gate_floor),
             "pseudo_label_kept": float(kept_count),
-            "pseudo_label_active_classes": float(predicted_classes),
-            "pseudo_label_kept_classes": float(kept_classes),
             "reliable_count": float(reliable_mask.sum().item()),
             "semi_reliable_count": float(semi_reliable_mask.sum().item()),
             "unreliable_count": float(unreliable_mask.sum().item()),
             "target_prototype_update_count": float(target_update_mask.sum().item()),
             "target_prototype_blend_weight": float(target_blend_weight),
-            "source_weight_entropy": float(source_weight_entropy.item()),
-            "source_weight_min": float(source_domain_weights.min().item()),
-            "source_weight_max": float(source_domain_weights.max().item()),
         }
-        for source_index, source_weight in enumerate(source_domain_weights.tolist()):
-            metrics[f"source_weight_{source_index}"] = float(source_weight)
+        if self.multi_source_weighting and len(source_batches) > 1:
+            source_weight_entropy = -(
+                source_domain_weights * torch.log(source_domain_weights.clamp_min(_EPSILON))
+            ).sum() / math.log(max(int(source_domain_weights.numel()), 2))
+            metrics["source_weight_entropy"] = float(source_weight_entropy.item())
+            metrics["source_weight_min"] = float(source_domain_weights.min().item())
+            metrics["source_weight_max"] = float(source_domain_weights.max().item())
+            for source_index, source_weight in enumerate(source_domain_weights.tolist()):
+                metrics[f"source_weight_{source_index}"] = float(source_weight)
         metrics.update({key: float(value) for key, value in self._alignment_branch_metrics(align_metrics).items() if key != "lambda_alignment"})
         return MethodStepOutput(loss=total_loss, metrics=metrics)
 

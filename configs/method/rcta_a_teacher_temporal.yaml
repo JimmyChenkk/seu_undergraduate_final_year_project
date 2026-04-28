@@ -1,5 +1,5 @@
 method_name: rcta
-method_display_name: rcta_abc_full
+method_display_name: rcta_a_teacher_temporal
 
 backbone:
   name: fcn
@@ -22,9 +22,9 @@ runtime_defaults:
   early_stopping_weights:
     source_eval: 0.80
     target_confidence: 0.20
-  early_stopping_patience: 16
+  early_stopping_patience: 14
   early_stopping_min_delta: 0.0005
-  early_stopping_min_epochs: 36
+  early_stopping_min_epochs: 28
 
 loss:
   base_align: hybrid
@@ -39,50 +39,50 @@ loss:
   teacher_ema_decay: 0.992
   teacher_temperature: 1.3
   reliability_weights:
-    cal_conf: 1.15
+    cal_conf: 1.0
     inv_entropy: 1.0
-    consistency: 1.15
-    proto_sim: 0.95
-  gate_score_floor_start: 0.42
-  gate_score_floor_end: 0.58
-  gate_score_floor_schedule_steps: 2000
-  gate_accept_ratio_start: 0.60
-  gate_accept_ratio_end: 0.82
-  gate_curriculum_steps: 2000
+    consistency: 1.0
+    proto_sim: 0.0
+  gate_score_floor_start: 0.50
+  gate_score_floor_end: 0.50
+  gate_score_floor_schedule_steps: 1
+  gate_accept_ratio_start: 1.0
+  gate_accept_ratio_end: 1.0
+  gate_curriculum_steps: 1
   gate_balance_mode: per_class_ratio
   gate_max_class_fraction: 1.0
-  reliable_score_floor: 0.64
-  semi_reliable_score_floor: 0.40
-  semi_reliable_consistency_weight: 0.06
-  unreliable_entropy_weight: 0.02
-  pseudo_label_weight: 0.16
-  pseudo_warmup_steps: 700
+  reliable_score_floor: 0.62
+  semi_reliable_score_floor: 0.42
+  semi_reliable_consistency_weight: 0.0
+  unreliable_entropy_weight: 0.0
+  pseudo_label_weight: 0.0
+  pseudo_warmup_steps: 0
   pseudo_use_reliability_weighting: true
-  pseudo_confidence_power: 1.15
-  prototype_weight: 0.08
-  prototype_start_step: 700
-  prototype_warmup_steps: 1200
-  prototype_separation_weight: 0.10
-  consistency_weight: 0.09
+  pseudo_confidence_power: 1.0
+  prototype_weight: 0.0
+  prototype_start_step: 0
+  prototype_warmup_steps: 0
+  prototype_separation_weight: 0.0
+  consistency_weight: 0.08
   consistency_start_step: 0
   consistency_warmup_steps: 0
-  consistency_gate_only: true
-  consistency_reliability_power: 1.25
+  consistency_gate_only: false
+  consistency_reliability_power: 0.0
   alignment_start_step: 0
   alignment_use_reliable_only: false
   prototype_momentum: 0.95
   prototype_separation_margin: 0.20
   target_prototype_update_mode: gated
   target_prototype_blend_start: 0.0
-  target_prototype_blend_end: 0.50
-  target_prototype_blend_schedule_steps: 1800
-  multi_source_weighting: true
-  source_weight_temperature: 3.0
-  source_weight_momentum: 0.20
-  source_weight_floor: 0.08
+  target_prototype_blend_end: 0.0
+  target_prototype_blend_schedule_steps: 1
+  multi_source_weighting: false
+  source_weight_temperature: 4.0
+  source_weight_momentum: 0.0
+  source_weight_floor: 0.0
   source_weight_proto: 1.0
-  source_weight_confidence: 0.10
-  source_weight_coverage: 0.25
+  source_weight_confidence: 0.0
+  source_weight_coverage: 0.0
   augment:
     weak_jitter_std: 0.005
     weak_scaling_std: 0.005
@@ -122,5 +122,5 @@ loss:
     linear_mmd: false
 
 notes:
-  - Stage A+B+C: adds dual prototypes, prototype-aware reliability, curriculum, and multi-source weighting.
-  - This is the complete paper method row for the three-stage ablation.
+  - Stage A: teacher-student temporal stability only.
+  - No reliability gate, no pseudo-label supervision, no prototypes, no multi-source weighting.

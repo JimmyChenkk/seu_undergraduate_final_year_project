@@ -1,5 +1,5 @@
 method_name: rcta
-method_display_name: rcta_abc_full
+method_display_name: rcta_abc_proto_multi
 
 backbone:
   name: fcn
@@ -122,5 +122,5 @@ loss:
     linear_mmd: false
 
 notes:
-  - Stage A+B+C: adds dual prototypes, prototype-aware reliability, curriculum, and multi-source weighting.
-  - This is the complete paper method row for the three-stage ablation.
+  - Stage A+B+C: teacher stability, reliability gate, prototypes, and multi-source weighting.
+  - This is the full candidate-1 complete method row.
