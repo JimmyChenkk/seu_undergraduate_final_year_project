@@ -8,7 +8,7 @@ tracking:
 
 runtime:
   dry_run: false
-  save_checkpoint: true
+  save_checkpoint: false
   save_analysis: true
   disable_cudnn: false
   cudnn_benchmark: true
@@ -29,9 +29,9 @@ runtime:
 
 automation:
   methods:
-    - rcta_a_temporal
-    - rcta_ab_reliable
-    - rcta_abc_full
+    - rcta_a_teacher_temporal
+    - rcta_ab_gate
+    - rcta_abc_proto_multi
   single_source_scenes:
     - mode1->mode2
   multisource_scenes:
@@ -65,7 +65,7 @@ protocol_override:
     random_per_run: false
     source_fold_choices: [1, 2, 3, 4, 5]
     target_fold_choices: [1, 2, 3, 4, 5]
-    note: "Combined smoke test for monotonic staged gains on one single-source and one multi-source scene."
+    note: "Combined debug experiment for candidate-1 staged RCTA progression."
   scene_fold_overrides:
     m1_m2:
       source_fold: 2
@@ -77,7 +77,7 @@ protocol_override:
       target_fold: 3
 
 notes:
-  - Combined debug experiment for staged RCTA progression.
+  - Combined debug experiment for candidate-1 staged RCTA progression.
   - Single-source scene: mode1->mode2.
   - Multi-source scene: mode1+mode2->mode5.
   - Runs the same 3 cumulative RCTA stages on both scenes to check whether the increment trend generalizes.
