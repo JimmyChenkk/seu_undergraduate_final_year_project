@@ -17,11 +17,11 @@ runtime_defaults:
   model_selection: hybrid_source_eval_target_confidence
   early_stopping_metric: hybrid_source_eval_target_confidence
   selection_weights:
-    source_eval: 0.84
-    target_confidence: 0.16
+    source_eval: 0.85
+    target_confidence: 0.15
   early_stopping_weights:
-    source_eval: 0.84
-    target_confidence: 0.16
+    source_eval: 0.85
+    target_confidence: 0.15
   early_stopping_patience: 18
   early_stopping_min_delta: 0.0003
   early_stopping_min_epochs: 40
@@ -36,17 +36,17 @@ loss:
   use_mcc: true
   mcc_weight: 0.03
   mcc_temperature: 2.0
-  teacher_ema_decay: 0.995
-  teacher_temperature: 1.22
+  teacher_ema_decay: 0.994
+  teacher_temperature: 1.25
   reliability_weights:
-    cal_conf: 1.10
-    inv_entropy: 1.05
-    consistency: 1.05
+    cal_conf: 1.12
+    inv_entropy: 1.08
+    consistency: 1.10
     proto_sim: 1.00
   gate_score_floor_start: 0.62
-  gate_score_floor_end: 0.78
+  gate_score_floor_end: 0.80
   gate_score_floor_schedule_steps: 3600
-  gate_accept_ratio_start: 0.20
+  gate_accept_ratio_start: 0.22
   gate_accept_ratio_end: 0.34
   gate_curriculum_steps: 3600
   gate_balance_mode: per_class_ratio
@@ -55,7 +55,7 @@ loss:
   semi_reliable_score_floor: 0.64
   semi_reliable_consistency_weight: 0.02
   unreliable_entropy_weight: 0.001
-  pseudo_label_weight: 0.0
+  pseudo_label_weight: 0.01
   pseudo_warmup_steps: 2800
   pseudo_use_reliability_weighting: true
   pseudo_confidence_power: 1.30
@@ -74,15 +74,15 @@ loss:
   prototype_separation_margin: 0.20
   target_prototype_update_mode: gated
   target_prototype_blend_start: 0.0
-  target_prototype_blend_end: 0.40
-  target_prototype_blend_schedule_steps: 2200
+  target_prototype_blend_end: 0.25
+  target_prototype_blend_schedule_steps: 2600
   multi_source_weighting: true
-  source_weight_temperature: 3.2
-  source_weight_momentum: 0.15
-  source_weight_floor: 0.10
+  source_weight_temperature: 3.4
+  source_weight_momentum: 0.12
+  source_weight_floor: 0.12
   source_weight_proto: 1.0
-  source_weight_confidence: 0.08
-  source_weight_coverage: 0.22
+  source_weight_confidence: 0.06
+  source_weight_coverage: 0.18
   augment:
     weak_jitter_std: 0.005
     weak_scaling_std: 0.005
