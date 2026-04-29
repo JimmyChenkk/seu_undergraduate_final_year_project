@@ -1,14 +1,14 @@
 # 领域自适应流程工业故障诊断研究工作区
 
-本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前主线聚焦 `benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml` 的 mode1/2/5 fixed-fold 握手协议：9 个迁移设置、8 种方法，共 72 个主要结果点。
+本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前主线聚焦 `goal.md` 所定义的 RCTA 机制叙事与 `benchmark_72_2clusters_9scenes_8methods_fixedfold.yaml` 的 mode1/2/5 fixed-fold 握手协议：9 个迁移设置、8 种方法，共 72 个主要结果点；论文与实验组织方式以“先稳定、再筛噪、后协同”为核心。
 
 ## 项目说明
 
 - 研究主题：流程工业故障诊断中的领域自适应。
 - 数据集：Tennessee Eastman Process Domain Adaptation，原始 `.pickle` 文件统一放在 `data/raw/`。
-- 默认任务设置：以 mode1、mode2、mode5 三个域之间的握手协议为准，包含 6 个单源到单目标场景与 3 个多源到单目标场景。
+- 默认任务设置：以 mode1、mode2、mode5 三个域之间的握手协议为准，包含 6 个单源到单目标场景与 3 个多源到单目标场景，和 `goal.md` 中的主 benchmark 约定保持一致。
 - 当前对比方法：`Target-Only`、`RCTA`、`DeepJDOT`、`CDAN`、`DANN`、`DAN`、`CORAL`、`Source-Only`。
-- 当前理想结果：`Target-Only` 最高，`RCTA` 位居第二，`DeepJDOT` 或 OT/JDOT 类方法保持第 3 到第 4 的靠前水平，常规 DA 方法整体不弱于合理基线，`Source-Only` 垫底；除 `Source-Only` 外，目标域指标原则上不低于 0.70。
+- 当前理想结果：`Target-Only` 维持上界，`RCTA` 完整体稳定处于无监督域适配方法中的第一梯队并整体仅次于 `Target-Only`，`DeepJDOT` 或其他 OT/JDOT 类方法靠前，常规 DA 方法保持合理水平，`Source-Only` 作为无适配下界垫底；整体叙事优先强调机制闭环与递进消融的 `A < A+B < A+B+C`。
 - 工作区分工：
   - `src/` 放核心实现。
   - `configs/` 放数据、方法和实验配置。
@@ -20,7 +20,7 @@
 
 ## 目录概览
 
-以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。`tests/` 已加入自动化验证目录，当前工作区会优先围绕 mode1/2/5 fixed-fold 主线目标持续收敛。
+以下目录树为当前仓库的主要结构，用于帮助快速定位入口；不追求逐文件穷举。`tests/` 已加入自动化验证目录，当前工作区会优先围绕 `goal.md` 的三大创新点与 mode1/2/5 fixed-fold 主线目标持续收敛。
 
 ```text
 workspace/
