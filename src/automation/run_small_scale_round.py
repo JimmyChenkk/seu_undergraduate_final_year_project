@@ -270,6 +270,47 @@ def _automation_section(experiment_payload: dict[str, Any]) -> dict[str, Any]:
     return automation
 
 
+def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = deepcopy(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dict(merged[key], value)
+        else:
+            merged[key] = deepcopy(value)
+    return merged
+
+
+def _scene_override_payload(
+    experiment_payload: dict[str, Any],
+    scene: dict[str, object],
+    method_name: str,
+) -> dict[str, Any]:
+    overrides = experiment_payload.get("method_overrides", {})
+    if not isinstance(overrides, dict):
+        return {}
+
+    scene_keys = _scene_override_keys(scene)
+    method_keys = {
+        "*",
+        "all",
+        method_name,
+        str(method_name).lower(),
+    }
+    merged: dict[str, Any] = {}
+
+    for scene_key in ["*", "all", *scene_keys]:
+        scene_payload = overrides.get(scene_key)
+        if not isinstance(scene_payload, dict):
+            continue
+        for method_key in ["*", "all", *method_keys]:
+            method_payload = scene_payload.get(method_key)
+            if not isinstance(method_payload, dict):
+                continue
+            merged = _deep_merge_dict(merged, method_payload)
+
+    return merged
+
+
 def _discover_method_names() -> list[str]:
     return sorted(path.stem for path in Path("configs/method").glob("*.yaml"))
 
@@ -400,6 +441,7 @@ def build_run_plan(
                     "source_fold": source_fold,
                     "source_folds_by_domain": dict(source_folds_by_domain),
                     "target_fold": target_fold,
+                    "method_overrides": _scene_override_payload(experiment_payload, scene, method_name),
                 }
             )
     return {
@@ -542,6 +584,14 @@ def main() -> None:
                 "target_fold": str(run["target_fold"]),
             }
             experiment_payload["protocol_override"].update(protocol_update)
+            if run.get("method_overrides"):
+                scene_key = str(run["label"])
+                method_key = str(run["method_name"])
+                experiment_payload["method_overrides"] = {
+                    scene_key: {
+                        method_key: deepcopy(run["method_overrides"]),
+                    }
+                }
 
             temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"
             _save_yaml(temp_experiment_path, experiment_payload)

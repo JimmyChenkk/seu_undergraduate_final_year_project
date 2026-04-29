@@ -117,6 +117,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
         dan_loss = loss.get("dan", {})
         deepjdot_loss = loss.get("deepjdot", {})
         augment_loss = loss.get("augment", {})
+        training_context = method_config.get("training_context", {})
         kernel_scales = tuple(float(value) for value in dan_loss.get("kernel_scales", [0.125, 0.25, 0.5, 1.0, 2.0]))
         return RCTAMethod(
             base_align=str(loss.get("base_align", "cdan")),
@@ -180,6 +181,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             source_weight_confidence=float(loss.get("source_weight_confidence", 0.0)),
             source_weight_coverage=float(loss.get("source_weight_coverage", 0.0)),
             hybrid_aligners=[str(item) for item in loss.get("hybrid_aligners", ["dann", "cdan", "dan"])],
+            track_detailed_metrics=bool(training_context.get("track_detailed_metrics", False)),
             hybrid_alignment_weights={
                 str(key): float(value)
                 for key, value in (loss.get("hybrid_alignment_weights") or {}).items()

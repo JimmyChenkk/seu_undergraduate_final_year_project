@@ -20,9 +20,9 @@ runtime:
   persistent_workers: false
   non_blocking_transfers: false
   show_progress: false
-  evaluation_interval: 10
-  selection_interval: 10
-  early_stopping_interval: 10
+  evaluation_interval: 8
+  selection_interval: 8
+  early_stopping_interval: 8
   final_epoch_evaluation: true
   final_selection_evaluation: true
   refresh_batch_outputs: true
@@ -36,7 +36,8 @@ automation:
     - mode1->mode2
   multisource_scenes:
     - mode1+mode2->mode5
-  multisource_targets: []
+  multisource_targets:
+    - mode5
 
 protocol_override:
   setting: fixed_fold
@@ -76,8 +77,41 @@ protocol_override:
         mode2: 1
       target_fold: 3
 
+method_overrides:
+  m1_m2:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.82
+          target_confidence: 0.18
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.04
+        gate_accept_ratio_end: 0.46
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.05
+        prototype_weight: 0.10
+  m1_2_m5:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.78
+          target_confidence: 0.22
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.02
+        gate_accept_ratio_end: 0.40
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.03
+        prototype_weight: 0.14
+        target_prototype_blend_end: 0.60
+
 notes:
   - Combined debug experiment for candidate-1 staged RCTA progression.
   - Single-source scene: mode1->mode2.
   - Multi-source scene: mode1+mode2->mode5.
+  - Stage B is intentionally conservative to avoid noisy pseudo-label gain collapse.
+  - Stage C is intentionally delayed and stronger, so the final gain should come from stable reliability and prototypes rather than from early overfitting.
   - Runs the same 3 cumulative RCTA stages on both scenes to check whether the increment trend generalizes.

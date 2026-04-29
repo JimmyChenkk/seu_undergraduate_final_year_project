@@ -95,7 +95,7 @@ def apply_method_overrides(
     experiment_payload: dict[str, Any],
     method_payload: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Apply optional experiment-level per-method overrides."""
+    """Apply optional experiment-level per-scene and per-method overrides."""
 
     overrides = experiment_payload.get("method_overrides", {})
     if not isinstance(overrides, dict):
@@ -103,15 +103,30 @@ def apply_method_overrides(
 
     method_name = str(method_payload.get("method_name", "")).strip().lower()
     method_display_name = str(method_payload.get("method_display_name", "")).strip().lower()
+    protocol_payload = deepcopy(experiment_payload.get("protocol_override", {}))
+    source_domains = [str(item) for item in protocol_payload.get("source_domains", [])]
+    target_domain = str(protocol_payload.get("target_domain", "")).strip()
+    scene_keys = []
+    if source_domains and target_domain:
+        scene_keys.extend(
+            [
+                build_scenario_id(source_domains, target_domain),
+                build_run_scene_label(source_domains, target_domain),
+            ]
+        )
+    setting_name = str(protocol_payload.get("setting", "")).strip().lower()
+    if setting_name:
+        scene_keys.append(setting_name)
+    scene_alias = str(protocol_payload.get("scene", "")).strip().lower()
+    if scene_alias:
+        scene_keys.append(scene_alias)
+    scene_keys = list(dict.fromkeys(key for key in scene_keys if key))
+
     merged_experiment = deepcopy(experiment_payload)
     merged_method = deepcopy(method_payload)
-    override_keys = ["*", "all", method_name]
-    if method_display_name and method_display_name not in override_keys:
-        override_keys.append(method_display_name)
-    for key in override_keys:
-        override_payload = overrides.get(key)
-        if not isinstance(override_payload, dict):
-            continue
+
+    def _apply_payload(override_payload: dict[str, Any]) -> None:
+        nonlocal merged_experiment, merged_method
         for section_name, section_value in override_payload.items():
             if not isinstance(section_value, dict):
                 if section_name in {"runtime", "tracking", "protocol_override"}:
@@ -135,6 +150,30 @@ def apply_method_overrides(
                     merged_method.get(section_name, {}),
                     section_value,
                 )
+
+    def _collect_overrides(payload: dict[str, Any], keys: list[str]) -> list[dict[str, Any]]:
+        collected: list[dict[str, Any]] = []
+        for key in ["*", "all", *keys]:
+            candidate = payload.get(key)
+            if isinstance(candidate, dict):
+                collected.append(candidate)
+        return collected
+
+    for top_level in _collect_overrides(overrides, scene_keys + [method_name, method_display_name]):
+        nested_scene_payload = False
+        for scene_key in ["*", "all", *scene_keys]:
+            scene_payload = top_level.get(scene_key)
+            if not isinstance(scene_payload, dict):
+                continue
+            nested_scene_payload = True
+            for method_key in ["*", "all", method_name, method_display_name]:
+                method_override = scene_payload.get(method_key)
+                if isinstance(method_override, dict):
+                    _apply_payload(method_override)
+        if nested_scene_payload:
+            continue
+        _apply_payload(top_level)
+
     return merged_experiment, merged_method
 
 
@@ -1190,6 +1229,7 @@ def run_deep_experiment(
                 device,
                 max_batches=evaluation_max_batches,
                 non_blocking=transfer_non_blocking,
+                amp_enabled=amp_enabled,
             )
             timing["final_selection_eval_seconds"] += perf_counter() - final_selection_timer_start
         else:
@@ -1472,8 +1512,17 @@ def main() -> None:
     )
     data_prepare_seconds = perf_counter() - prepare_timer_start
 
+    method_run_context = deepcopy(method_payload)
+    method_run_context["training_context"] = {
+        "setting": prepared_data.setting.setting_name,
+        "scenario_id": scenario_id,
+        "source_domains": [split.domain_id for split in prepared_data.source_splits],
+        "target_domain": prepared_data.target_split.domain_id,
+        "is_multi_source": len(prepared_data.source_splits) > 1,
+        "track_detailed_metrics": len(prepared_data.source_splits) > 1,
+    }
     method_result = run_deep_experiment(
-        method_config=method_payload,
+        method_config=method_run_context,
         experiment_config=experiment_payload,
         prepared_data=prepared_data,
         run_paths=run_paths,

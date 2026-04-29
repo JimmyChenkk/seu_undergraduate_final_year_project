@@ -17,48 +17,48 @@ runtime_defaults:
   model_selection: hybrid_source_eval_target_confidence
   early_stopping_metric: hybrid_source_eval_target_confidence
   selection_weights:
-    source_eval: 0.80
-    target_confidence: 0.20
+    source_eval: 0.83
+    target_confidence: 0.17
   early_stopping_weights:
-    source_eval: 0.80
-    target_confidence: 0.20
-  early_stopping_patience: 14
-  early_stopping_min_delta: 0.0005
-  early_stopping_min_epochs: 28
+    source_eval: 0.83
+    target_confidence: 0.17
+  early_stopping_patience: 16
+  early_stopping_min_delta: 0.0004
+  early_stopping_min_epochs: 32
 
 loss:
   base_align: hybrid
   hybrid_aligners: [dann, cdan, dan]
   hybrid_alignment_weights:
-    dann: 0.20
+    dann: 0.22
     cdan: 0.35
-    dan: 0.45
+    dan: 0.43
   use_mcc: true
-  mcc_weight: 0.04
+  mcc_weight: 0.035
   mcc_temperature: 2.0
-  teacher_ema_decay: 0.992
-  teacher_temperature: 1.3
+  teacher_ema_decay: 0.993
+  teacher_temperature: 1.28
   reliability_weights:
-    cal_conf: 1.1
-    inv_entropy: 1.0
-    consistency: 1.15
+    cal_conf: 1.08
+    inv_entropy: 1.08
+    consistency: 1.08
     proto_sim: 0.0
-  gate_score_floor_start: 0.44
-  gate_score_floor_end: 0.58
-  gate_score_floor_schedule_steps: 1800
-  gate_accept_ratio_start: 0.64
-  gate_accept_ratio_end: 0.80
-  gate_curriculum_steps: 1800
+  gate_score_floor_start: 0.54
+  gate_score_floor_end: 0.70
+  gate_score_floor_schedule_steps: 2400
+  gate_accept_ratio_start: 0.42
+  gate_accept_ratio_end: 0.58
+  gate_curriculum_steps: 2400
   gate_balance_mode: per_class_ratio
   gate_max_class_fraction: 1.0
-  reliable_score_floor: 0.64
-  semi_reliable_score_floor: 0.40
-  semi_reliable_consistency_weight: 0.05
-  unreliable_entropy_weight: 0.01
-  pseudo_label_weight: 0.14
-  pseudo_warmup_steps: 700
+  reliable_score_floor: 0.72
+  semi_reliable_score_floor: 0.54
+  semi_reliable_consistency_weight: 0.04
+  unreliable_entropy_weight: 0.004
+  pseudo_label_weight: 0.03
+  pseudo_warmup_steps: 1400
   pseudo_use_reliability_weighting: true
-  pseudo_confidence_power: 1.10
+  pseudo_confidence_power: 1.30
   prototype_weight: 0.0
   prototype_start_step: 0
   prototype_warmup_steps: 0
@@ -67,7 +67,7 @@ loss:
   consistency_start_step: 0
   consistency_warmup_steps: 0
   consistency_gate_only: true
-  consistency_reliability_power: 1.20
+  consistency_reliability_power: 1.15
   alignment_start_step: 0
   alignment_use_reliable_only: false
   prototype_momentum: 0.95
@@ -122,5 +122,6 @@ loss:
     linear_mmd: false
 
 notes:
-  - Stage A+B: teacher stability plus reliability gate and gentle pseudo-label learning.
+  - Stage A+B: teacher stability plus a conservative reliability gate.
+  - Pseudo-label learning stays light so the staged gain is driven by better sample filtering rather than aggressive self-training.
   - Prototype and multi-source branches stay disabled.
