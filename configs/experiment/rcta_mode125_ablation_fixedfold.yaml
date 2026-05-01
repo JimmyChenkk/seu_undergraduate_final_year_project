@@ -9,7 +9,7 @@ tracking:
 runtime:
   dry_run: false
   save_checkpoint: false
-  save_analysis: false
+  save_analysis: true
   disable_cudnn: false
   cudnn_benchmark: true
   allow_tf32: true
@@ -20,17 +20,18 @@ runtime:
   persistent_workers: false
   non_blocking_transfers: false
   show_progress: false
-  evaluation_interval: 5
-  selection_interval: 5
-  early_stopping_interval: 5
+  evaluation_interval: 8
+  selection_interval: 8
+  early_stopping_interval: 8
   final_epoch_evaluation: true
   final_selection_evaluation: true
+  refresh_batch_outputs: true
 
 automation:
   methods:
-    - rcta_a_temporal
-    - rcta_ab_reliable
-    - rcta_abc_full
+    - rcta_a_teacher_temporal
+    - rcta_ab_gate
+    - rcta_abc_proto_multi
   single_source_scenes:
     - mode1->mode2
     - mode2->mode1
@@ -47,7 +48,8 @@ protocol_override:
   setting: fixed_fold
   source_domains:
     - mode1
-  target_domain: mode2
+    - mode2
+  target_domain: mode5
   random_fold_enabled: false
   preferred_fold: Fold 1
   source_folds:
@@ -69,7 +71,7 @@ protocol_override:
     random_per_run: false
     source_fold_choices: [1, 2, 3, 4, 5]
     target_fold_choices: [1, 2, 3, 4, 5]
-    note: "Mode1/2/5 ablation reuses the same fixed folds as the current mode125 benchmark."
+    note: "Mode1/2/5 ablation reuses the same fixed folds as the current smoke setup and benchmark fold policy."
   scene_fold_overrides:
     m1_m2:
       source_fold: 2
@@ -105,12 +107,150 @@ protocol_override:
         mode5: 4
       target_fold: 4
 
+method_overrides:
+  m1_m2:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.83
+          target_confidence: 0.17
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.035
+        gate_accept_ratio_end: 0.44
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.025
+        prototype_weight: 0.06
+        target_prototype_blend_end: 0.32
+  m2_m1:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.81
+          target_confidence: 0.19
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.025
+        gate_accept_ratio_end: 0.41
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.03
+        prototype_weight: 0.08
+        target_prototype_blend_end: 0.34
+  m1_m5:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.79
+          target_confidence: 0.21
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.012
+        gate_accept_ratio_end: 0.33
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.012
+        prototype_weight: 0.04
+        target_prototype_blend_end: 0.18
+  m5_m1:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.79
+          target_confidence: 0.21
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.012
+        gate_accept_ratio_end: 0.33
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.012
+        prototype_weight: 0.04
+        target_prototype_blend_end: 0.18
+  m2_m5:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.79
+          target_confidence: 0.21
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.03
+        gate_accept_ratio_end: 0.43
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.04
+        prototype_weight: 0.10
+        target_prototype_blend_end: 0.46
+  m5_m2:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.79
+          target_confidence: 0.21
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.03
+        gate_accept_ratio_end: 0.43
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.04
+        prototype_weight: 0.10
+        target_prototype_blend_end: 0.46
+  m1_2_m5:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.80
+          target_confidence: 0.20
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.03
+        gate_accept_ratio_end: 0.44
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.02
+        prototype_weight: 0.08
+        target_prototype_blend_end: 0.38
+  m1_5_m2:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.80
+          target_confidence: 0.20
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.025
+        gate_accept_ratio_end: 0.41
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.015
+        prototype_weight: 0.07
+        target_prototype_blend_end: 0.34
+  m2_5_m1:
+    rcta_a_teacher_temporal:
+      runtime_defaults:
+        selection_weights:
+          source_eval: 0.80
+          target_confidence: 0.20
+    rcta_ab_gate:
+      loss:
+        pseudo_label_weight: 0.025
+        gate_accept_ratio_end: 0.41
+    rcta_abc_proto_multi:
+      loss:
+        pseudo_label_weight: 0.015
+        prototype_weight: 0.07
+        target_prototype_blend_end: 0.34
+
 notes:
   - 3 cumulative RCTA stages x 9 mode1/2/5 handshake scenes = 27 ablation runs.
   - A: hybrid alignment with mean-teacher temporal consistency.
   - A+B: A plus reliability-gated pseudo-label learning.
   - A+B+C: A+B plus dual prototypes, curriculum, and multi-source reliability weighting.
   - Base-only and final integration are not separate paper rows; they are covered by the main benchmark and the complete A+B+C method.
-  - save_analysis=false keeps this ablation focused on tables and heatmaps; rerun selected paper examples with analysis enabled when t-SNE/confusion figures are needed.
-  - Batch size 64 and fused RCTA forward passes are used to improve GPU occupancy relative to the previous 5-stage batch.
-  - Fold policy is intentionally identical to configs/experiment/benchmark_88_2clusters_11scenes_8methods_fixedfold.yaml for mode1/2/5 scenes.
+  - These scene-specific overrides mirror the smoke experiment because the best stability came from them.
+  - save_analysis=true keeps this ablation aligned with the smoke experiment so figures are available when needed.
+  - Evaluation/selection/early-stopping cadence now mirrors the smoke experiment for better stability checking.
+  - Fold policy mirrors the stable smoke setup and the fixed-fold benchmark policy for the mode1/2/5 scenes.
