@@ -1,0 +1,164 @@
+experiment_name: tep_ot_ms_5source_probe_target_assisted
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  model_selection: target_eval
+  early_stopping_metric: target_eval
+  early_stopping_patience:
+  early_stopping_min_delta: 0.0
+  early_stopping_min_epochs: 70
+
+automation:
+  methods:
+    - cbtp_wjdot
+    - ms_cbtp_wjdot
+  multisource_scenes:
+    - mode1+mode2+mode3+mode4+mode5->mode6
+
+method_overrides:
+  all:
+    cbtp_wjdot:
+      method_display_name: cbtp_5src_tassist_w030_tau075
+      optimization:
+        batch_size: 64
+        weight_decay: 0.0001
+      loss:
+        adaptation_weight: 0.35
+        feature_weight: 0.03
+        transport_solver: sinkhorn
+        sinkhorn_reg: 0.05
+        sinkhorn_num_iter_max: 200
+        base_tp_mode: tp_barycentric
+        prototype_weight: 0.08
+        prototype_in_coupling: false
+        prototype_distance: normalized_l2
+        prototype_cost_clip: p90
+        ot_class_entropy_gate: true
+        min_class_transport_mass: 0.0001
+        class_mass_weight: sqrt
+        alignment_start_step: 350
+        alignment_ramp_steps: 700
+        prototype_start_step: 700
+        prototype_warmup_steps: 1200
+        pseudo_start_step: 700
+        tau_end: 0.75
+        tau_steps: 1200
+        pseudo_weight: 0.06
+        class_balance_clip_min: 0.5
+        class_balance_clip_max: 3.0
+        consistency_weight: 0.04
+        embedding_norm_weight: 0.0001
+        target_label_assist_weight: 0.30
+        target_label_assist_start_step: 0
+        target_label_assist_warmup_steps: 500
+        target_label_assist_class_balance: true
+    ms_cbtp_wjdot:
+      method_display_name: ms_5src_tassist_w030_tau075_gatefloor005
+      optimization:
+        batch_size: 64
+        weight_decay: 0.0001
+      loss:
+        adaptation_weight: 0.35
+        feature_weight: 0.03
+        transport_solver: sinkhorn
+        sinkhorn_reg: 0.05
+        sinkhorn_num_iter_max: 200
+        base_tp_mode: tp_barycentric
+        prototype_weight: 0.08
+        prototype_in_coupling: false
+        prototype_distance: normalized_l2
+        prototype_cost_clip: p90
+        ot_class_entropy_gate: true
+        min_class_transport_mass: 0.0001
+        class_mass_weight: sqrt
+        alignment_start_step: 350
+        alignment_ramp_steps: 700
+        prototype_start_step: 700
+        prototype_warmup_steps: 1200
+        pseudo_start_step: 700
+        tau_end: 0.75
+        tau_steps: 1200
+        pseudo_weight: 0.06
+        class_balance_clip_min: 0.5
+        class_balance_clip_max: 3.0
+        consistency_weight: 0.04
+        embedding_norm_weight: 0.0001
+        source_weight_temperature: 1.0
+        class_weight_temperature: 1.0
+        negative_gate_threshold: 0.05
+        negative_gate_floor: 0.05
+        target_label_assist_weight: 0.30
+        target_label_assist_start_step: 0
+        target_label_assist_warmup_steps: 500
+        target_label_assist_class_balance: true
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode2
+    - mode3
+    - mode4
+    - mode5
+  target_domain: mode6
+  use_target_labels: true
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fixed Fold 1 probe for the 5-source target-assisted multi-source scene."
+  scene_fold_overrides:
+    m1_2_3_4_5_m6:
+      source_folds_by_domain:
+        mode1: 1
+        mode2: 1
+        mode3: 1
+        mode4: 1
+        mode5: 1
+      target_fold: 1
+
+notes:
+  - Five-source target-assisted probe for mode1+mode2+mode3+mode4+mode5->mode6.
+  - CBTP and MS-CBTP share target-label CE weight 0.30 and tau_end 0.75.
+  - Uses target_eval checkpoint selection and target labels intentionally; report as target-assisted/oracle, not strict unsupervised DA.

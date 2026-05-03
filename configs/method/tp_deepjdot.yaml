@@ -1,0 +1,41 @@
+method_name: tp_deepjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 120
+  batch_size: 64
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: tp_deepjdot
+  adaptation_weight: 0.55
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 2200
+  adaptation_schedule_alpha: 10.0
+  reg_dist: 0.08
+  reg_cl: 1.0
+  normalize_feature_cost: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 200
+  prototype_weight: 0.05
+  prototype_source_weight: 0.10
+  prototype_target_weight: 1.05
+  prototype_distance: normalized_l2
+  prototype_start_step: 650
+  prototype_warmup_steps: 1000
+  prototype_confidence_threshold: 0.35
+  prototype_target_confidence_power: 1.8
+  prototype_probability_temperature: 0.65
+  prototype_class_balance: false
+
+notes:
+  - TP-DeepJDOT keeps the DeepJDOT minibatch OT objective and adds delayed prototype residual regularization.
+  - The target prototype term is confidence-gated and uses sharpened soft probabilities, not hard pseudo-label CE.
+  - No target pseudo-label CE is used in this first innovation stage.

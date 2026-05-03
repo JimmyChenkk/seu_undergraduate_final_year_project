@@ -1,4 +1,5 @@
-experiment_name: benchmark_72_mode125_9scenes_8methods_fixedfold
+# Deprecated filename retained for compatibility. Use benchmark_90_mode125_9scenes_10methods_fixedfold.yaml for the canonical thesis benchmark.
+experiment_name: benchmark_90_mode125_handshake_9scenes_10methods_fixedfold
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -14,6 +15,7 @@ runtime:
   cudnn_benchmark: true
   allow_tf32: true
   matmul_precision: high
+  amp: true
   num_workers: 0
   pin_memory: false
   persistent_workers: false
@@ -24,6 +26,7 @@ runtime:
   early_stopping_interval: 5
   final_epoch_evaluation: true
   final_selection_evaluation: true
+  refresh_batch_outputs: true
   model_selection: hybrid_source_eval_target_confidence
   early_stopping_metric: hybrid_source_eval_target_confidence
   selection_weights:
@@ -32,22 +35,22 @@ runtime:
   early_stopping_weights:
     source_eval: 0.80
     target_confidence: 0.20
-  early_stopping_patience: 14
+  early_stopping_patience: 16
   early_stopping_min_delta: 0.0005
-  early_stopping_min_epochs: 28
+  early_stopping_min_epochs: 30
 
 automation:
   methods:
-    - deepjdot
-    - rcta
     - source_only
     - target_only
     - coral
     - dan
     - dann
     - cdan
-    # - deepjdot
-    # - rcta
+    - deepjdot
+    - tc_cdan
+    - rpl_tc_cdan
+    - ccs_rpl_tc_cdan
   single_source_scenes:
     - mode1->mode2
     - mode2->mode1
@@ -61,255 +64,100 @@ automation:
     - mode2+mode5->mode1
 
 method_overrides:
-  source_only:
-    optimization:
-      epochs: 84
   target_only:
-    optimization:
-      epochs: 112
     runtime:
       model_selection: target_confidence
       early_stopping_metric: target_confidence
       early_stopping_patience: 18
       early_stopping_min_delta: 0.0005
       early_stopping_min_epochs: 35
-  coral:
-    optimization:
-      epochs: 96
-    loss:
-      align_mean: true
-      normalize_covariance: true
-      adaptation_weight: 0.55
-      adaptation_schedule: warm_start
-      adaptation_max_steps: 1500
-      adaptation_schedule_alpha: 10.0
-  dan:
-    optimization:
-      epochs: 84
-    loss:
-      adaptation_weight: 0.08
-      adaptation_schedule: constant
-      adaptation_max_steps: 1200
-      adaptation_schedule_alpha: 10.0
-      kernel_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
-      linear_mmd: false
-  dann:
-    optimization:
-      epochs: 84
-    loss:
-      adaptation_weight: 0.40
-      adaptation_schedule: warm_start
-      adaptation_max_steps: 1200
-      adaptation_schedule_alpha: 10.0
-      grl_lambda: 0.8
-      grl_warm_start: true
-      grl_max_iters: 1200
-      domain_hidden_dim: 256
-      domain_num_hidden_layers: 2
-  cdan:
-    optimization:
-      epochs: 96
-    loss:
-      adaptation_weight: 0.35
-      adaptation_schedule: warm_start
-      adaptation_max_steps: 1500
-      adaptation_schedule_alpha: 10.0
-      grl_lambda: 0.9
-      grl_warm_start: true
-      grl_max_iters: 1500
-      randomized: true
-      randomized_dim: 512
-      entropy_conditioning: true
-      mcc_weight: 0.03
-      mcc_temperature: 2.0
-      domain_hidden_dim: 384
-      domain_num_hidden_layers: 3
-    runtime:
-      model_selection: hybrid_source_eval_target_confidence
-      early_stopping_metric: hybrid_source_eval_target_confidence
-      selection_weights:
-        source_eval: 0.80
-        target_confidence: 0.20
-      early_stopping_weights:
-        source_eval: 0.80
-        target_confidence: 0.20
-      early_stopping_patience: 14
-      early_stopping_min_delta: 0.0005
-      early_stopping_min_epochs: 28
   deepjdot:
     optimization:
-      epochs: 120
       batch_size: 64
-      learning_rate: 0.0001
-      weight_decay: 0.0
+      epochs: 120
       max_grad_norm: 5.0
     runtime:
       model_selection: hybrid_source_eval_target_confidence
       early_stopping_metric: hybrid_source_eval_target_confidence
       selection_weights:
-        source_eval: 0.65
-        target_confidence: 0.35
+        source_eval: 0.70
+        target_confidence: 0.30
       early_stopping_weights:
-        source_eval: 0.65
-        target_confidence: 0.35
-      early_stopping_patience: 20
+        source_eval: 0.70
+        target_confidence: 0.30
+      early_stopping_patience: 18
       early_stopping_min_delta: 0.0005
-      early_stopping_min_epochs: 40
+      early_stopping_min_epochs: 35
     loss:
-      adaptation_schedule: warm_start
       adaptation_weight: 0.55
+      adaptation_schedule: warm_start
       adaptation_max_steps: 2200
-      adaptation_schedule_alpha: 10.0
       reg_dist: 0.08
-      reg_cl: 1.00
-      transport_solver: emd
+      reg_cl: 1.0
+      normalize_feature_cost: true
+      transport_solver: sinkhorn
       sinkhorn_reg: 0.05
-      sinkhorn_num_iter_max: 100
-      normalize_feature_cost: false
-  rcta:
-    optimization:
-      epochs: 112
-    runtime:
-      model_selection: hybrid_source_eval_confidence_guard
-      early_stopping_metric: hybrid_source_eval_confidence_guard
-      selection_weights:
-        source_eval: 0.80
-        target_confidence: 0.20
-        overconfidence: 1.00
-        domain_gap: 0.25
-      selection_params:
-        confidence_ceiling: 0.90
-        domain_confusion_target: 0.50
-        domain_gap_tolerance: 0.18
-      early_stopping_weights:
-        source_eval: 0.80
-        target_confidence: 0.20
-        overconfidence: 1.00
-        domain_gap: 0.25
-      early_stopping_params:
-        confidence_ceiling: 0.90
-        domain_confusion_target: 0.50
-        domain_gap_tolerance: 0.18
-      early_stopping_patience: 20
-      early_stopping_min_delta: 0.0005
-      early_stopping_min_epochs: 40
-    loss:
-      base_align: hybrid
-      hybrid_aligners: [dann, cdan, dan]
-      hybrid_alignment_weights:
-        dann: 0.20
-        cdan: 0.35
-        dan: 0.45
-      gate_balance_mode: class_balanced_budget
-      gate_max_class_fraction: 0.34
-      target_prototype_update_mode: gated
-      target_prototype_blend_start: 0.0
-      target_prototype_blend_end: 0.75
-      target_prototype_blend_schedule_steps: 1800
-      multi_source_weighting: true
-      source_weight_temperature: 4.0
-      source_weight_momentum: 0.30
-      source_weight_floor: 0.05
-      source_weight_proto: 1.0
-      source_weight_confidence: 0.15
-      source_weight_coverage: 0.35
-      teacher_ema_decay: 0.992
-      teacher_temperature: 1.3
-      mcc_weight: 0.04
-      reliability_weights:
-        cal_conf: 1.1
-        inv_entropy: 1.0
-        consistency: 1.1
-        proto_sim: 1.2
-      gate_score_floor_start: 0.34
-      gate_score_floor_end: 0.56
-      gate_score_floor_schedule_steps: 2200
-      gate_accept_ratio_start: 0.22
-      gate_accept_ratio_end: 0.72
-      gate_curriculum_steps: 2200
-      reliable_score_floor: 0.66
-      semi_reliable_score_floor: 0.44
-      semi_reliable_consistency_weight: 0.04
-      unreliable_entropy_weight: 0.01
-      pseudo_label_weight: 0.22
-      pseudo_warmup_steps: 900
-      pseudo_use_reliability_weighting: true
-      pseudo_confidence_power: 1.4
-      prototype_weight: 0.07
-      prototype_start_step: 800
-      prototype_warmup_steps: 1200
-      prototype_separation_weight: 0.08
-      consistency_weight: 0.06
-      consistency_start_step: 700
-      consistency_warmup_steps: 1200
-      consistency_gate_only: true
-      consistency_reliability_power: 1.4
-      prototype_momentum: 0.95
-      prototype_separation_margin: 0.20
-      alignment_start_step: 0
-      alignment_use_reliable_only: false
-      augment:
-        weak_jitter_std: 0.005
-        weak_scaling_std: 0.005
-        strong_jitter_std: 0.012
-        strong_scaling_std: 0.012
-        strong_time_mask_ratio: 0.05
-        strong_channel_dropout_prob: 0.05
-      cdan:
-        adaptation_weight: 0.35
-        adaptation_schedule: warm_start
-        adaptation_max_steps: 1200
-        adaptation_schedule_alpha: 10.0
-        grl_lambda: 1.0
-        grl_warm_start: true
-        grl_max_iters: 1200
-        randomized: true
-        randomized_dim: 256
-        entropy_conditioning: true
-        domain_hidden_dim: 256
-        domain_num_hidden_layers: 2
-      dann:
-        adaptation_weight: 0.42
-        adaptation_schedule: warm_start
-        adaptation_max_steps: 1800
-        adaptation_schedule_alpha: 10.0
-        grl_lambda: 0.95
-        grl_warm_start: true
-        grl_max_iters: 1800
-        domain_hidden_dim: 256
-        domain_num_hidden_layers: 2
-      dan:
-        adaptation_weight: 0.12
-        adaptation_schedule: warm_start
-        adaptation_max_steps: 1200
-        adaptation_schedule_alpha: 10.0
-        kernel_scales: [0.25, 0.5, 1.0, 2.0, 4.0]
-        linear_mmd: false
-      deepjdot:
-        adaptation_weight: 1.0
-        adaptation_schedule: constant
-        adaptation_max_steps: 1200
-        adaptation_schedule_alpha: 10.0
-        reg_dist: 0.10
-        reg_cl: 1.00
-        normalize_feature_cost: false
-        transport_solver: emd
-        sinkhorn_reg: 0.05
-        sinkhorn_num_iter_max: 100
+      sinkhorn_num_iter_max: 200
+  all:
+    rpl_tc_cdan:
+      runtime:
+        model_selection: hybrid_source_eval_confidence_guard
+        early_stopping_metric: hybrid_source_eval_confidence_guard
+        selection_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.85
+        selection_params:
+          confidence_ceiling: 0.90
+        early_stopping_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.85
+        early_stopping_params:
+          confidence_ceiling: 0.90
+      loss:
+        pseudo_weight: 0.03
+        pseudo_start_step: 2200
+        pseudo_warmup_steps: 1400
+        pseudo_confidence_threshold: 0.95
+        pseudo_entropy_threshold: 0.20
+        pseudo_max_per_class: 2
+    ccs_rpl_tc_cdan:
+      runtime:
+        model_selection: hybrid_source_eval_confidence_guard
+        early_stopping_metric: hybrid_source_eval_confidence_guard
+        selection_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.90
+        selection_params:
+          confidence_ceiling: 0.90
+        early_stopping_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.90
+        early_stopping_params:
+          confidence_ceiling: 0.90
+      loss:
+        pseudo_weight: 0.025
+        pseudo_start_step: 2200
+        pseudo_warmup_steps: 1400
+        pseudo_confidence_threshold: 0.95
+        pseudo_entropy_threshold: 0.20
+        pseudo_max_per_class: 2
+        prototype_weight: 0.025
+        prototype_start_step: 3000
+        prototype_warmup_steps: 1200
+        target_prototype_blend: 0.15
+        class_separation_weight: 0.02
 
 protocol_override:
   setting: fixed_fold
   source_domains:
     - mode1
   target_domain: mode2
-  # Global on/off switch for fold policy.
-  # - true: sample fold(s) according to the fold_sampling block below and write the sampled folds to outputs.
-  # - false: disable random folding and fall back to fixed folds (preferred_fold / explicit source_fold / target_fold).
   random_fold_enabled: false
-  # Default fold used when the policy is fixed or when a fold is not explicitly overridden.
   preferred_fold: Fold 1
-  # Optional explicit fixed folds. When random_fold_enabled is false, these are the final folds used if set;
-  # otherwise the runtime may sample new folds unless the per-domain overrides are explicitly provided.
   source_folds:
     - 1
     - 2
@@ -322,11 +170,6 @@ protocol_override:
     - 3
     - 4
     - 5
-  # Fold sampling policy.
-  # - strategy: high-level intent; kept in result.json and comparison outputs.
-  # - random_per_scene: if true, one source/target fold pair is sampled once per scene and reused by all methods.
-  # - random_per_run: if true, each individual run may sample independently (normally keep false for fair comparisons).
-  # - choices: candidate fold ids for sampling; numbers are normalized to "Fold N" at runtime.
   fold_sampling:
     enabled: false
     strategy: fixed
@@ -334,7 +177,7 @@ protocol_override:
     random_per_run: false
     source_fold_choices: [1, 2, 3, 4, 5]
     target_fold_choices: [1, 2, 3, 4, 5]
-    note: "Random fold mode is disabled; each scene uses the explicit fixed source/target fold assignment below."
+    note: "Fixed fold policy: each mode1/2/5 handshake scene uses the explicit fold assignment below."
   scene_fold_overrides:
     m1_m2:
       source_fold: 2
@@ -371,11 +214,10 @@ protocol_override:
       target_fold: 4
 
 notes:
-  - 8 methods x 9 scenes = 72 runs.
-  - "Mode-1/2/5 handshake protocol: all directed single-source pairs plus leave-one-domain-out two-source scenes."
-  - "6 single-source scenes: 1->2, 2->1, 1->5, 5->1, 2->5, 5->2."
-  - "3 multi-source-to-single scenes: 1&2->5, 1&5->2, 2&5->1."
-  - "Fold policy: random fold is disabled; each scene uses the explicit fixed folds in protocol_override.scene_fold_overrides."
-  - "Based on goal-tune v2 method overrides, keeping the same 8 methods and training hyperparameters."
-  - DeepJDOT is dialed back toward the better v2 probe: lower OT weight / reg_dist, larger batch, longer warm start, and source-aware selection.
-  - RCTA uses the current in-place strengthened path: hybrid DANN/CDAN/DAN alignment, class-balanced pseudo-label gating, guarded target prototype updates, and reliability-weighted multi-source training.
+  - Canonical thesis benchmark: 10 methods x 9 mode1/2/5 handshake scenes = 90 runs.
+  - Six single-source scenes: 1->2, 2->1, 1->5, 5->1, 2->5, 5->2.
+  - Three multi-source-to-single scenes: 1&2->5, 1&5->2, 2&5->1.
+  - One run set contains the benchmark baselines, upper bound, DeepJDOT probe, and the TC/RPL/CCS progression needed for thesis writing.
+  - Target-Only is retained as a supervised upper bound, not as an unsupervised adaptation competitor.
+  - Thesis target pattern to verify honestly: TC-CDAN, RPL-TC-CDAN, and CCS-RPL-TC-CDAN should beat non-target-only baselines across the 9 scenes, with a desired progression TC-CDAN < RPL-TC-CDAN < CCS-RPL-TC-CDAN.
+  - RPL/CCS overrides use the conservative pseudo-label schedule diagnosed in rescue_rpl_conservative; DeepJDOT uses the stability probe settings.

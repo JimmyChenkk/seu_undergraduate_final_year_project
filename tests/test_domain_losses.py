@@ -9,6 +9,7 @@ from torch import nn
 
 from src.losses.domain import (
     ConditionalDomainAdversarialLoss,
+    LocalMaximumMeanDiscrepancyLoss,
     MinimumClassConfusionLoss,
     MultipleKernelMaximumMeanDiscrepancy,
     deepjdot_loss,
@@ -124,6 +125,28 @@ class DomainLossTests(unittest.TestCase):
         self.assertTrue(torch.isclose(loss_value, expected_loss))
         self.assertAlmostEqual(acc_value, expected_acc)
         self.assertFalse(torch.isclose(expected_loss, old_split_loss))
+
+    def test_lmmd_supports_rectangular_source_target_batches(self) -> None:
+        torch.manual_seed(9)
+        loss_module = LocalMaximumMeanDiscrepancyLoss(num_classes=4, kernel_num=3)
+        features_source = torch.randn(6, 5, requires_grad=True)
+        features_target = torch.randn(3, 5, requires_grad=True)
+        source_labels = torch.tensor([0, 1, 1, 2, 2, 3], dtype=torch.long)
+        target_probabilities = F.softmax(torch.randn(3, 4), dim=1)
+
+        loss_value = loss_module(
+            features_source,
+            features_target,
+            source_labels,
+            target_probabilities,
+        )
+        loss_value.backward()
+
+        self.assertTrue(torch.isfinite(loss_value).item())
+        self.assertIsNotNone(features_source.grad)
+        self.assertIsNotNone(features_target.grad)
+        self.assertGreater(float(features_source.grad.abs().sum()), 0.0)
+        self.assertGreater(float(features_target.grad.abs().sum()), 0.0)
 
     @unittest.skipUnless(importlib.util.find_spec("ot") is not None, "POT is required for DeepJDOT")
     def test_deepjdot_matches_reference_fixed_coupling_objective(self) -> None:

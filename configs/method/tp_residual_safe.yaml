@@ -1,0 +1,44 @@
+method_name: tp_wjdot
+method_display_name: tp_residual_safe
+
+backbone:
+  name: fcn_temporal
+  embedding_dim: 128
+  classifier_hidden_dim: 128
+  dropout: 0.2
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+loss:
+  name: tp_wjdot
+  adaptation_weight: 0.25
+  source_ce_weight: 1.0
+  feature_weight: 0.03
+  label_weight: 1.0
+  prototype_mode: tp_residual_safe
+  prototype_weight: 0.01
+  prototype_in_coupling: false
+  prototype_distance: normalized_l2
+  prototype_cost_clip: p90
+  ot_class_entropy_gate: true
+  use_source_class_balance: true
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 100
+  alignment_start_step: 700
+  alignment_ramp_steps: 1200
+  prototype_start_step: 1200
+  prototype_warmup_steps: 1800
+  ot_feature_normalize: true
+  ot_source_stop_gradient: true
+  embedding_norm_weight: 0.0001
+
+notes:
+  - Sweep candidates: prototype_weight in [0.005, 0.01, 0.02].
+  - TP-only residual regularizer; no classifier confidence gate, pseudo-label CE, or consistency loss.
+

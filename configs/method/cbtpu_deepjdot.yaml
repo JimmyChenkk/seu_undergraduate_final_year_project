@@ -1,0 +1,77 @@
+method_name: cbtpu_deepjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 120
+  batch_size: 64
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: cbtpu_deepjdot
+  adaptation_weight: 0.55
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 2200
+  adaptation_schedule_alpha: 10.0
+  reg_dist: 0.08
+  reg_cl: 1.0
+  normalize_feature_cost: true
+  transport_solver: sinkhorn_unbalanced
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 200
+  unbalanced_transport: true
+  uot_tau_s: 1.0
+  uot_tau_t: 1.0
+  use_ce_cost_for_plan: true
+  source_warmup_steps: 500
+  alignment_start_step: 500
+  supcon_weight: 0.04
+  supcon_temperature: 0.10
+  supcon_warmup_only: true
+  prototype_cost_weight: 0.015
+  prototype_distance: normalized_l2
+  prototype_momentum: 0.95
+  prototype_start_step: 500
+  prototype_warmup_steps: 800
+  prototype_relative_min: -1.0
+  prototype_relative_max: 3.0
+  temporal_cost_weight: 0.01
+  temporal_start_step: 500
+  temporal_warmup_steps: 800
+  teacher_ema_decay: 0.995
+  teacher_temperature: 1.0
+  proto_temperature: 0.20
+  q_ot_power: 1.0
+  q_cls_power: 1.0
+  q_proto_power: 1.0
+  pseudo_weight: 0.015
+  pseudo_start_step: 900
+  pseudo_warmup_steps: 1000
+  tau_start: 0.95
+  tau_end: 0.85
+  tau_steps: 1500
+  q_ot_entropy_threshold: 0.70
+  js_threshold: 0.08
+  consistency_weight: 0.02
+  consistency_start_step: 900
+  consistency_warmup_steps: 1000
+  consistency_mid_tau: 0.55
+  logit_adjustment_eta: 0.10
+  infomax_weight: 0.0
+  infomax_start_ratio: 0.70
+  augment:
+    weak_jitter_std: 0.006
+    weak_scaling_std: 0.006
+    strong_jitter_std: 0.014
+    strong_scaling_std: 0.014
+    strong_time_mask_ratio: 0.06
+    strong_channel_dropout_prob: 0.05
+
+notes:
+  - CBTPU-DeepJDOT accepts target pseudo labels only through OT, EMA-teacher, and prototype agreement or low JS disagreement.
+  - Class balancing is restricted to accepted pseudo labels through logit adjustment; InfoMax is off by default for strict Stage 1.

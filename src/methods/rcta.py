@@ -1400,6 +1400,7 @@ class RCTAMethod(SingleSourceMethodBase):
             "gate_accept_ratio": float(kept_count / batch_size_target),
             "gate_curriculum_ratio": float(curriculum_ratio),
             "gate_score_floor": float(scheduled_gate_floor),
+            "gate_mean_score": float(reliability_score.mean().item()),
             "pseudo_label_kept": float(kept_count),
             "reliable_count": float(reliable_mask.sum().item()),
             "semi_reliable_count": float(semi_reliable_mask.sum().item()),

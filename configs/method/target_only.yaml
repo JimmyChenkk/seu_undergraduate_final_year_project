@@ -11,9 +11,17 @@ optimization:
   learning_rate: 0.0001
   weight_decay: 0.0
 
+runtime_defaults:
+  model_selection: target_confidence
+  early_stopping_metric: target_confidence
+  early_stopping_patience: 18
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 35
+
 loss:
   name: cross_entropy
 
 notes:
   - Minimal target-only baseline for the TEP benchmark.
   - Trains a classifier on the target-domain labeled fold only, mirroring the source-only setup.
+  - Uses target-train confidence for checkpoint selection so the supervised upper bound is not selected by source-domain validation.

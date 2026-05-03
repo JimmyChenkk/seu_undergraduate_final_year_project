@@ -1,0 +1,187 @@
+experiment_name: tep_ot_single_source_tpu_stage1_fold0
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  target_eval_during_training: false
+  refresh_batch_outputs: true
+  early_stopping_patience:
+  early_stopping_min_delta: 0.0
+  early_stopping_min_epochs: 120
+
+automation:
+  methods:
+    - deepjdot
+    - tpu_deepjdot
+    - cbtpu_deepjdot
+  single_source_scenes:
+    - mode1->mode2
+    - mode1->mode5
+    - mode2->mode1
+    - mode2->mode5
+    - mode5->mode1
+    - mode5->mode2
+
+method_overrides:
+  deepjdot:
+    optimization: &stage1_optimization
+      epochs: 120
+      batch_size: 64
+      learning_rate: 0.0001
+      weight_decay: 0.0
+      max_grad_norm: 5.0
+    runtime: &stage1_runtime
+      model_selection: hybrid_source_eval_target_confidence
+      early_stopping_metric: hybrid_source_eval_target_confidence
+      selection_weights:
+        source_eval: 0.70
+        target_confidence: 0.30
+      early_stopping_weights:
+        source_eval: 0.70
+        target_confidence: 0.30
+      early_stopping_patience:
+      early_stopping_min_delta: 0.0
+      early_stopping_min_epochs: 120
+    loss: &deepjdot_loss
+      adaptation_weight: 0.55
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 2200
+      reg_dist: 0.08
+      reg_cl: 1.0
+      normalize_feature_cost: true
+      transport_solver: sinkhorn
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 200
+  u_deepjdot:
+    optimization: *stage1_optimization
+    runtime: *stage1_runtime
+    loss:
+      <<: *deepjdot_loss
+      transport_solver: sinkhorn_unbalanced
+      unbalanced_transport: true
+      uot_tau_s: 1.0
+      uot_tau_t: 1.0
+      use_ce_cost_for_plan: false
+  tpu_deepjdot:
+    optimization: *stage1_optimization
+    runtime: *stage1_runtime
+    loss: &tpu_loss
+      <<: *deepjdot_loss
+      transport_solver: sinkhorn_unbalanced
+      unbalanced_transport: true
+      uot_tau_s: 1.0
+      uot_tau_t: 1.0
+      use_ce_cost_for_plan: true
+      source_warmup_steps: 500
+      alignment_start_step: 500
+      supcon_weight: 0.04
+      supcon_temperature: 0.10
+      supcon_warmup_only: true
+      prototype_cost_weight: 0.015
+      prototype_distance: normalized_l2
+      prototype_momentum: 0.95
+      prototype_start_step: 500
+      prototype_warmup_steps: 800
+      prototype_relative_min: -1.0
+      prototype_relative_max: 3.0
+      temporal_cost_weight: 0.01
+      temporal_start_step: 500
+      temporal_warmup_steps: 800
+  cbtpu_deepjdot:
+    optimization: *stage1_optimization
+    runtime: *stage1_runtime
+    loss:
+      <<: *tpu_loss
+      teacher_ema_decay: 0.995
+      teacher_temperature: 1.0
+      proto_temperature: 0.20
+      q_ot_power: 1.0
+      q_cls_power: 1.0
+      q_proto_power: 1.0
+      pseudo_weight: 0.015
+      pseudo_start_step: 900
+      pseudo_warmup_steps: 1000
+      tau_start: 0.95
+      tau_end: 0.85
+      tau_steps: 1500
+      q_ot_entropy_threshold: 0.70
+      js_threshold: 0.08
+      consistency_weight: 0.02
+      consistency_start_step: 900
+      consistency_warmup_steps: 1000
+      consistency_mid_tau: 0.55
+      logit_adjustment_eta: 0.10
+      infomax_weight: 0.0
+      infomax_start_ratio: 0.70
+      augment:
+        weak_jitter_std: 0.006
+        weak_scaling_std: 0.006
+        strong_jitter_std: 0.014
+        strong_scaling_std: 0.014
+        strong_time_mask_ratio: 0.06
+        strong_channel_dropout_prob: 0.05
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fold 0 in legacy CLI terms is represented here as Fold 1."
+  scene_fold_overrides:
+    m1_m2: &fold0_pair
+      source_fold: 1
+      target_fold: 1
+    m1_m5: *fold0_pair
+    m2_m1: *fold0_pair
+    m2_m5: *fold0_pair
+    m5_m1: *fold0_pair
+    m5_m2: *fold0_pair
+
+notes:
+  - Strict UDA Stage 1 for the single-source DeepJDOT -> TPU-DeepJDOT -> CBTPU-DeepJDOT main chain.
+  - U-DeepJDOT is kept as a manual diagnostic ablation config but is not part of the default Stage 1 method list or main figures.
+  - Runs only the six mode1/2/5 fold0 directed tasks, not the full 48-run grid.
+  - Target labels are not evaluated during training and are used only in the final target metrics export.

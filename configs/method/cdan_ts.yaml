@@ -1,0 +1,52 @@
+method_name: cdan_ts
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: hybrid_source_eval_entropy_guard_domain_gap
+  early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+  selection_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  selection_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+  early_stopping_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  early_stopping_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+
+loss:
+  name: conditional_domain_adversarial_ts
+  adaptation_weight: 0.2
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
+  grl_lambda: 1.0
+  grl_warm_start: true
+  grl_max_iters: 1000
+  randomized: true
+  randomized_dim: 256
+  entropy_conditioning: true
+  mcc_weight: 0.0
+  mcc_temperature: 2.0
+  domain_hidden_dim: 256
+  domain_num_hidden_layers: 2
+
+notes:
+  - CDAN-TS is the time-series CDAN baseline; implementation reuses the existing CDAN loss with the FCN temporal encoder.
+  - This alias lets the mode125 baseline plan report CDAN-TS without disturbing the older cdan configuration.

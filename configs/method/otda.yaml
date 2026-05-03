@@ -1,0 +1,28 @@
+method_name: otda
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+
+loss:
+  name: otda
+  adaptation_weight: 1.0
+  source_ce_weight: 1.0
+  feature_weight: 0.1
+  label_weight: 1.0
+  prototype_weight: 0.0
+  use_source_class_balance: false
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 100
+
+notes:
+  - Alias config for the lightweight OTDA/JDOT baseline.

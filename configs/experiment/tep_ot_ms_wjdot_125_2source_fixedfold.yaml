@@ -1,0 +1,190 @@
+experiment_name: tep_ot_ms_wjdot_125_2source_fixedfold
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  early_stopping_patience:
+  early_stopping_min_delta: 0.0
+  early_stopping_min_epochs: 70
+
+automation:
+  methods:
+    - source_only
+    - codats
+    - wjdot
+    - class_alpha_unbalanced_ms_cbtp
+    - target_only
+  multisource_scenes:
+    - mode1+mode2->mode5
+    - mode1+mode5->mode2
+    - mode2+mode5->mode1
+
+method_overrides:
+  target_only:
+    runtime:
+      model_selection: target_confidence
+      early_stopping_metric: target_confidence
+      early_stopping_patience:
+      early_stopping_min_delta: 0.0
+      early_stopping_min_epochs: 70
+  wjdot:
+    backbone: &ms_backbone
+      name: fcn_temporal
+      embedding_dim: 128
+      classifier_hidden_dim: 128
+      dropout: 0.15
+    optimization: &ms_optimization
+      epochs: 70
+      batch_size: 64
+      learning_rate: 0.0001
+      weight_decay: 0.0001
+    runtime: &ms_runtime
+      model_selection: target_free_checkpoint_guard
+      early_stopping_metric: target_free_checkpoint_guard
+      selection_weights:
+        source_eval: 1.00
+        target_entropy_badness: 0.10
+        confidence_collapse: 1.00
+        class_distribution_collapse: 0.50
+        ot_cost_instability: 0.10
+        embedding_norm_instability: 0.05
+      selection_params:
+        confidence_ceiling: 0.85
+        target_entropy_floor: 0.15
+        class_entropy_floor: 0.35
+      early_stopping_weights:
+        source_eval: 1.00
+        target_entropy_badness: 0.10
+        confidence_collapse: 1.00
+        class_distribution_collapse: 0.50
+        ot_cost_instability: 0.10
+        embedding_norm_instability: 0.05
+      early_stopping_params:
+        confidence_ceiling: 0.85
+        target_entropy_floor: 0.15
+        class_entropy_floor: 0.35
+      early_stopping_patience:
+      early_stopping_min_delta: 0.0
+      early_stopping_min_epochs: 70
+    loss: &wjdot_loss
+      adaptation_weight: 0.35
+      source_ce_weight: 1.0
+      feature_weight: 0.03
+      label_weight: 1.0
+      prototype_weight: 0.0
+      use_source_class_balance: true
+      normalize_costs: true
+      transport_solver: sinkhorn
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 200
+      alignment_start_step: 350
+      alignment_ramp_steps: 700
+      ot_feature_normalize: true
+      ot_source_stop_gradient: true
+      embedding_norm_weight: 0.0001
+  class_alpha_unbalanced_ms_cbtp:
+    backbone: *ms_backbone
+    optimization: *ms_optimization
+    runtime: *ms_runtime
+    loss:
+      <<: *wjdot_loss
+      base_tp_mode: tp_barycentric
+      prototype_weight: 0.08
+      prototype_in_coupling: false
+      prototype_distance: normalized_l2
+      prototype_cost_clip: p90
+      ot_class_entropy_gate: true
+      min_class_transport_mass: 0.0001
+      class_mass_weight: sqrt
+      prototype_start_step: 700
+      prototype_warmup_steps: 1200
+      pseudo_start_step: 700
+      tau_start: 0.95
+      tau_end: 0.75
+      tau_steps: 1200
+      pseudo_weight: 0.06
+      class_balance_clip_min: 0.5
+      class_balance_clip_max: 3.0
+      consistency_weight: 0.04
+      ms_weighting_mode: class_alpha_unbalanced
+      class_alpha_top_m_sources: 1
+      class_alpha_renormalize_top_m: true
+      class_unbalanced_transport: true
+      unbalanced_sinkhorn_reg_m: 1.0
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+      target_label_calibration: false
+      target_label_assist_weight: 0.0
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode2
+  target_domain: mode5
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Two-source 1/2/5 scenes copied from the previous mode1/2/5 fixed-fold benchmark configs."
+  scene_fold_overrides:
+    m1_2_m5:
+      source_folds_by_domain:
+        mode1: 4
+        mode2: 1
+      target_fold: 3
+    m1_5_m2:
+      source_folds_by_domain:
+        mode1: 2
+        mode5: 3
+      target_fold: 4
+    m2_5_m1:
+      source_folds_by_domain:
+        mode2: 4
+        mode5: 4
+      target_fold: 4
+
+notes:
+  - Formal two-source WJDOT/MS-CBTP probe for the mode1/2/5 cluster.
+  - MS-CBTP means class-aware top-1 source selection with unbalanced transport.
+  - Inspect class_alpha_matrix, transport_mass_matrix, per_class_ot_cost_matrix, per_class_proto_distance_matrix, per_class_recall, and comparison_summary.

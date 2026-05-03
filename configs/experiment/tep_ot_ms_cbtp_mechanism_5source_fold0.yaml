@@ -1,0 +1,199 @@
+experiment_name: tep_ot_ms_cbtp_mechanism_5source_fold0
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  model_selection: target_eval
+  early_stopping_metric: target_eval
+  early_stopping_patience:
+  early_stopping_min_delta: 0.0
+  early_stopping_min_epochs: 70
+
+automation:
+  methods:
+    - merged_source_cbtp
+    - current_ms_cbtp
+    - class_alpha_only_ms_cbtp
+    - class_alpha_unbalanced_ms_cbtp
+    - ms_cbtp_ta_calib
+    - ms_cbtp_ta_ce_oracle
+  multisource_scenes:
+    - mode1+mode2+mode3+mode4+mode5->mode6
+    - mode1+mode2+mode3+mode4+mode6->mode5
+    - mode2+mode3+mode4+mode5+mode6->mode1
+
+method_overrides:
+  all:
+    all:
+      backbone:
+        name: fcn_temporal
+        embedding_dim: 128
+        classifier_hidden_dim: 128
+        dropout: 0.15
+      optimization:
+        epochs: 70
+        batch_size: 64
+        learning_rate: 0.0001
+        weight_decay: 0.0001
+      loss:
+        adaptation_weight: 0.35
+        source_ce_weight: 1.0
+        feature_weight: 0.03
+        label_weight: 1.0
+        transport_solver: sinkhorn
+        sinkhorn_reg: 0.05
+        sinkhorn_num_iter_max: 200
+        base_tp_mode: tp_barycentric
+        prototype_weight: 0.08
+        prototype_in_coupling: false
+        prototype_distance: normalized_l2
+        prototype_cost_clip: p90
+        ot_class_entropy_gate: true
+        min_class_transport_mass: 0.0001
+        class_mass_weight: sqrt
+        alignment_start_step: 350
+        alignment_ramp_steps: 700
+        prototype_start_step: 700
+        prototype_warmup_steps: 1200
+        pseudo_start_step: 700
+        tau_end: 0.75
+        tau_steps: 1200
+        pseudo_weight: 0.06
+        class_balance_clip_min: 0.5
+        class_balance_clip_max: 3.0
+        consistency_weight: 0.04
+        embedding_norm_weight: 0.0001
+        target_label_assist_weight: 0.0
+        target_label_assist_start_step: 0
+        target_label_assist_warmup_steps: 500
+        target_label_assist_class_balance: true
+  current_ms_cbtp:
+    loss:
+      ms_weighting_mode: global_alpha
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+      negative_gate_threshold: 0.05
+      negative_gate_floor: 0.05
+  class_alpha_only_ms_cbtp:
+    loss:
+      class_alpha_only: true
+      class_alpha_top_m_sources: 2
+      class_alpha_renormalize_top_m: true
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+  class_alpha_unbalanced_ms_cbtp:
+    loss:
+      ms_weighting_mode: class_alpha_unbalanced
+      class_alpha_top_m_sources: 2
+      class_alpha_renormalize_top_m: true
+      class_unbalanced_transport: true
+      unbalanced_sinkhorn_reg_m: 1.0
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+  ms_cbtp_ta_calib:
+    loss:
+      class_alpha_only: true
+      class_alpha_top_m_sources: 2
+      class_alpha_renormalize_top_m: true
+      target_label_calibration: true
+      target_label_assist_weight: 0.0
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+  ms_cbtp_ta_ce_oracle:
+    loss:
+      class_alpha_only: true
+      class_alpha_top_m_sources: 2
+      class_alpha_renormalize_top_m: true
+      target_label_calibration: true
+      target_label_assist_weight: 0.30
+      target_label_assist_start_step: 0
+      target_label_assist_warmup_steps: 500
+      target_label_assist_class_balance: true
+      source_weight_temperature: 1.0
+      class_weight_temperature: 1.0
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode2
+    - mode3
+    - mode4
+    - mode5
+  target_domain: mode6
+  use_target_labels: true
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fold 0 in legacy CLI terms, represented here as Fold 1."
+  scene_fold_overrides:
+    m1_2_3_4_5_m6:
+      source_folds_by_domain:
+        mode1: 1
+        mode2: 1
+        mode3: 1
+        mode4: 1
+        mode5: 1
+      target_fold: 1
+    m1_2_3_4_6_m5:
+      source_folds_by_domain:
+        mode1: 1
+        mode2: 1
+        mode3: 1
+        mode4: 1
+        mode6: 1
+      target_fold: 1
+    m2_3_4_5_6_m1:
+      source_folds_by_domain:
+        mode2: 1
+        mode3: 1
+        mode4: 1
+        mode5: 1
+        mode6: 1
+      target_fold: 1
+
+notes:
+  - Mechanism-first MS-CBTP comparison; do not interpret TA-CE as unsupervised DA.
+  - Non-TA methods receive target labels in the loader but ignore them unless target_label_calibration or target_label_assist_weight is enabled.
+  - class_alpha_only and class_alpha_unbalanced use top-2 source selection per fault class as a fixed mechanism choice, not scene-specific tuning.

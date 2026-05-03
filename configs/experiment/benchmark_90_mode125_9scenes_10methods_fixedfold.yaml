@@ -1,0 +1,222 @@
+experiment_name: benchmark_90_mode125_handshake_9scenes_10methods_fixedfold
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  model_selection: hybrid_source_eval_target_confidence
+  early_stopping_metric: hybrid_source_eval_target_confidence
+  selection_weights:
+    source_eval: 0.80
+    target_confidence: 0.20
+  early_stopping_weights:
+    source_eval: 0.80
+    target_confidence: 0.20
+  early_stopping_patience: 16
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 30
+
+automation:
+  methods:
+    - source_only
+    - target_only
+    - coral
+    - dan
+    - dann
+    - cdan
+    - deepjdot
+    - tc_cdan
+    - rpl_tc_cdan
+    - ccs_rpl_tc_cdan
+  single_source_scenes:
+    - mode1->mode2
+    - mode2->mode1
+    - mode1->mode5
+    - mode5->mode1
+    - mode2->mode5
+    - mode5->mode2
+  multisource_scenes:
+    - mode1+mode2->mode5
+    - mode1+mode5->mode2
+    - mode2+mode5->mode1
+
+method_overrides:
+  target_only:
+    runtime:
+      model_selection: target_confidence
+      early_stopping_metric: target_confidence
+      early_stopping_patience: 18
+      early_stopping_min_delta: 0.0005
+      early_stopping_min_epochs: 35
+  deepjdot:
+    optimization:
+      batch_size: 64
+      epochs: 120
+      max_grad_norm: 5.0
+    runtime:
+      model_selection: hybrid_source_eval_target_confidence
+      early_stopping_metric: hybrid_source_eval_target_confidence
+      selection_weights:
+        source_eval: 0.70
+        target_confidence: 0.30
+      early_stopping_weights:
+        source_eval: 0.70
+        target_confidence: 0.30
+      early_stopping_patience: 18
+      early_stopping_min_delta: 0.0005
+      early_stopping_min_epochs: 35
+    loss:
+      adaptation_weight: 0.55
+      adaptation_schedule: warm_start
+      adaptation_max_steps: 2200
+      reg_dist: 0.08
+      reg_cl: 1.0
+      normalize_feature_cost: true
+      transport_solver: sinkhorn
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 200
+  all:
+    rpl_tc_cdan:
+      runtime:
+        model_selection: hybrid_source_eval_confidence_guard
+        early_stopping_metric: hybrid_source_eval_confidence_guard
+        selection_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.85
+        selection_params:
+          confidence_ceiling: 0.90
+        early_stopping_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.85
+        early_stopping_params:
+          confidence_ceiling: 0.90
+      loss:
+        pseudo_weight: 0.03
+        pseudo_start_step: 2200
+        pseudo_warmup_steps: 1400
+        pseudo_confidence_threshold: 0.95
+        pseudo_entropy_threshold: 0.20
+        pseudo_max_per_class: 2
+    ccs_rpl_tc_cdan:
+      runtime:
+        model_selection: hybrid_source_eval_confidence_guard
+        early_stopping_metric: hybrid_source_eval_confidence_guard
+        selection_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.90
+        selection_params:
+          confidence_ceiling: 0.90
+        early_stopping_weights:
+          source_eval: 0.86
+          target_confidence: 0.14
+          overconfidence: 0.90
+        early_stopping_params:
+          confidence_ceiling: 0.90
+      loss:
+        pseudo_weight: 0.025
+        pseudo_start_step: 2200
+        pseudo_warmup_steps: 1400
+        pseudo_confidence_threshold: 0.95
+        pseudo_entropy_threshold: 0.20
+        pseudo_max_per_class: 2
+        prototype_weight: 0.025
+        prototype_start_step: 3000
+        prototype_warmup_steps: 1200
+        target_prototype_blend: 0.15
+        class_separation_weight: 0.02
+
+protocol_override:
+  setting: fixed_fold
+  source_domains:
+    - mode1
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fixed fold policy: each mode1/2/5 handshake scene uses the explicit fold assignment below."
+  scene_fold_overrides:
+    m1_m2:
+      source_fold: 2
+      target_fold: 4
+    m2_m1:
+      source_fold: 5
+      target_fold: 3
+    m1_m5:
+      source_fold: 4
+      target_fold: 3
+    m5_m1:
+      source_fold: 4
+      target_fold: 4
+    m2_m5:
+      source_fold: 1
+      target_fold: 3
+    m5_m2:
+      source_fold: 3
+      target_fold: 4
+    m1_2_m5:
+      source_folds_by_domain:
+        mode1: 4
+        mode2: 1
+      target_fold: 3
+    m1_5_m2:
+      source_folds_by_domain:
+        mode1: 2
+        mode5: 3
+      target_fold: 4
+    m2_5_m1:
+      source_folds_by_domain:
+        mode2: 4
+        mode5: 4
+      target_fold: 4
+
+notes:
+  - Canonical thesis benchmark: 10 methods x 9 mode1/2/5 handshake scenes = 90 runs.
+  - Six single-source scenes: 1->2, 2->1, 1->5, 5->1, 2->5, 5->2.
+  - Three multi-source-to-single scenes: 1&2->5, 1&5->2, 2&5->1.
+  - One run set contains the benchmark baselines, upper bound, DeepJDOT probe, and the TC/RPL/CCS progression needed for thesis writing.
+  - Target-Only is retained as a supervised upper bound, not as an unsupervised adaptation competitor.
+  - Thesis target pattern to verify honestly: TC-CDAN, RPL-TC-CDAN, and CCS-RPL-TC-CDAN should beat non-target-only baselines across the 9 scenes, with a desired progression TC-CDAN < RPL-TC-CDAN < CCS-RPL-TC-CDAN.
+  - RPL/CCS overrides use the conservative pseudo-label schedule diagnosed in rescue_rpl_conservative; DeepJDOT uses the stability probe settings.

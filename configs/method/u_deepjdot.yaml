@@ -1,0 +1,34 @@
+method_name: u_deepjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 120
+  batch_size: 64
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: u_deepjdot
+  adaptation_weight: 0.55
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 2200
+  adaptation_schedule_alpha: 10.0
+  reg_dist: 0.08
+  reg_cl: 1.0
+  normalize_feature_cost: true
+  transport_solver: sinkhorn_unbalanced
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 200
+  unbalanced_transport: true
+  uot_tau_s: 1.0
+  uot_tau_t: 1.0
+  use_ce_cost_for_plan: false
+
+notes:
+  - U-DeepJDOT replaces balanced minibatch OT with unbalanced Sinkhorn while keeping the DeepJDOT cost otherwise unchanged.
+  - This strict UDA method does not use target labels, target pseudo CE, consistency, or prototypes.

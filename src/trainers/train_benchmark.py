@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 from collections import defaultdict
 from copy import deepcopy
 import importlib.util
@@ -134,6 +135,16 @@ def apply_method_overrides(
                 else:
                     merged_method[section_name] = deepcopy(section_value)
                 continue
+            if section_name == "runtime_defaults":
+                merged_method[section_name] = deep_merge_dict(
+                    merged_method.get(section_name, {}),
+                    section_value,
+                )
+                merged_experiment["runtime"] = merge_runtime_config(
+                    merged_experiment.get("runtime", {}),
+                    section_value,
+                )
+                continue
             if section_name in {"runtime", "tracking", "protocol_override"}:
                 if section_name == "runtime":
                     merged_experiment[section_name] = merge_runtime_config(
@@ -159,6 +170,8 @@ def apply_method_overrides(
                 collected.append(candidate)
         return collected
 
+    method_override_keys = list(dict.fromkeys(["*", "all", method_name, method_display_name]))
+
     for top_level in _collect_overrides(overrides, scene_keys + [method_name, method_display_name]):
         nested_scene_payload = False
         for scene_key in ["*", "all", *scene_keys]:
@@ -166,12 +179,22 @@ def apply_method_overrides(
             if not isinstance(scene_payload, dict):
                 continue
             nested_scene_payload = True
-            for method_key in ["*", "all", method_name, method_display_name]:
+            for method_key in method_override_keys:
                 method_override = scene_payload.get(method_key)
                 if isinstance(method_override, dict):
                     _apply_payload(method_override)
         if nested_scene_payload:
             continue
+
+        nested_method_payload = False
+        for method_key in method_override_keys:
+            method_override = top_level.get(method_key)
+            if isinstance(method_override, dict):
+                nested_method_payload = True
+                _apply_payload(method_override)
+        if nested_method_payload:
+            continue
+
         _apply_payload(top_level)
 
     return merged_experiment, merged_method
@@ -233,6 +256,7 @@ def build_terminal_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
             "source_train_acc": result.get("source_train_acc"),
             "source_eval_acc": result.get("source_eval_acc"),
             "target_eval_acc": result.get("target_eval_acc"),
+            "target_eval_macro_f1": result.get("target_eval_macro_f1"),
             "target_eval_balanced_acc": result.get("target_eval_balanced_acc"),
             "selected_epoch": result.get("selected_epoch"),
             "epochs_completed": result.get("epochs_completed"),
@@ -450,7 +474,22 @@ def ensure_dependencies(
     required = ["numpy", "yaml", "torch", "sklearn"]
     if bool(experiment_config.get("runtime", {}).get("save_analysis", True)):
         required.append("matplotlib")
-    requires_ot = method_name == "deepjdot"
+    requires_ot = method_name in {
+        "deepjdot",
+        "u_deepjdot",
+        "tp_deepjdot",
+        "cbtp_deepjdot",
+        "tpu_deepjdot",
+        "cbtpu_deepjdot",
+        "jdot",
+        "otda",
+        "tp_jdot",
+        "cbtp_jdot",
+        "wjdot",
+        "tp_wjdot",
+        "cbtp_wjdot",
+        "ms_cbtp_wjdot",
+    }
     if method_name == "rcta":
         base_align = str((method_config or {}).get("loss", {}).get("base_align", "cdan")).strip().lower()
         requires_ot = base_align == "deepjdot"
@@ -595,6 +634,17 @@ def _latest_history_metric(history: list[dict[str, float]], key: str) -> float |
     return None
 
 
+def _relative_instability(current: Any, previous: Any) -> float:
+    try:
+        current_value = float(current)
+        previous_value = float(previous)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(current_value) or not math.isfinite(previous_value):
+        return 0.0
+    return float(abs(current_value - previous_value) / max(abs(previous_value), 1e-8))
+
+
 def _string_array(values: list[str]):
     np = _import_numpy()
     items = [str(value) for value in values]
@@ -649,6 +699,7 @@ def _evaluate_unlabeled_target_proxy(
     total = 0
     confidence_sum = 0.0
     entropy_sum = 0.0
+    class_counts = None
     with torch.inference_mode():
         for batch_index, (x_batch, _) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
@@ -656,18 +707,38 @@ def _evaluate_unlabeled_target_proxy(
                 logits = model.predict_logits(x_batch)
             probabilities = torch.softmax(logits.float(), dim=1)
             confidence = probabilities.max(dim=1).values
+            predictions = probabilities.argmax(dim=1)
             entropy = -(
                 probabilities * torch.log(probabilities.clamp_min(1e-8))
             ).sum(dim=1) / math.log(probabilities.shape[1])
+            counts = torch.bincount(predictions, minlength=probabilities.shape[1]).to(
+                device=probabilities.device,
+                dtype=torch.float32,
+            )
+            class_counts = counts if class_counts is None else class_counts + counts
             confidence_sum += float(confidence.sum().item())
             entropy_sum += float(entropy.sum().item())
             total += int(probabilities.shape[0])
             if max_batches is not None and batch_index + 1 >= max_batches:
                 break
     denominator = max(total, 1)
+    if class_counts is None or total <= 0:
+        pred_class_entropy = 0.0
+    else:
+        class_probabilities = class_counts / class_counts.sum().clamp_min(1.0)
+        pred_class_entropy = float(
+            (
+                -(
+                    class_probabilities
+                    * torch.log(class_probabilities.clamp_min(1e-8))
+                ).sum()
+                / math.log(max(int(class_probabilities.numel()), 2))
+            ).item()
+        )
     return {
         "target_train_mean_confidence": float(confidence_sum / denominator),
         "target_train_mean_entropy": float(entropy_sum / denominator),
+        "target_train_pred_class_entropy": pred_class_entropy,
     }
 
 
@@ -774,7 +845,7 @@ def _evaluate_target_metrics(
 ) -> dict[str, Any]:
     """Compute target-side accuracy metrics independently of analysis export."""
 
-    from sklearn.metrics import accuracy_score, confusion_matrix, recall_score
+    from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, recall_score
 
     target_chunk = _collect_loader_outputs(
         model,
@@ -789,11 +860,13 @@ def _evaluate_target_metrics(
     if len(labels) == 0:
         return {
             "target_eval_acc": 0.0,
+            "target_eval_macro_f1": 0.0,
             "target_eval_balanced_acc": 0.0,
             "target_confusion_matrix": [],
         }
 
     target_accuracy = float(accuracy_score(labels, predictions))
+    target_macro_f1 = float(f1_score(labels, predictions, average="macro", zero_division=0))
     present_labels = sorted(set(int(label) for label in labels.tolist()))
     target_balanced_accuracy = float(
         recall_score(labels, predictions, labels=present_labels, average="macro", zero_division=0)
@@ -801,8 +874,229 @@ def _evaluate_target_metrics(
     target_confusion = confusion_matrix(labels, predictions, labels=list(range(29)))
     return {
         "target_eval_acc": target_accuracy,
+        "target_eval_macro_f1": target_macro_f1,
         "target_eval_balanced_acc": target_balanced_accuracy,
         "target_confusion_matrix": target_confusion.tolist(),
+    }
+
+
+def _export_target_metric_tables(
+    *,
+    tables_dir: Path,
+    confusion_matrix: list[list[int]] | list,
+) -> dict[str, str | None]:
+    """Persist confusion matrix and per-class recall tables for thesis figures."""
+
+    np = _import_numpy()
+    if not confusion_matrix:
+        return {
+            "confusion_matrix_path": None,
+            "confusion_matrix_csv_path": None,
+            "per_class_recall_path": None,
+        }
+
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    confusion = np.asarray(confusion_matrix, dtype=np.int64)
+    confusion_path = tables_dir / "confusion_matrix.npy"
+    confusion_csv_path = tables_dir / "confusion_matrix.csv"
+    per_class_recall_path = tables_dir / "per_class_recall.csv"
+    np.save(confusion_path, confusion)
+    np.savetxt(confusion_csv_path, confusion, delimiter=",", fmt="%d")
+    support = confusion.sum(axis=1)
+    recall = np.divide(
+        np.diag(confusion),
+        support,
+        out=np.zeros_like(support, dtype=np.float64),
+        where=support > 0,
+    )
+    with per_class_recall_path.open("w", encoding="utf-8") as handle:
+        handle.write("class_id,support,recall\n")
+        for class_id, (class_support, class_recall) in enumerate(zip(support, recall)):
+            handle.write(f"{class_id},{int(class_support)},{float(class_recall)}\n")
+    return {
+        "confusion_matrix_path": str(confusion_path),
+        "confusion_matrix_csv_path": str(confusion_csv_path),
+        "per_class_recall_path": str(per_class_recall_path),
+    }
+
+
+def _export_reliability_tables(
+    *,
+    model,
+    history: list[dict[str, float]],
+    tables_dir: Path,
+    source_domain_ids: list[str],
+) -> dict[str, str | None]:
+    """Persist source and class-source weights when a method exposes them."""
+
+    if not hasattr(model, "reliability_snapshot"):
+        return {
+            "source_weight_path": None,
+            "class_source_weight_path": None,
+            "class_alpha_matrix_path": None,
+            "transport_mass_matrix_path": None,
+            "per_class_ot_cost_matrix_path": None,
+            "per_class_proto_distance_matrix_path": None,
+        }
+
+    snapshot = model.reliability_snapshot()
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    source_weight_path: str | None = None
+    class_source_weight_path: str | None = None
+    class_alpha_matrix_path: str | None = None
+    transport_mass_matrix_path: str | None = None
+    per_class_ot_cost_matrix_path: str | None = None
+    per_class_proto_distance_matrix_path: str | None = None
+
+    def _write_source_class_matrix(filename: str, values: Any) -> str:
+        path = tables_dir / filename
+        matrix = values.detach().cpu().numpy() if hasattr(values, "detach") else values
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("class_id," + ",".join(source_domain_ids[: matrix.shape[0]]) + "\n")
+            for class_id in range(matrix.shape[1]):
+                row = [str(float(matrix[source_index, class_id])) for source_index in range(matrix.shape[0])]
+                handle.write(f"{class_id}," + ",".join(row) + "\n")
+        return str(path)
+
+    alpha_keys = sorted(
+        [key for key in history[-1].keys() if key.startswith("alpha_source_")]
+    ) if history else []
+    if alpha_keys:
+        path = tables_dir / "source_weights.csv"
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("epoch," + ",".join(source_domain_ids[: len(alpha_keys)]) + "\n")
+            for row in history:
+                values = []
+                for key in alpha_keys:
+                    values.append(str(float(row.get(key, 0.0))))
+                handle.write(f"{int(row.get('epoch', 0))}," + ",".join(values) + "\n")
+        source_weight_path = str(path)
+    elif snapshot.get("source_weights") is not None:
+        path = tables_dir / "source_weights.csv"
+        values = snapshot["source_weights"].detach().cpu().numpy().tolist()
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("source_domain,weight\n")
+            for domain_id, value in zip(source_domain_ids, values):
+                handle.write(f"{domain_id},{float(value)}\n")
+        source_weight_path = str(path)
+
+    if snapshot.get("class_source_weights") is not None:
+        class_source_weight_path = _write_source_class_matrix(
+            "class_source_weights.csv",
+            snapshot["class_source_weights"],
+        )
+        class_alpha_matrix_path = _write_source_class_matrix(
+            "class_alpha_matrix.csv",
+            snapshot["class_source_weights"],
+        )
+    if snapshot.get("transport_mass_matrix") is not None:
+        transport_mass_matrix_path = _write_source_class_matrix(
+            "transport_mass_matrix.csv",
+            snapshot["transport_mass_matrix"],
+        )
+    if snapshot.get("per_class_ot_cost_matrix") is not None:
+        per_class_ot_cost_matrix_path = _write_source_class_matrix(
+            "per_class_ot_cost_matrix.csv",
+            snapshot["per_class_ot_cost_matrix"],
+        )
+    if snapshot.get("per_class_proto_distance_matrix") is not None:
+        per_class_proto_distance_matrix_path = _write_source_class_matrix(
+            "per_class_proto_distance_matrix.csv",
+            snapshot["per_class_proto_distance_matrix"],
+        )
+
+    return {
+        "source_weight_path": source_weight_path,
+        "class_source_weight_path": class_source_weight_path,
+        "class_alpha_matrix_path": class_alpha_matrix_path,
+        "transport_mass_matrix_path": transport_mass_matrix_path,
+        "per_class_ot_cost_matrix_path": per_class_ot_cost_matrix_path,
+        "per_class_proto_distance_matrix_path": per_class_proto_distance_matrix_path,
+    }
+
+
+def _export_checkpoint_diagnostics(
+    *,
+    history: list[dict[str, Any]],
+    tables_dir: Path,
+    figures_dir: Path,
+) -> dict[str, str | None]:
+    """Persist target-label-free checkpoint diagnostics for model selection review."""
+
+    if not history:
+        return {"checkpoint_diagnostics_path": None, "checkpoint_curve_path": None}
+
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    diagnostics_path = tables_dir / "checkpoint_diagnostics.csv"
+    fieldnames = [
+        "epoch",
+        "acc_source_eval",
+        "target_train_mean_entropy",
+        "target_train_mean_confidence",
+        "target_train_pred_class_entropy",
+        "loss_alignment",
+        "ot_prototype_cost",
+        "loss_prototype",
+        "ot_cost_instability",
+        "embedding_norm_instability",
+        "ot_class_collapse_penalty",
+        "uot_transported_mass",
+        "uot_row_mass_deviation",
+        "uot_column_mass_deviation",
+        "q_ot_entropy_mean",
+        "q_ot_cls_proto_agreement_rate",
+        "accepted_target_ratio",
+        "target_prediction_class_entropy",
+        "prototype_relative_cost_mean",
+        "prototype_relative_cost_std",
+        "source_supcon_loss",
+        "model_selection_score",
+        "early_stopping_score",
+    ]
+    with diagnostics_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in history:
+            writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+    curve_path = figures_dir / "checkpoint_curve.png"
+    try:
+        import matplotlib.pyplot as plt
+
+        def _series(key: str) -> list[float | None]:
+            values: list[float | None] = []
+            for row in history:
+                value = row.get(key)
+                values.append(None if value is None else float(value))
+            return values
+
+        epochs = [int(row.get("epoch", index + 1)) for index, row in enumerate(history)]
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        for key, label in [
+            ("acc_source_eval", "source val"),
+            ("target_train_mean_confidence", "target confidence"),
+            ("target_train_pred_class_entropy", "pred class entropy"),
+            ("model_selection_score", "selection score"),
+        ]:
+            values = _series(key)
+            if any(value is not None for value in values):
+                ax.plot(epochs, values, label=label)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Score / proxy")
+        ax.set_title("Checkpoint diagnostics")
+        ax.grid(alpha=0.25)
+        ax.legend(loc="best")
+        fig.tight_layout()
+        fig.savefig(curve_path, dpi=180)
+        plt.close(fig)
+        curve_path_value: str | None = str(curve_path)
+    except Exception:
+        curve_path_value = None
+
+    return {
+        "checkpoint_diagnostics_path": str(diagnostics_path),
+        "checkpoint_curve_path": curve_path_value,
     }
 
 
@@ -820,7 +1114,7 @@ def export_analysis_artifacts(
     """Persist embeddings and prediction traces for later figures."""
 
     np = _import_numpy()
-    from sklearn.metrics import accuracy_score, confusion_matrix, recall_score
+    from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, recall_score
 
     ensure_parent(analysis_path)
     source_chunks = []
@@ -865,6 +1159,9 @@ def export_analysis_artifacts(
     )
 
     target_accuracy = float(accuracy_score(target_chunk["labels"], target_chunk["predictions"]))
+    target_macro_f1 = float(
+        f1_score(target_chunk["labels"], target_chunk["predictions"], average="macro", zero_division=0)
+    )
     present_labels = sorted(set(int(label) for label in target_chunk["labels"].tolist()))
     target_balanced_accuracy = float(
         recall_score(
@@ -880,11 +1177,18 @@ def export_analysis_artifacts(
         target_chunk["predictions"],
         labels=np.arange(29),
     )
+    source_norms = np.linalg.norm(source_embeddings, axis=1) if source_embeddings.size else np.asarray([])
+    target_norms = np.linalg.norm(target_chunk["embeddings"], axis=1) if target_chunk["embeddings"].size else np.asarray([])
     return {
         "analysis_path": str(analysis_path),
         "target_eval_acc": target_accuracy,
+        "target_eval_macro_f1": target_macro_f1,
         "target_eval_balanced_acc": target_balanced_accuracy,
         "target_confusion_matrix": target_confusion.tolist(),
+        "embedding_norm_source_mean": None if source_norms.size == 0 else float(source_norms.mean()),
+        "embedding_norm_source_max": None if source_norms.size == 0 else float(source_norms.max()),
+        "embedding_norm_target_mean": None if target_norms.size == 0 else float(target_norms.mean()),
+        "embedding_norm_target_max": None if target_norms.size == 0 else float(target_norms.max()),
     }
 
 
@@ -972,6 +1276,7 @@ def run_deep_experiment(
     early_stopping_interval = max(int(runtime.get("early_stopping_interval", evaluation_interval)), 1)
     final_epoch_evaluation = bool(runtime.get("final_epoch_evaluation", True))
     final_selection_evaluation = bool(runtime.get("final_selection_evaluation", True))
+    target_eval_during_training = bool(runtime.get("target_eval_during_training", True))
 
     source_domain_ids = [split.domain_id for split in prepared_data.source_splits]
     final_source_train_by_domain: dict[str, float] = {}
@@ -1103,14 +1408,17 @@ def run_deep_experiment(
                 max_batches=evaluation_max_batches,
                 non_blocking=transfer_non_blocking,
             )
-            target_eval_acc = _evaluate_accuracy(
-                model,
-                prepared_data.target_eval_loader,
-                device,
-                max_batches=evaluation_max_batches,
-                non_blocking=transfer_non_blocking,
-                amp_enabled=amp_enabled,
-            )
+            if target_eval_during_training or is_final_epoch:
+                target_eval_acc = _evaluate_accuracy(
+                    model,
+                    prepared_data.target_eval_loader,
+                    device,
+                    max_batches=evaluation_max_batches,
+                    non_blocking=transfer_non_blocking,
+                    amp_enabled=amp_enabled,
+                )
+            else:
+                target_eval_acc = last_valid_target_eval_acc
             target_proxy_metrics = _evaluate_unlabeled_target_proxy(
                 model,
                 prepared_data.target_train_loader,
@@ -1121,7 +1429,7 @@ def run_deep_experiment(
             )
             last_valid_source_train_acc = float(source_train_acc)
             last_valid_source_eval_acc = float(source_eval_acc)
-            last_valid_target_eval_acc = float(target_eval_acc)
+            last_valid_target_eval_acc = None if target_eval_acc is None else float(target_eval_acc)
             last_valid_target_proxy_metrics = deepcopy(target_proxy_metrics)
             timing["periodic_validation_seconds"] += perf_counter() - validation_timer_start
             validation_calls += 1
@@ -1131,6 +1439,29 @@ def run_deep_experiment(
         summary["target_eval_acc"] = None if target_eval_acc is None else float(target_eval_acc)
         summary.update(target_proxy_metrics)
         summary["validation_epoch"] = bool(did_validate)
+        previous_summary = history[-1] if history else {}
+        summary["ot_cost_instability"] = _relative_instability(
+            summary.get("loss_alignment"),
+            previous_summary.get("loss_alignment"),
+        )
+        summary["embedding_norm_instability"] = _relative_instability(
+            summary.get("loss_embedding_norm"),
+            previous_summary.get("loss_embedding_norm"),
+        )
+        previous_alignment = previous_summary.get("loss_alignment")
+        current_alignment = summary.get("loss_alignment")
+        pred_class_entropy = summary.get("target_train_pred_class_entropy")
+        class_entropy_floor = float(selection_params.get("class_entropy_floor", 0.35))
+        if (
+            previous_alignment is not None
+            and current_alignment is not None
+            and pred_class_entropy is not None
+            and float(current_alignment) < 0.75 * max(float(previous_alignment), 1e-8)
+            and float(pred_class_entropy) < class_entropy_floor
+        ):
+            summary["ot_class_collapse_penalty"] = float(class_entropy_floor - float(pred_class_entropy))
+        else:
+            summary["ot_class_collapse_penalty"] = 0.0
         history.append(summary)
         if show_progress:
             _emit_epoch_summary(
@@ -1257,6 +1588,21 @@ def run_deep_experiment(
     )
     timing["target_metrics_seconds"] += perf_counter() - target_metrics_timer_start
     selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
+    target_table_paths = _export_target_metric_tables(
+        tables_dir=run_paths["tables_dir"],
+        confusion_matrix=selected_target_metrics["target_confusion_matrix"],
+    )
+    reliability_table_paths = _export_reliability_tables(
+        model=model,
+        history=history,
+        tables_dir=run_paths["tables_dir"],
+        source_domain_ids=source_domain_ids,
+    )
+    checkpoint_diagnostic_paths = _export_checkpoint_diagnostics(
+        history=history,
+        tables_dir=run_paths["tables_dir"],
+        figures_dir=run_paths["figures_dir"],
+    )
 
     result = {
         "method_name": method_display_name,
@@ -1276,8 +1622,20 @@ def run_deep_experiment(
         "selected_source_train_acc": float(selected_source_train_acc),
         "selected_source_eval_acc": None if selected_source_eval_acc is None else float(selected_source_eval_acc),
         "selected_target_eval_acc": None if selected_target_eval_acc is None else float(selected_target_eval_acc),
+        "target_eval_macro_f1": float(selected_target_metrics["target_eval_macro_f1"]),
         "target_eval_balanced_acc": float(selected_target_metrics["target_eval_balanced_acc"]),
         "target_confusion_matrix": selected_target_metrics["target_confusion_matrix"],
+        "confusion_matrix_path": target_table_paths["confusion_matrix_path"],
+        "confusion_matrix_csv_path": target_table_paths["confusion_matrix_csv_path"],
+        "per_class_recall_path": target_table_paths["per_class_recall_path"],
+        "source_weight_path": reliability_table_paths["source_weight_path"],
+        "class_source_weight_path": reliability_table_paths["class_source_weight_path"],
+        "class_alpha_matrix_path": reliability_table_paths["class_alpha_matrix_path"],
+        "transport_mass_matrix_path": reliability_table_paths["transport_mass_matrix_path"],
+        "per_class_ot_cost_matrix_path": reliability_table_paths["per_class_ot_cost_matrix_path"],
+        "per_class_proto_distance_matrix_path": reliability_table_paths["per_class_proto_distance_matrix_path"],
+        "checkpoint_diagnostics_path": checkpoint_diagnostic_paths["checkpoint_diagnostics_path"],
+        "checkpoint_curve_path": checkpoint_diagnostic_paths["checkpoint_curve_path"],
         "selected_target_train_mean_confidence": (
             None
             if selected_summary is None or selected_summary.get("target_train_mean_confidence") is None
@@ -1341,6 +1699,7 @@ def run_deep_experiment(
         result.update(analysis_summary)
         result["target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
         result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
+        result["target_eval_macro_f1"] = float(selected_target_metrics["target_eval_macro_f1"])
         result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
         result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
         timing["analysis_seconds"] += perf_counter() - analysis_timer_start
@@ -1385,9 +1744,9 @@ def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any
 
     export_run_review_figures(analysis_path, run_paths["figures_dir"])
     for key, filename in {
-        "tsne_domain": "tsne_domain.svg",
-        "tsne_class": "tsne_class.svg",
-        "confusion_matrix": "confusion_matrix.svg",
+        "tsne_domain": "tsne_domain.pdf",
+        "tsne_class": "tsne_class.pdf",
+        "confusion_matrix": "confusion_matrix.pdf",
     }.items():
         figure_path = run_paths["figures_dir"] / filename
         figure_paths[key] = str(figure_path) if figure_path.exists() else None
@@ -1441,6 +1800,10 @@ def main() -> None:
     data_config = TEDADatasetConfig.from_dict(data_payload)
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
+    if method_name == "target_only":
+        protocol_payload["use_target_labels"] = True
+        experiment_payload.setdefault("protocol_override", {})
+        experiment_payload["protocol_override"]["use_target_labels"] = True
     fold_policy = _resolve_fold_policy(protocol_payload)
     rng_seed, seed_mode = resolve_seed(experiment_payload.get("seed"))
     seed_mode = str(experiment_payload.get("seed_mode", seed_mode))

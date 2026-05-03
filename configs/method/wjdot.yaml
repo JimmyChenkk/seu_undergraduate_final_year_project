@@ -1,0 +1,34 @@
+method_name: wjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+
+loss:
+  name: wjdot
+  adaptation_weight: 0.35
+  source_ce_weight: 1.0
+  feature_weight: 0.03
+  label_weight: 1.0
+  prototype_weight: 0.0
+  use_source_class_balance: true
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 100
+  alignment_start_step: 350
+  alignment_ramp_steps: 700
+  ot_feature_normalize: true
+  ot_source_stop_gradient: true
+  embedding_norm_weight: 0.0001
+
+notes:
+  - Weighted JDOT with source class-balanced sample masses.
+  - Uses source-classification warmup, normalized OT embeddings, and source-side stop-gradient to avoid class-structure collapse.

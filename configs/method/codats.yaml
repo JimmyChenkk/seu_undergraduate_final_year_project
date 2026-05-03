@@ -1,0 +1,47 @@
+method_name: codats
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 500
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: hybrid_source_eval_entropy_guard_domain_gap
+  early_stopping_metric: hybrid_source_eval_entropy_guard_domain_gap
+  selection_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  selection_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+  early_stopping_weights:
+    source_eval: 1.0
+    entropy_shortfall: 1.0
+    domain_gap: 1.0
+  early_stopping_params:
+    entropy_floor: 0.5
+    domain_confusion_target: 0.5
+
+loss:
+  name: codats_domain_adversarial
+  adaptation_weight: 0.5
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
+  grl_lambda: 1.0
+  grl_warm_start: true
+  grl_max_iters: 1000
+  domain_hidden_dim: 256
+  domain_num_hidden_layers: 2
+
+notes:
+  - CoDATS baseline adapted from AdaTime: time-series encoder, two-hidden-layer CoDATS classifier, and DANN-style domain adversarial alignment.
+  - Kept on the project FCN encoder so it shares the same input pipeline and benchmark interface as the other baselines.

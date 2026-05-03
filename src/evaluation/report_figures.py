@@ -10,16 +10,41 @@ from pathlib import Path
 from src.evaluation.review import extract_core_metrics
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
-DEFAULT_PRIMARY_FIGURE_FORMAT = "svg"
-REQUIRED_FIGURE_FORMATS = ("svg",)
+DEFAULT_PRIMARY_FIGURE_FORMAT = "pdf"
+REQUIRED_FIGURE_FORMATS = ("pdf",)
+THESIS_FIGURE_FONT = "Times New Roman"
+PROJECT_FONT_DIRS = (
+    Path("assets/fonts"),
+    Path("paper/fonts"),
+)
+_FONT_WARNING_EMITTED = False
 
 METHOD_ORDER = [
     "source_only",
     "coral",
     "dan",
     "dann",
+    "codats",
     "cdan",
+    "cdan_ts",
+    "dsan",
     "deepjdot",
+    "u_deepjdot",
+    "tpu_deepjdot",
+    "cbtpu_deepjdot",
+    "tp_deepjdot",
+    "cbtp_deepjdot",
+    "jdot",
+    "tp_jdot",
+    "cbtp_jdot",
+    "wjdot",
+    "tp_wjdot",
+    "cbtp_wjdot",
+    "ms_cbtp_wjdot",
+    "raincoat",
+    "tc_cdan",
+    "rpl_tc_cdan",
+    "ccs_rpl_tc_cdan",
     "rcta",
     "rcta_m0_base_da",
     "rcta_m1_temporal_mt",
@@ -31,6 +56,16 @@ METHOD_ORDER = [
     "rcta_abc_full",
     "target_only",
 ]
+
+FIGURE_HIDDEN_METHODS = {
+    "u_deepjdot",
+}
+
+METHOD_DISPLAY_NAMES = {
+    "deepjdot": "deepjdot",
+    "tpu_deepjdot": "tpu_dpjdot",
+    "cbtpu_deepjdot": "cbtpu_dpjdot",
+}
 
 
 class FigureDependencyError(RuntimeError):
@@ -52,7 +87,67 @@ def _runtime_dependencies():
     import numpy as np
     from sklearn.manifold import TSNE
 
+    _configure_matplotlib_fonts(plt)
     return np, plt, TSNE
+
+
+def _configure_matplotlib_fonts(plt) -> None:
+    """Use the thesis-required Times New Roman style for exported result figures."""
+
+    global _FONT_WARNING_EMITTED
+    _register_project_fonts()
+    plt.rcParams.update(
+        {
+            "font.family": THESIS_FIGURE_FONT,
+            "font.serif": [THESIS_FIGURE_FONT],
+            "mathtext.fontset": "stix",
+            "axes.unicode_minus": False,
+            "svg.fonttype": "none",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+        }
+    )
+    try:
+        from matplotlib import font_manager
+
+        font_manager.findfont(THESIS_FIGURE_FONT, fallback_to_default=False)
+    except Exception:
+        if not _FONT_WARNING_EMITTED:
+            print(
+                "[report_figures] Times New Roman is required for thesis figures, "
+                "but it was not found in the active Matplotlib font cache. "
+                "Install the font or provide it to Matplotlib before final export."
+            )
+            _FONT_WARNING_EMITTED = True
+
+
+def _register_project_fonts() -> None:
+    """Register repo-local font files without requiring system font installation."""
+
+    try:
+        from matplotlib import font_manager
+    except Exception:
+        return
+
+    root_dir = Path(__file__).resolve().parents[2]
+    seen: set[Path] = set()
+    for font_dir in PROJECT_FONT_DIRS:
+        candidate_dirs = [root_dir / font_dir]
+        if not font_dir.is_absolute():
+            candidate_dirs.append(Path.cwd() / font_dir)
+        for candidate_dir in candidate_dirs:
+            if not candidate_dir.exists():
+                continue
+            for suffix in ("*.ttf", "*.ttc", "*.otf"):
+                for font_path in candidate_dir.glob(suffix):
+                    resolved_path = font_path.resolve()
+                    if resolved_path in seen:
+                        continue
+                    seen.add(resolved_path)
+                    try:
+                        font_manager.fontManager.addfont(str(resolved_path))
+                    except Exception as exc:
+                        print(f"[report_figures] failed to register font {resolved_path}: {exc}")
 
 
 def load_result_rows(results_dir: Path) -> list[dict]:
@@ -166,6 +261,18 @@ def _sort_methods_for_heatmap(methods) -> list[str]:
     )
 
 
+def _visible_figure_methods(methods) -> list[str]:
+    return [
+        method
+        for method in methods
+        if str(method) not in FIGURE_HIDDEN_METHODS
+    ]
+
+
+def _display_method_name(method_name: str) -> str:
+    return METHOD_DISPLAY_NAMES.get(str(method_name), str(method_name))
+
+
 def export_mean_bar_chart(
     rows: list[dict],
     output_path: Path,
@@ -182,12 +289,12 @@ def export_mean_bar_chart(
     for row in subset:
         grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
 
-    methods = _sort_methods_for_mean_chart(grouped)
+    methods = _visible_figure_methods(_sort_methods_for_mean_chart(grouped))
     values = [np.mean(grouped[method]) for method in methods]
 
     plt.figure(figsize=(10, 5))
     plt.bar(np.arange(len(methods)), values, width=0.65, color="#4C78A8")
-    plt.xticks(np.arange(len(methods)), methods, rotation=20)
+    plt.xticks(np.arange(len(methods)), [_display_method_name(method) for method in methods], rotation=20)
     plt.ylabel("Accuracy")
     plt.ylim(0, 1.0)
     if setting_name is None:
@@ -211,9 +318,11 @@ def export_setting_heatmap(
 
     scenarios = sorted(set(row["scenario_id"] for row in subset))
     scenario_labels = [_compact_scenario_label(scenario) for scenario in scenarios]
-    methods = _sort_methods_for_heatmap(set(row["method"] for row in subset))
+    methods = _visible_figure_methods(_sort_methods_for_heatmap(set(row["method"] for row in subset)))
     matrix = np.full((len(scenarios), len(methods)), np.nan, dtype=float)
     for row in subset:
+        if row["method"] not in methods:
+            continue
         scenario_index = scenarios.index(row["scenario_id"])
         method_index = methods.index(row["method"])
         matrix[scenario_index, method_index] = row["target_eval_acc"]
@@ -221,7 +330,7 @@ def export_setting_heatmap(
     plt.figure(figsize=(max(7, len(methods) * 1.2), max(4, len(scenarios) * 0.5)))
     image = plt.imshow(matrix, aspect="auto", cmap="YlGnBu", vmin=0, vmax=1)
     plt.colorbar(image, label="Accuracy")
-    plt.xticks(np.arange(len(methods)), methods, rotation=30)
+    plt.xticks(np.arange(len(methods)), [_display_method_name(method) for method in methods], rotation=30)
     plt.yticks(np.arange(len(scenarios)), scenario_labels)
     plt.title(f"{setting_name.replace('_', '-').title()} Task Heatmap")
 
@@ -234,13 +343,23 @@ def export_setting_heatmap(
     _save_figure(output_path, figure_format=figure_format)
 
 
+def _prepare_tsne_features(features: np.ndarray) -> np.ndarray:
+    np, _, _ = _runtime_dependencies()
+    safe = np.nan_to_num(features.astype(np.float32, copy=False), nan=0.0, posinf=0.0, neginf=0.0)
+    mean = safe.mean(axis=0, keepdims=True)
+    std = safe.std(axis=0, keepdims=True)
+    safe = (safe - mean) / np.maximum(std, 1e-6)
+    norms = np.linalg.norm(safe, axis=1, keepdims=True)
+    return safe / np.maximum(norms, 1e-6)
+
+
 def _fit_tsne(features: np.ndarray) -> np.ndarray:
     np, _, TSNE = _runtime_dependencies()
     if len(features) <= 5:
         return np.zeros((len(features), 2), dtype=np.float32)
     perplexity = min(30, max(5, len(features) // 10), len(features) - 1)
     tsne = TSNE(n_components=2, init="pca", learning_rate="auto", perplexity=perplexity, random_state=42)
-    return tsne.fit_transform(features)
+    return tsne.fit_transform(_prepare_tsne_features(features))
 
 
 def _balanced_sample_indices(source_count: int, target_count: int, *, max_points: int = 2000) -> tuple[np.ndarray, np.ndarray]:
@@ -558,8 +677,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--figure-format",
         choices=("pdf", "svg"),
-        default="svg",
-        help="Primary export format. SVG is always emitted; PNG companion export is disabled for now.",
+        default=DEFAULT_PRIMARY_FIGURE_FORMAT,
+        help="Primary export format. PDF is always emitted; PNG companion export is disabled for now.",
     )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(

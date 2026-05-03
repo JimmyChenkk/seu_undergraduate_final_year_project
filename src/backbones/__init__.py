@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .fcn import ClassifierHead, FullyConvolutionalEncoder
+from .fcn import ClassifierHead, FullyConvolutionalEncoder, TemporalPrototypeFCNEncoder
 
 
 def build_backbone(
@@ -23,11 +23,19 @@ def build_backbone(
             instance_norm=bool(config.get("instance_norm", True)),
             dropout=dropout,
         )
+    if normalized in {"fcn_temporal", "temporal_fcn", "tp_fcn"}:
+        return TemporalPrototypeFCNEncoder(
+            in_channels=in_channels,
+            instance_norm=bool(config.get("instance_norm", True)),
+            dropout=dropout,
+            embedding_dim=int(config.get("embedding_dim", 128)),
+        )
     raise KeyError(f"Unsupported backbone: {name}")
 
 
 __all__ = [
     "ClassifierHead",
     "FullyConvolutionalEncoder",
+    "TemporalPrototypeFCNEncoder",
     "build_backbone",
 ]

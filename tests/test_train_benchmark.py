@@ -101,6 +101,54 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(merged_experiment["runtime"]["num_workers"], 0)
         self.assertFalse(merged_experiment["runtime"]["cudnn_benchmark"])
 
+    def test_method_overrides_runtime_defaults_apply_to_runtime(self) -> None:
+        experiment_payload = {
+            "runtime": {"show_progress": True},
+            "method_overrides": {
+                "rpl_tc_cdan": {
+                    "runtime_defaults": {
+                        "model_selection": "hybrid_source_eval_confidence_guard",
+                        "selection_weights": {
+                            "source_eval": 0.86,
+                            "target_confidence": 0.14,
+                            "overconfidence": 0.85,
+                        },
+                    },
+                },
+            },
+        }
+        method_payload = {
+            "method_name": "rpl_tc_cdan",
+            "runtime_defaults": {
+                "model_selection": "target_confidence",
+                "selection_weights": {"target_confidence": 1.0},
+            },
+        }
+
+        merged_experiment = apply_method_runtime_defaults(experiment_payload, method_payload)
+        merged_experiment, merged_method = apply_method_overrides(merged_experiment, method_payload)
+
+        self.assertEqual(
+            merged_experiment["runtime"]["model_selection"],
+            "hybrid_source_eval_confidence_guard",
+        )
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_weights"],
+            {
+                "source_eval": 0.86,
+                "target_confidence": 0.14,
+                "overconfidence": 0.85,
+            },
+        )
+        self.assertEqual(
+            merged_method["runtime_defaults"]["selection_weights"],
+            {
+                "source_eval": 0.86,
+                "target_confidence": 0.14,
+                "overconfidence": 0.85,
+            },
+        )
+
     def test_runtime_metric_dicts_replace_instead_of_union_merging(self) -> None:
         experiment_payload = {
             "runtime": {
@@ -173,6 +221,51 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(merged_method["optimization"]["batch_size"], 32)
         self.assertEqual(merged_method["optimization"]["learning_rate"], 2e-4)
         self.assertEqual(merged_method["loss"]["adaptation_weight"], 0.8)
+
+    def test_apply_method_overrides_accepts_scene_method_wrapper(self) -> None:
+        experiment_payload = {
+            "runtime": {"show_progress": True},
+            "protocol_override": {
+                "setting": "single_source",
+                "source_domains": ["mode1"],
+                "target_domain": "mode2",
+            },
+            "method_overrides": {
+                "mode1_to_mode2": {
+                    "rpl_tc_cdan": {
+                        "runtime": {
+                            "model_selection": "hybrid_source_eval_confidence_guard",
+                            "selection_weights": {
+                                "source_eval": 0.86,
+                                "target_confidence": 0.14,
+                                "overconfidence": 0.85,
+                            },
+                        },
+                        "loss": {"pseudo_weight": 0.03},
+                    },
+                },
+            },
+        }
+        method_payload = {
+            "method_name": "rpl_tc_cdan",
+            "loss": {"pseudo_weight": 0.07},
+        }
+
+        merged_experiment, merged_method = apply_method_overrides(experiment_payload, method_payload)
+
+        self.assertEqual(
+            merged_experiment["runtime"]["model_selection"],
+            "hybrid_source_eval_confidence_guard",
+        )
+        self.assertEqual(
+            merged_experiment["runtime"]["selection_weights"],
+            {
+                "source_eval": 0.86,
+                "target_confidence": 0.14,
+                "overconfidence": 0.85,
+            },
+        )
+        self.assertEqual(merged_method["loss"]["pseudo_weight"], 0.03)
 
     def test_hybrid_selection_can_prefer_lower_entropy_epoch(self) -> None:
         weights = {"source_eval": 0.7, "target_entropy": 0.3}
@@ -326,9 +419,9 @@ class TrainBenchmarkTests(unittest.TestCase):
         review = build_run_review(
             result_payload,
             figure_paths={
-                "tsne_domain": "runs/example/figures/tsne_domain.svg",
-                "tsne_class": "runs/example/figures/tsne_class.svg",
-                "confusion_matrix": "runs/example/figures/confusion_matrix.svg",
+                "tsne_domain": "runs/example/figures/tsne_domain.pdf",
+                "tsne_class": "runs/example/figures/tsne_class.pdf",
+                "confusion_matrix": "runs/example/figures/confusion_matrix.pdf",
             },
         )
 

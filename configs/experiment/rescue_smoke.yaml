@@ -1,0 +1,77 @@
+experiment_name: rescue_smoke
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - source_only
+    - target_only
+    - cdan
+    - tc_cdan
+    - rpl_tc_cdan
+    - ccs_rpl_tc_cdan
+  single_source_scenes:
+    - mode1->mode2
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+  scene_fold_overrides:
+    m1_m2:
+      source_fold: 2
+      target_fold: 4
+
+notes:
+  - Stage-1 smoke test for mode1->mode2: source-only, target-only, CDAN, and the three progressive methods.
+  - Use this before any large tuning; confirm finite losses, complete result.json files, and figure export.

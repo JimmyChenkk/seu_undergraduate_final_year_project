@@ -1,0 +1,128 @@
+experiment_name: tep_ot_single_source_jdot_pilot
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  refresh_batch_outputs: true
+  model_selection: target_free_checkpoint_guard
+  early_stopping_metric: target_free_checkpoint_guard
+  selection_weights:
+    source_eval: 1.00
+    target_entropy_badness: 0.10
+    confidence_collapse: 1.00
+    class_distribution_collapse: 0.50
+    ot_cost_instability: 0.10
+    embedding_norm_instability: 0.05
+  selection_params:
+    confidence_ceiling: 0.85
+    target_entropy_floor: 0.15
+    class_entropy_floor: 0.35
+  early_stopping_weights:
+    source_eval: 1.00
+    target_entropy_badness: 0.10
+    confidence_collapse: 1.00
+    class_distribution_collapse: 0.50
+    ot_cost_instability: 0.10
+    embedding_norm_instability: 0.05
+  early_stopping_params:
+    confidence_ceiling: 0.85
+    target_entropy_floor: 0.15
+    class_entropy_floor: 0.35
+  early_stopping_patience: 8
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 20
+
+automation:
+  methods:
+    - jdot
+    - tp_jdot
+    - cbtp_jdot
+  single_source_scenes:
+    - mode1->mode2
+
+method_overrides:
+  all:
+    all:
+      optimization:
+        epochs: 20
+        batch_size: 64
+        learning_rate: 0.0001
+        weight_decay: 0.0001
+      loss:
+        transport_solver: sinkhorn
+        sinkhorn_reg: 0.05
+        sinkhorn_num_iter_max: 100
+        ot_feature_normalize: true
+        ot_source_stop_gradient: true
+        embedding_norm_weight: 0.0001
+  tp_jdot:
+    loss:
+      alignment_start_step: 0
+      alignment_ramp_steps: 200
+      prototype_start_step: 0
+      prototype_warmup_steps: 300
+  cbtp_jdot:
+    loss:
+      alignment_start_step: 0
+      alignment_ramp_steps: 200
+      prototype_start_step: 0
+      prototype_warmup_steps: 300
+      pseudo_start_step: 200
+      tau_steps: 300
+
+protocol_override:
+  setting: single_source
+  source_domains:
+    - mode1
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+  scene_fold_overrides:
+    m1_m2:
+      source_fold: 2
+      target_fold: 4
+
+notes:
+  - Fast single-source JDOT-line pilot for code and stability checks.
+  - Full thesis comparison should add CDAN-TS, DSAN, CoDATS, and DeepJDOT after this pilot is stable.

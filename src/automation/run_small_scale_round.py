@@ -65,8 +65,15 @@ def _parse_scene_tokens(scene_tokens: Iterable[str]) -> list[tuple[str, str]]:
     parsed = []
     for token in scene_tokens:
         normalized = str(token).replace(":", "->")
+        if "->" not in normalized and "-" in normalized:
+            parts = [item.strip() for item in normalized.split("-") if item.strip()]
+            if len(parts) == 2:
+                normalized = f"{parts[0]}->{parts[1]}"
         if "->" not in normalized:
-            raise ValueError(f"Invalid scene token: {token}")
+            raise ValueError(
+                f"Invalid scene token: {token}. Use a quoted token like 'mode1->mode2', "
+                "or avoid shell redirection with mode1:mode2 / mode1-mode2."
+            )
         source_domain, target_domain = [item.strip() for item in normalized.split("->", maxsplit=1)]
         source_domain = _validate_domain(source_domain)
         target_domain = _validate_domain(target_domain)
@@ -280,6 +287,37 @@ def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str
     return merged
 
 
+_METHOD_OVERRIDE_SECTION_KEYS = {
+    "backbone",
+    "loss",
+    "notes",
+    "optimization",
+    "protocol_override",
+    "runtime",
+    "runtime_defaults",
+    "tracking",
+}
+
+
+def _merge_method_override_payload(
+    merged: dict[str, Any],
+    payload: dict[str, Any],
+    method_keys: list[str],
+) -> dict[str, Any]:
+    """Merge either a direct override payload or a method-keyed override map."""
+
+    next_payload = merged
+    if any(key in payload for key in _METHOD_OVERRIDE_SECTION_KEYS):
+        next_payload = _deep_merge_dict(next_payload, payload)
+
+    for method_key in ["*", "all", *method_keys]:
+        method_payload = payload.get(method_key)
+        if isinstance(method_payload, dict):
+            next_payload = _deep_merge_dict(next_payload, method_payload)
+
+    return next_payload
+
+
 def _scene_override_payload(
     experiment_payload: dict[str, Any],
     scene: dict[str, object],
@@ -290,23 +328,30 @@ def _scene_override_payload(
         return {}
 
     scene_keys = _scene_override_keys(scene)
-    method_keys = {
-        "*",
-        "all",
-        method_name,
-        str(method_name).lower(),
-    }
+    method_keys = list(
+        dict.fromkeys(
+            [
+                method_name,
+                str(method_name).lower(),
+            ]
+        )
+    )
+    top_level_keys = list(
+        dict.fromkeys(
+            [
+                "*",
+                "all",
+                *method_keys,
+                *scene_keys,
+            ]
+        )
+    )
     merged: dict[str, Any] = {}
 
-    for scene_key in ["*", "all", *scene_keys]:
-        scene_payload = overrides.get(scene_key)
-        if not isinstance(scene_payload, dict):
-            continue
-        for method_key in ["*", "all", *method_keys]:
-            method_payload = scene_payload.get(method_key)
-            if not isinstance(method_payload, dict):
-                continue
-            merged = _deep_merge_dict(merged, method_payload)
+    for top_level_key in top_level_keys:
+        payload = overrides.get(top_level_key)
+        if isinstance(payload, dict):
+            merged = _merge_method_override_payload(merged, payload, method_keys)
 
     return merged
 
@@ -585,12 +630,9 @@ def main() -> None:
             }
             experiment_payload["protocol_override"].update(protocol_update)
             if run.get("method_overrides"):
-                scene_key = str(run["label"])
                 method_key = str(run["method_name"])
                 experiment_payload["method_overrides"] = {
-                    scene_key: {
-                        method_key: deepcopy(run["method_overrides"]),
-                    }
+                    method_key: deepcopy(run["method_overrides"]),
                 }
 
             temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"

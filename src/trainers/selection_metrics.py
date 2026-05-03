@@ -208,3 +208,59 @@ def _metric_hybrid_source_eval_confidence_guard(
         score -= domain_gap_weight * domain_gap
 
     return score
+
+
+@register_selection_metric(
+    "target_free_checkpoint_guard",
+    "hybrid_source_eval_target_free_guard",
+    "source_val_target_free_guard",
+)
+def _metric_target_free_checkpoint_guard(
+    summary: dict[str, float],
+    weights: dict[str, float],
+    params: dict[str, float],
+) -> float | None:
+    """Target-label-free checkpoint score with collapse and instability guards."""
+
+    source_eval = _finite_or_none(summary.get("acc_source_eval"))
+    if source_eval is None:
+        return None
+
+    target_entropy = _finite_or_none(summary.get("target_train_mean_entropy"))
+    target_confidence = _finite_or_none(summary.get("target_train_mean_confidence"))
+    class_entropy = _finite_or_none(summary.get("target_train_pred_class_entropy"))
+    ot_instability = _finite_or_none(summary.get("ot_cost_instability")) or 0.0
+    embedding_instability = _finite_or_none(summary.get("embedding_norm_instability")) or 0.0
+    ot_class_collapse = _finite_or_none(summary.get("ot_class_collapse_penalty")) or 0.0
+
+    source_weight = float(weights.get("source_eval", 1.0))
+    entropy_weight = float(weights.get("target_entropy_badness", weights.get("target_entropy", 0.10)))
+    confidence_weight = float(weights.get("confidence_collapse", weights.get("overconfidence", 1.0)))
+    class_weight = float(weights.get("class_distribution_collapse", 0.50))
+    ot_weight = float(weights.get("ot_cost_instability", 0.10))
+    embedding_weight = float(weights.get("embedding_norm_instability", 0.05))
+
+    entropy_floor = float(params.get("target_entropy_floor", 0.15))
+    confidence_ceiling = float(params.get("confidence_ceiling", 0.90))
+    class_entropy_floor = float(params.get("class_entropy_floor", 0.35))
+
+    entropy_badness = 0.0
+    if target_entropy is not None:
+        entropy_badness = max(0.0, entropy_floor - target_entropy)
+
+    confidence_collapse = 0.0
+    if target_confidence is not None:
+        confidence_collapse = max(0.0, target_confidence - confidence_ceiling)
+
+    class_collapse = 0.0
+    if class_entropy is not None:
+        class_collapse = max(0.0, class_entropy_floor - class_entropy)
+
+    score = source_weight * source_eval
+    score -= entropy_weight * entropy_badness
+    score -= confidence_weight * confidence_collapse
+    score -= class_weight * class_collapse
+    score -= ot_weight * max(0.0, ot_instability)
+    score -= embedding_weight * max(0.0, embedding_instability)
+    score -= class_weight * max(0.0, ot_class_collapse)
+    return score

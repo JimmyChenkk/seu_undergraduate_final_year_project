@@ -1,0 +1,28 @@
+method_name: dsan
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: local_mmd
+  adaptation_weight: 0.05
+  adaptation_schedule: warm_start
+  adaptation_max_steps: 1000
+  adaptation_schedule_alpha: 10.0
+  kernel_mul: 2.0
+  kernel_num: 5
+  fix_sigma:
+
+notes:
+  - DSAN baseline adapted from AdaTime and TL fault-diagnosis references.
+  - Uses label-aware LMMD between source class labels and target soft pseudo labels.
+  - LMMD is weighted on the same scale as the existing DAN baseline to avoid suppressing source fault classification.

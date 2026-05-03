@@ -172,6 +172,119 @@ def multiple_kernel_mmd(
     return MultipleKernelMaximumMeanDiscrepancy(kernels, linear=linear)(features_source, features_target)
 
 
+class LocalMaximumMeanDiscrepancyLoss(nn.Module):
+    """Class-conditional LMMD loss used by DSAN.
+
+    The reference DSAN implementations in AdaTime and fault-diagnosis toolkits
+    build class-normalized source/target weights from source labels and target
+    soft pseudo labels, then apply those weights to a multi-kernel RBF matrix.
+    This version keeps the same estimator but stays device-native and supports
+    rectangular source/target minibatches.
+    """
+
+    def __init__(
+        self,
+        *,
+        num_classes: int,
+        kernel_mul: float = 2.0,
+        kernel_num: int = 5,
+        fix_sigma: float | None = None,
+    ) -> None:
+        super().__init__()
+        self.num_classes = int(num_classes)
+        self.kernel_mul = float(kernel_mul)
+        self.kernel_num = max(int(kernel_num), 1)
+        self.fix_sigma = None if fix_sigma is None else float(fix_sigma)
+
+    def _gaussian_kernel(self, source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        n_samples = int(source.shape[0] + target.shape[0])
+        if n_samples <= 1:
+            return torch.zeros(
+                (n_samples, n_samples),
+                device=source.device,
+                dtype=source.dtype,
+            )
+
+        total = torch.cat([source, target], dim=0)
+        l2_distance = torch.cdist(total, total, p=2).pow(2)
+        if self.fix_sigma is not None:
+            bandwidth = torch.as_tensor(self.fix_sigma, device=source.device, dtype=source.dtype)
+        else:
+            off_diagonal = l2_distance.detach()
+            bandwidth = off_diagonal.sum() / float(max(n_samples * n_samples - n_samples, 1))
+        bandwidth = bandwidth.clamp_min(_EPSILON)
+        bandwidth = bandwidth / (self.kernel_mul ** (self.kernel_num // 2))
+        kernels = [
+            torch.exp(-l2_distance / (bandwidth * (self.kernel_mul ** index)).clamp_min(_EPSILON))
+            for index in range(self.kernel_num)
+        ]
+        return sum(kernels)
+
+    def _class_weights(
+        self,
+        source_labels: torch.Tensor,
+        target_probabilities: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
+        source_labels = source_labels.long()
+        source_one_hot = F.one_hot(source_labels, num_classes=self.num_classes).to(
+            device=target_probabilities.device,
+            dtype=target_probabilities.dtype,
+        )
+        target_probabilities = target_probabilities.detach().to(dtype=source_one_hot.dtype)
+        target_pseudo = target_probabilities.argmax(dim=1)
+
+        source_present = source_one_hot.sum(dim=0) > 0
+        target_present = F.one_hot(target_pseudo, num_classes=self.num_classes).sum(dim=0) > 0
+        common_mask = source_present & target_present
+        common_count = int(common_mask.sum().item())
+        if common_count == 0:
+            zero = torch.zeros((1, 1), device=source_one_hot.device, dtype=source_one_hot.dtype)
+            return zero, zero, zero, common_count
+
+        class_mask = common_mask.to(dtype=source_one_hot.dtype).unsqueeze(0)
+        source_norm = source_one_hot.sum(dim=0, keepdim=True).clamp_min(_EPSILON)
+        target_norm = target_probabilities.sum(dim=0, keepdim=True).clamp_min(_EPSILON)
+        source_vec = source_one_hot / source_norm
+        target_vec = target_probabilities / target_norm
+        source_vec = source_vec * class_mask
+        target_vec = target_vec * class_mask
+
+        normalizer = float(common_count)
+        weight_ss = source_vec.mm(source_vec.t()) / normalizer
+        weight_tt = target_vec.mm(target_vec.t()) / normalizer
+        weight_st = source_vec.mm(target_vec.t()) / normalizer
+        return weight_ss, weight_tt, weight_st, common_count
+
+    def forward(
+        self,
+        features_source: torch.Tensor,
+        features_target: torch.Tensor,
+        source_labels: torch.Tensor,
+        target_probabilities: torch.Tensor,
+    ) -> torch.Tensor:
+        source_size = min(features_source.shape[0], source_labels.shape[0])
+        target_size = min(features_target.shape[0], target_probabilities.shape[0])
+        if source_size == 0 or target_size == 0:
+            return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
+
+        features_source = features_source[:source_size]
+        source_labels = source_labels[:source_size]
+        features_target = features_target[:target_size]
+        target_probabilities = target_probabilities[:target_size]
+        weight_ss, weight_tt, weight_st, common_count = self._class_weights(source_labels, target_probabilities)
+        if common_count == 0:
+            return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
+
+        kernels = self._gaussian_kernel(features_source, features_target)
+        if not torch.isfinite(kernels).all():
+            return torch.zeros((), device=features_source.device, dtype=features_source.dtype)
+
+        ss = kernels[:source_size, :source_size]
+        tt = kernels[source_size:, source_size:]
+        st = kernels[:source_size, source_size:]
+        return (weight_ss * ss).sum() + (weight_tt * tt).sum() - 2.0 * (weight_st * st).sum()
+
+
 def deepjdot_loss(
     source_labels: torch.Tensor,
     logits_target: torch.Tensor,

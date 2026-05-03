@@ -8,11 +8,13 @@ from unittest import mock
 from src.evaluation.report_figures import (
     _build_figure_output_path,
     _compact_scenario_label,
+    _configure_matplotlib_fonts,
     _domain_visual_styles,
     _resolve_primary_figure_format,
     _save_figure,
     _sort_methods_for_heatmap,
     _sort_methods_for_mean_chart,
+    THESIS_FIGURE_FONT,
 )
 
 
@@ -46,6 +48,26 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(methods[0], "source_only")
         self.assertEqual(methods[1:], ["dan", "deepjdot", "target_only"])
 
+    def test_mode125_baseline_method_order_keeps_target_only_last(self) -> None:
+        methods = _sort_methods_for_mean_chart(
+            ["target_only", "raincoat", "source_only", "dsan", "cdan_ts", "codats", "deepjdot"]
+        )
+
+        self.assertEqual(
+            methods,
+            ["source_only", "codats", "cdan_ts", "dsan", "deepjdot", "raincoat", "target_only"],
+        )
+
+    def test_deepjdot_innovation_method_order_keeps_progressive_chain(self) -> None:
+        methods = _sort_methods_for_mean_chart(
+            ["cbtp_deepjdot", "source_only", "target_only", "tp_deepjdot", "deepjdot"]
+        )
+
+        self.assertEqual(
+            methods,
+            ["source_only", "deepjdot", "tp_deepjdot", "cbtp_deepjdot", "target_only"],
+        )
+
     def test_heatmap_method_order_keeps_rcta_ablation_stages_in_sequence(self) -> None:
         methods = _sort_methods_for_heatmap(
             [
@@ -78,20 +100,32 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(_compact_scenario_label("mode6_to_mode5"), "m6_m5")
         self.assertEqual(_compact_scenario_label("other_label"), "other_label")
 
-    def test_primary_figure_format_defaults_to_svg(self) -> None:
-        self.assertEqual(_resolve_primary_figure_format(None), "svg")
+    def test_configure_matplotlib_fonts_uses_times_new_roman(self) -> None:
+        fake_plt = mock.Mock()
+        fake_plt.rcParams = {}
+
+        with mock.patch("matplotlib.font_manager.findfont", return_value="/fonts/times.ttf"):
+            _configure_matplotlib_fonts(fake_plt)
+
+        self.assertEqual(fake_plt.rcParams["font.family"], THESIS_FIGURE_FONT)
+        self.assertEqual(fake_plt.rcParams["font.serif"], [THESIS_FIGURE_FONT])
+        self.assertEqual(fake_plt.rcParams["svg.fonttype"], "none")
+        self.assertEqual(fake_plt.rcParams["pdf.fonttype"], 42)
+
+    def test_primary_figure_format_defaults_to_pdf(self) -> None:
+        self.assertEqual(_resolve_primary_figure_format(None), "pdf")
 
     def test_build_figure_output_path_uses_primary_format_suffix(self) -> None:
-        self.assertEqual(_build_figure_output_path(Path("figures/chart")), Path("figures/chart.svg"))
+        self.assertEqual(_build_figure_output_path(Path("figures/chart")), Path("figures/chart.pdf"))
         self.assertEqual(
             _build_figure_output_path(Path("figures/chart.png"), figure_format="pdf"),
             Path("figures/chart.pdf"),
         )
 
-    def test_save_figure_exports_svg_only_by_default(self) -> None:
+    def test_save_figure_exports_pdf_only_by_default(self) -> None:
         fake_plt = mock.Mock()
         with tempfile.TemporaryDirectory() as temp_dir:
-            output_path = Path(temp_dir) / "chart.svg"
+            output_path = Path(temp_dir) / "chart.pdf"
             with mock.patch(
                 "src.evaluation.report_figures._runtime_dependencies",
                 return_value=(None, fake_plt, None),
@@ -101,25 +135,25 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(
             fake_plt.savefig.call_args_list,
             [
-                mock.call(output_path.with_suffix(".svg"), format="svg", bbox_inches="tight"),
+                mock.call(output_path.with_suffix(".pdf"), format="pdf", bbox_inches="tight"),
             ],
         )
 
-    def test_save_figure_keeps_requested_primary_format_and_svg_companion(self) -> None:
+    def test_save_figure_keeps_requested_primary_format_and_pdf_companion(self) -> None:
         fake_plt = mock.Mock()
         with tempfile.TemporaryDirectory() as temp_dir:
-            output_path = Path(temp_dir) / "chart.pdf"
+            output_path = Path(temp_dir) / "chart.svg"
             with mock.patch(
                 "src.evaluation.report_figures._runtime_dependencies",
                 return_value=(None, fake_plt, None),
             ):
-                _save_figure(output_path, figure_format="pdf")
+                _save_figure(output_path, figure_format="svg")
 
         self.assertEqual(
             fake_plt.savefig.call_args_list,
             [
-                mock.call(output_path.with_suffix(".pdf"), format="pdf", bbox_inches="tight"),
                 mock.call(output_path.with_suffix(".svg"), format="svg", bbox_inches="tight"),
+                mock.call(output_path.with_suffix(".pdf"), format="pdf", bbox_inches="tight"),
             ],
         )
 

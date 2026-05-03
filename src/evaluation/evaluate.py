@@ -7,8 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.evaluation.report_figures import METHOD_ORDER
 from src.evaluation.review import extract_core_metrics, load_review
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
+
+
+METHOD_RANK = {method_name: index for index, method_name in enumerate(METHOD_ORDER)}
 
 
 def parse_args() -> argparse.Namespace:
@@ -98,6 +102,22 @@ def annotate_rows_with_baseline(rows: list[dict[str, Any]]) -> list[dict[str, An
             }
         )
     return annotated
+
+
+def sort_comparison_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    scenario_rank: dict[str, int] = {}
+    for row in rows:
+        scenario_id = str(row.get("scenario_id"))
+        scenario_rank.setdefault(scenario_id, len(scenario_rank))
+
+    return sorted(
+        rows,
+        key=lambda row: (
+            scenario_rank[str(row.get("scenario_id"))],
+            METHOD_RANK.get(str(row.get("method")), len(METHOD_RANK)),
+            str(row.get("method")),
+        ),
+    )
 
 
 def render_markdown_table(rows: list[dict[str, Any]]) -> str:
@@ -217,7 +237,7 @@ def _save_summary(summary_dir: Path, rows: list[dict[str, Any]], markdown_table:
 
 
 def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None) -> Path | None:
-    rows = annotate_rows_with_baseline(build_rows(results_dir))
+    rows = sort_comparison_rows(annotate_rows_with_baseline(build_rows(results_dir)))
     if not rows:
         return None
     resolved_summary_dir = _resolve_summary_dir(results_dir, summary_dir)
@@ -229,7 +249,7 @@ def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None
 
 def main() -> None:
     args = parse_args()
-    rows = annotate_rows_with_baseline(build_rows(args.results_dir))
+    rows = sort_comparison_rows(annotate_rows_with_baseline(build_rows(args.results_dir)))
 
     if not rows:
         print("No result JSON files found.")

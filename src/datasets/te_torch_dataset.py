@@ -369,9 +369,14 @@ def prepare_benchmark_data(
         )
         for split in source_splits
     ]
+    if str(setting.target_label_mode).strip().lower() == "unlabeled":
+        target_train_y = torch.full_like(target_split.train_y, -1)
+    else:
+        target_train_y = target_split.train_y
+
     target_train_loader = _make_loader(
         target_split.train_x,
-        target_split.train_y,
+        target_train_y,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
