@@ -49,17 +49,18 @@ loss:
   q_ot_power: 1.0
   q_cls_power: 1.0
   q_proto_power: 1.0
-  pseudo_weight: 0.015
-  pseudo_start_step: 900
-  pseudo_warmup_steps: 1000
-  tau_start: 0.95
-  tau_end: 0.85
+  pseudo_weight: 0.012
+  pseudo_start_step: 1100
+  pseudo_warmup_steps: 1200
+  tau_start: 0.96
+  tau_end: 0.88
   tau_steps: 1500
+  pseudo_max_acceptance: 0.60
   q_ot_entropy_threshold: 0.70
-  js_threshold: 0.08
-  consistency_weight: 0.02
-  consistency_start_step: 900
-  consistency_warmup_steps: 1000
+  js_threshold: 0.06
+  consistency_weight: 0.015
+  consistency_start_step: 1100
+  consistency_warmup_steps: 1200
   consistency_mid_tau: 0.55
   logit_adjustment_eta: 0.10
   infomax_weight: 0.0

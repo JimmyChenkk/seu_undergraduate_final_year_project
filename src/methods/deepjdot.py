@@ -1248,6 +1248,7 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
         tau_start: float = 0.95,
         tau_end: float = 0.85,
         tau_steps: int = 1500,
+        pseudo_max_acceptance: float = 0.0,
         q_ot_entropy_threshold: float = 0.70,
         js_threshold: float = 0.08,
         consistency_weight: float = 0.02,
@@ -1276,6 +1277,7 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
         self.tau_start = min(max(float(tau_start), 0.0), 1.0)
         self.tau_end = min(max(float(tau_end), 0.0), 1.0)
         self.tau_steps = max(int(tau_steps), 1)
+        self.pseudo_max_acceptance = min(max(float(pseudo_max_acceptance), 0.0), 1.0)
         self.q_ot_entropy_threshold = max(float(q_ot_entropy_threshold), 0.0)
         self.js_threshold = max(float(js_threshold), 0.0)
         self.consistency_weight = float(consistency_weight)
@@ -1466,6 +1468,21 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
             & (q_mix_confidence >= tau)
             & (q_ot_entropy <= self.q_ot_entropy_threshold)
         )
+        raw_accept_mask = accept_mask.clone()
+        if self.pseudo_max_acceptance > 0 and bool(accept_mask.any()):
+            max_accepted = max(1, int(round(float(accept_mask.numel()) * self.pseudo_max_acceptance)))
+            accepted_count = int(accept_mask.sum().detach().item())
+            if accepted_count > max_accepted:
+                accepted_indices = torch.where(accept_mask)[0]
+                ranking_score = (
+                    q_mix_confidence[accepted_indices].float()
+                    - 0.15 * js_disagreement[accepted_indices].float()
+                    - 0.05 * q_ot_entropy[accepted_indices].float()
+                )
+                kept_local = torch.topk(ranking_score, k=max_accepted, largest=True).indices
+                capped_mask = torch.zeros_like(accept_mask)
+                capped_mask[accepted_indices[kept_local]] = True
+                accept_mask = capped_mask
         mid_confidence_mask = (
             (~accept_mask)
             & (q_mix_confidence >= self.consistency_mid_tau)
@@ -1522,6 +1539,7 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
             )
 
         accepted_ratio = float(accept_mask.float().mean().detach().item())
+        raw_accepted_ratio = float(raw_accept_mask.float().mean().detach().item())
         consistency_ratio = float(consistency_mask.float().mean().detach().item())
         accepted_hist = torch.bincount(
             q_mix_labels[accept_mask].detach().long(),
@@ -1554,6 +1572,8 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
             "q_cls_q_proto_agreement_rate": float((q_cls_labels == q_proto_labels).float().mean().detach().item()),
             "js_disagreement_mean": float(js_disagreement.detach().mean().item()),
             "accepted_target_ratio": accepted_ratio,
+            "accepted_target_ratio_raw": raw_accepted_ratio,
+            "pseudo_max_acceptance": float(self.pseudo_max_acceptance),
             "pseudo_acceptance": accepted_ratio,
             "consistency_target_ratio": consistency_ratio,
             "q_mix_confidence_mean": float(q_mix_confidence.detach().mean().item()),

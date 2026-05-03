@@ -288,6 +288,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     "tau_start": float(loss.get("tau_start", 0.95)),
                     "tau_end": float(loss.get("tau_end", 0.85)),
                     "tau_steps": int(loss.get("tau_steps", 1500)),
+                    "pseudo_max_acceptance": float(loss.get("pseudo_max_acceptance", 0.0)),
                     "q_ot_entropy_threshold": float(loss.get("q_ot_entropy_threshold", 0.70)),
                     "js_threshold": float(loss.get("js_threshold", 0.08)),
                     "consistency_weight": float(loss.get("consistency_weight", 0.02)),
