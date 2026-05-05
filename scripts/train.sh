@@ -6,7 +6,7 @@ source "${ROOT_DIR}/scripts/common_env.sh"
 
 DATA_CONFIG="configs/data/te_da.yaml"
 METHOD_CONFIG="configs/method/source_only.yaml"
-EXPERIMENT_CONFIG="configs/experiment/quick_debug.yaml"
+EXPERIMENT_CONFIG="configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml"
 
 if [[ $# -ge 1 && "$1" != --* ]]; then
   DATA_CONFIG="$1"

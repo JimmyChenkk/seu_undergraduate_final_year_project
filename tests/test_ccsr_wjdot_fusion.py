@@ -10,7 +10,6 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.evaluation.ccsr_wjdot_fusion import export_ccsr_wjdot_fusion_artifacts
-from src.methods import build_method
 
 
 def _loader(x_values, y_values) -> DataLoader:
@@ -42,29 +41,6 @@ class TinyFeatureModel(nn.Module):
 
 
 class CCSRWDOTFusionTests(unittest.TestCase):
-    def test_method_registry_builds_ccsr_wjdot_fusion(self) -> None:
-        method = build_method(
-            {
-                "method_name": "ccsr_wjdot_fusion",
-                "backbone": {
-                    "name": "fcn",
-                    "classifier_hidden_dim": 8,
-                    "dropout": 0.0,
-                    "embedding_dim": 8,
-                },
-                "loss": {
-                    "transport_solver": "sinkhorn",
-                    "sinkhorn_num_iter_max": 5,
-                },
-            },
-            num_classes=3,
-            in_channels=2,
-            input_length=16,
-            num_sources=2,
-        )
-
-        self.assertEqual(method.method_name, "ccsr_wjdot_fusion")
-
     def test_fusion_exports_alpha_and_final_metrics(self) -> None:
         source1_train = _loader(
             [

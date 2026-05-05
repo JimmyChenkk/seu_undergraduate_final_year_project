@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import importlib.util
 import unittest
 
 import torch
 
 from src.methods import build_method
-from tests.test_ccs_rpl_tc_cdan import _ccs_config
-from tests.test_rpl_tc_cdan import _rpl_config
-from tests.test_tc_cdan import _tc_config
+from tests.test_deepjdot import _tpu_family_config
 
 
 def _ca_ccsr_wjdot_config() -> dict:
@@ -36,6 +35,7 @@ def _ca_ccsr_wjdot_config() -> dict:
     }
 
 
+@unittest.skipUnless(importlib.util.find_spec("ot") is not None, "POT is required for OT-based methods")
 class NoTargetLabelLeakageTests(unittest.TestCase):
     def _loss_with_target_labels(self, config: dict, target_y: torch.Tensor) -> float:
         torch.manual_seed(10)
@@ -49,9 +49,8 @@ class NoTargetLabelLeakageTests(unittest.TestCase):
 
     def test_unsupervised_progressive_methods_ignore_target_batch_labels(self) -> None:
         configs = [
-            _tc_config(),
-            _rpl_config(no_reliable=False),
-            _ccs_config(no_reliable=False),
+            _tpu_family_config("tpu_deepjdot"),
+            _tpu_family_config("cbtpu_deepjdot"),
             _ca_ccsr_wjdot_config(),
         ]
         labels_a = torch.tensor([0, 1, 2, 3])

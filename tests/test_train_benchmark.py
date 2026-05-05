@@ -147,7 +147,7 @@ class TrainBenchmarkTests(unittest.TestCase):
         experiment_payload = {
             "runtime": {"show_progress": True},
             "method_overrides": {
-                "rpl_tc_cdan": {
+                "cbtpu_deepjdot": {
                     "runtime_defaults": {
                         "model_selection": "hybrid_source_eval_confidence_guard",
                         "selection_weights": {
@@ -160,7 +160,7 @@ class TrainBenchmarkTests(unittest.TestCase):
             },
         }
         method_payload = {
-            "method_name": "rpl_tc_cdan",
+            "method_name": "cbtpu_deepjdot",
             "runtime_defaults": {
                 "model_selection": "target_confidence",
                 "selection_weights": {"target_confidence": 1.0},
@@ -274,7 +274,7 @@ class TrainBenchmarkTests(unittest.TestCase):
             },
             "method_overrides": {
                 "mode1_to_mode2": {
-                    "rpl_tc_cdan": {
+                    "cbtpu_deepjdot": {
                         "runtime": {
                             "model_selection": "hybrid_source_eval_confidence_guard",
                             "selection_weights": {
@@ -289,7 +289,7 @@ class TrainBenchmarkTests(unittest.TestCase):
             },
         }
         method_payload = {
-            "method_name": "rpl_tc_cdan",
+            "method_name": "cbtpu_deepjdot",
             "loss": {"pseudo_weight": 0.07},
         }
 

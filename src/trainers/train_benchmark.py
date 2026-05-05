@@ -486,19 +486,11 @@ def ensure_dependencies(
         "tp_jdot",
         "cbtp_jdot",
         "wjdot",
-        "pooled_wjdot",
-        "sourceaware_wjdot_shared_head",
-        "sourceaware_wjdot_multi_head",
-        "sa_ccsr_wjdot_train",
         "ca_ccsr_wjdot",
         "tp_wjdot",
         "cbtp_wjdot",
         "ms_cbtp_wjdot",
-        "ccsr_wjdot_fusion",
     }
-    if method_name == "rcta":
-        base_align = str((method_config or {}).get("loss", {}).get("base_align", "cdan")).strip().lower()
-        requires_ot = base_align == "deepjdot"
 
     if requires_ot:
         required.append("ot")
@@ -1645,38 +1637,8 @@ def run_deep_experiment(
     )
     timing["target_metrics_seconds"] += perf_counter() - target_metrics_timer_start
     selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
-    ccsr_fusion_summary: dict[str, Any] | None = None
     ca_ccsr_wjdot_summary: dict[str, Any] | None = None
-    if method_name == "ccsr_wjdot_fusion":
-        ccsr_timer_start = perf_counter()
-        from src.evaluation.ccsr_wjdot_fusion import export_ccsr_wjdot_fusion_artifacts
-
-        ccsr_fusion_summary = export_ccsr_wjdot_fusion_artifacts(
-            model=model,
-            prepared_data=prepared_data,
-            device=device,
-            analysis_path=run_paths["artifacts_dir"] / "ccsr_analysis.npz",
-            tables_dir=run_paths["tables_dir"],
-            figures_dir=run_paths["figures_dir"],
-            scenario_id=scenario_id,
-            method_name=method_display_name,
-            ccsr_config=method_config.get("loss", {}),
-            max_batches=evaluation_max_batches,
-            non_blocking=transfer_non_blocking,
-            amp_enabled=False,
-        )
-        selected_target_metrics = {
-            **selected_target_metrics,
-            "target_eval_acc": float(ccsr_fusion_summary["target_eval_acc"]),
-            "target_eval_macro_f1": float(ccsr_fusion_summary["target_eval_macro_f1"]),
-            "target_eval_balanced_acc": float(ccsr_fusion_summary["target_eval_balanced_acc"]),
-            "target_confusion_matrix": ccsr_fusion_summary["target_confusion_matrix"],
-        }
-        selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
-        timing["ccsr_fusion_seconds"] = timing.get("ccsr_fusion_seconds", 0.0) + (
-            perf_counter() - ccsr_timer_start
-        )
-    elif method_name == "ca_ccsr_wjdot":
+    if method_name == "ca_ccsr_wjdot":
         ca_timer_start = perf_counter()
         from src.evaluation.ca_ccsr_wjdot import export_ca_ccsr_wjdot_artifacts
 
@@ -1813,9 +1775,7 @@ def run_deep_experiment(
 
     if bool(runtime.get("save_analysis", True)):
         analysis_timer_start = perf_counter()
-        if ccsr_fusion_summary is not None:
-            analysis_summary = ccsr_fusion_summary
-        elif ca_ccsr_wjdot_summary is not None:
+        if ca_ccsr_wjdot_summary is not None:
             analysis_summary = ca_ccsr_wjdot_summary
         else:
             analysis_summary = export_analysis_artifacts(
@@ -1835,8 +1795,8 @@ def run_deep_experiment(
         result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
         result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
         timing["analysis_seconds"] += perf_counter() - analysis_timer_start
-    elif ccsr_fusion_summary is not None or ca_ccsr_wjdot_summary is not None:
-        result.update(ccsr_fusion_summary or ca_ccsr_wjdot_summary or {})
+    elif ca_ccsr_wjdot_summary is not None:
+        result.update(ca_ccsr_wjdot_summary)
         result["target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
         result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
         result["target_eval_macro_f1"] = float(selected_target_metrics["target_eval_macro_f1"])

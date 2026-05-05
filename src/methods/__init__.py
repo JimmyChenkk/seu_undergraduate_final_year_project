@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from .cdan import CDANMethod
 from .cdan_ts import CDANTSMethod
-from .ccs_rpl_tc_cdan import CCSRPLTCCDANMethod
 from .codats import CoDATSMethod
 from .coral import CORALMethod
 from .dan import DANMethod
@@ -19,22 +18,14 @@ from .deepjdot import (
 from .dann import DANNMethod
 from .dsan import DSANMethod
 from .raincoat import RAINCOATMethod
-from .rcta import RCTAMethod
-from .rpl_tc_cdan import RPLTCCDANMethod
 from .source_only import SourceOnlyMethod
 from .target_only import TargetOnlyMethod
-from .tc_cdan import TCCDANMethod
 from .wjdot import (
     CBTPJDOTMethod,
     CBTPWJDOTMethod,
     CACCSRWJDOTMethod,
-    CCSRWJDOTFusionMethod,
     JDOTMethod,
     MSCBTPWJDOTMethod,
-    PooledWJDOTMethod,
-    SACCsrWJDOTTrainMethod,
-    SourceAwareWJDOTMultiHeadMethod,
-    SourceAwareWJDOTSharedHeadMethod,
     TPJDOTMethod,
     TPWJDOTMethod,
     WJDOTMethod,
@@ -327,15 +318,10 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
         "tp_jdot",
         "cbtp_jdot",
         "wjdot",
-        "pooled_wjdot",
-        "sourceaware_wjdot_shared_head",
-        "sourceaware_wjdot_multi_head",
-        "sa_ccsr_wjdot_train",
         "ca_ccsr_wjdot",
         "tp_wjdot",
         "cbtp_wjdot",
         "ms_cbtp_wjdot",
-        "ccsr_wjdot_fusion",
     }:
         method_cls = {
             "jdot": JDOTMethod,
@@ -343,15 +329,10 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             "tp_jdot": TPJDOTMethod,
             "cbtp_jdot": CBTPJDOTMethod,
             "wjdot": WJDOTMethod,
-            "pooled_wjdot": PooledWJDOTMethod,
-            "sourceaware_wjdot_shared_head": SourceAwareWJDOTSharedHeadMethod,
-            "sourceaware_wjdot_multi_head": SourceAwareWJDOTMultiHeadMethod,
-            "sa_ccsr_wjdot_train": SACCsrWJDOTTrainMethod,
             "ca_ccsr_wjdot": CACCSRWJDOTMethod,
             "tp_wjdot": TPWJDOTMethod,
             "cbtp_wjdot": CBTPWJDOTMethod,
             "ms_cbtp_wjdot": MSCBTPWJDOTMethod,
-            "ccsr_wjdot_fusion": CCSRWJDOTFusionMethod,
         }[method_name]
         if method_name in {"tp_jdot", "tp_wjdot"}:
             default_prototype_weight = 0.04
@@ -361,15 +342,10 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             default_prototype_weight = 0.0
         source_balance_default = method_name in {
             "wjdot",
-            "pooled_wjdot",
-            "sourceaware_wjdot_shared_head",
-            "sourceaware_wjdot_multi_head",
-            "sa_ccsr_wjdot_train",
             "ca_ccsr_wjdot",
             "tp_wjdot",
             "cbtp_wjdot",
             "ms_cbtp_wjdot",
-            "ccsr_wjdot_fusion",
         }
         wjdot_kwargs = {
             "adaptation_weight": float(loss.get("adaptation_weight", 1.0)),
@@ -470,12 +446,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     ),
                 }
             )
-        if method_name in {
-            "sourceaware_wjdot_shared_head",
-            "sourceaware_wjdot_multi_head",
-            "sa_ccsr_wjdot_train",
-            "ca_ccsr_wjdot",
-        }:
+        if method_name == "ca_ccsr_wjdot":
             wjdot_kwargs.update(
                 {
                     "num_sources": int(num_sources),
@@ -488,7 +459,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     "sample_weight_max": float(loss.get("sample_weight_max", 1.0)),
                 }
             )
-        if method_name in {"sa_ccsr_wjdot_train", "ca_ccsr_wjdot"}:
+        if method_name == "ca_ccsr_wjdot":
             wjdot_kwargs.update(
                 {
                     "reliability_start_ratio": float(loss.get("reliability_start_ratio", 0.30)),
@@ -566,206 +537,12 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             domain_num_hidden_layers=int(loss.get("domain_num_hidden_layers", 2)),
             **shared_kwargs,
         )
-    if method_name in {"tc_cdan", "rpl_tc_cdan", "ccs_rpl_tc_cdan"}:
-        augment_loss = loss.get("augment", {})
-        tc_kwargs = {
-            "adaptation_weight": float(loss.get("adaptation_weight", 0.25)),
-            "adaptation_schedule": str(loss.get("adaptation_schedule", "warm_start")),
-            "adaptation_max_steps": int(loss.get("adaptation_max_steps", 1200)),
-            "adaptation_schedule_alpha": float(loss.get("adaptation_schedule_alpha", 10.0)),
-            "grl_lambda": float(loss.get("grl_lambda", 1.0)),
-            "grl_warm_start": bool(loss.get("grl_warm_start", True)),
-            "grl_max_iters": int(loss.get("grl_max_iters", 1200)),
-            "randomized": bool(loss.get("randomized", True)),
-            "randomized_dim": int(loss.get("randomized_dim", 256)),
-            "entropy_conditioning": bool(loss.get("entropy_conditioning", True)),
-            "domain_hidden_dim": (
-                None if loss.get("domain_hidden_dim") is None else int(loss.get("domain_hidden_dim"))
-            ),
-            "domain_num_hidden_layers": int(loss.get("domain_num_hidden_layers", 2)),
-            "teacher_ema_decay": float(loss.get("teacher_ema_decay", 0.995)),
-            "teacher_temperature": float(loss.get("teacher_temperature", 1.0)),
-            "consistency_weight": float(loss.get("consistency_weight", 0.05)),
-            "consistency_start_step": int(loss.get("consistency_start_step", 0)),
-            "consistency_warmup_steps": int(loss.get("consistency_warmup_steps", 1000)),
-            "consistency_loss": str(loss.get("consistency_loss", "kl")),
-            "augment_kwargs": {
-                "weak_jitter_std": float(augment_loss.get("weak_jitter_std", 0.006)),
-                "weak_scaling_std": float(augment_loss.get("weak_scaling_std", 0.006)),
-                "strong_jitter_std": float(augment_loss.get("strong_jitter_std", 0.014)),
-                "strong_scaling_std": float(augment_loss.get("strong_scaling_std", 0.014)),
-                "strong_time_mask_ratio": float(augment_loss.get("strong_time_mask_ratio", 0.06)),
-                "strong_channel_dropout_prob": float(augment_loss.get("strong_channel_dropout_prob", 0.05)),
-            },
-        }
-        if method_name == "tc_cdan":
-            return TCCDANMethod(**tc_kwargs, **shared_kwargs)
-        rpl_kwargs = {
-            "pseudo_weight": float(loss.get("pseudo_weight", 0.08)),
-            "pseudo_start_step": int(loss.get("pseudo_start_step", 800)),
-            "pseudo_warmup_steps": int(loss.get("pseudo_warmup_steps", 600)),
-            "pseudo_confidence_threshold": float(loss.get("pseudo_confidence_threshold", 0.75)),
-            "pseudo_entropy_threshold": float(loss.get("pseudo_entropy_threshold", 0.55)),
-            "pseudo_max_per_class": int(loss.get("pseudo_max_per_class", 4)),
-            "pseudo_use_reliability_weighting": bool(loss.get("pseudo_use_reliability_weighting", True)),
-            "reliability_weights": loss.get("reliability_weights", {}),
-        }
-        if method_name == "rpl_tc_cdan":
-            return RPLTCCDANMethod(**rpl_kwargs, **tc_kwargs, **shared_kwargs)
-        return CCSRPLTCCDANMethod(
-            prototype_weight=float(loss.get("prototype_weight", 0.05)),
-            prototype_start_step=int(loss.get("prototype_start_step", 1200)),
-            prototype_warmup_steps=int(loss.get("prototype_warmup_steps", 800)),
-            prototype_momentum=float(loss.get("prototype_momentum", 0.95)),
-            prototype_min_target_per_class=int(loss.get("prototype_min_target_per_class", 1)),
-            target_prototype_blend=float(loss.get("target_prototype_blend", 0.35)),
-            class_separation_weight=float(loss.get("class_separation_weight", 0.04)),
-            class_separation_margin=float(loss.get("class_separation_margin", 0.20)),
-            **rpl_kwargs,
-            **tc_kwargs,
-            **shared_kwargs,
-        )
-    if method_name == "rcta":
-        cdan_loss = loss.get("cdan", {})
-        dann_loss = loss.get("dann", {})
-        dan_loss = loss.get("dan", {})
-        deepjdot_loss = loss.get("deepjdot", {})
-        augment_loss = loss.get("augment", {})
-        training_context = method_config.get("training_context", {})
-        kernel_scales = tuple(float(value) for value in dan_loss.get("kernel_scales", [0.125, 0.25, 0.5, 1.0, 2.0]))
-        return RCTAMethod(
-            base_align=str(loss.get("base_align", "cdan")),
-            use_mcc=bool(loss.get("use_mcc", True)),
-            mcc_weight=float(loss.get("mcc_weight", 0.1)),
-            mcc_temperature=float(loss.get("mcc_temperature", 2.0)),
-            teacher_ema_decay=float(loss.get("teacher_ema_decay", 0.99)),
-            teacher_temperature=float(loss.get("teacher_temperature", 1.5)),
-            reliability_weights=loss.get("reliability_weights", {}),
-            gate_score_floor=float(loss.get("gate_score_floor", 0.55)),
-            gate_score_floor_start=(
-                None if loss.get("gate_score_floor_start") is None else float(loss.get("gate_score_floor_start"))
-            ),
-            gate_score_floor_end=(
-                None if loss.get("gate_score_floor_end") is None else float(loss.get("gate_score_floor_end"))
-            ),
-            gate_score_floor_schedule_steps=int(loss.get("gate_score_floor_schedule_steps", 1000)),
-            gate_accept_ratio_start=float(loss.get("gate_accept_ratio_start", 0.2)),
-            gate_accept_ratio_end=float(loss.get("gate_accept_ratio_end", 0.7)),
-            gate_curriculum_steps=int(loss.get("gate_curriculum_steps", 1000)),
-            gate_balance_mode=str(loss.get("gate_balance_mode", "per_class_ratio")),
-            gate_max_class_fraction=float(loss.get("gate_max_class_fraction", 1.0)),
-            reliable_score_floor=(
-                None if loss.get("reliable_score_floor") is None else float(loss.get("reliable_score_floor"))
-            ),
-            semi_reliable_score_floor=(
-                None if loss.get("semi_reliable_score_floor") is None else float(loss.get("semi_reliable_score_floor"))
-            ),
-            semi_reliable_consistency_weight=float(loss.get("semi_reliable_consistency_weight", 0.5)),
-            unreliable_entropy_weight=float(loss.get("unreliable_entropy_weight", 0.05)),
-            pseudo_label_weight=float(loss.get("pseudo_label_weight", 0.2)),
-            pseudo_warmup_steps=int(loss.get("pseudo_warmup_steps", 0)),
-            pseudo_use_reliability_weighting=bool(loss.get("pseudo_use_reliability_weighting", True)),
-            pseudo_confidence_power=float(loss.get("pseudo_confidence_power", 1.0)),
-            prototype_weight=float(loss.get("prototype_weight", 0.1)),
-            prototype_start_step=int(loss.get("prototype_start_step", 0)),
-            prototype_warmup_steps=(
-                None if loss.get("prototype_warmup_steps") is None else int(loss.get("prototype_warmup_steps"))
-            ),
-            prototype_separation_weight=float(loss.get("prototype_separation_weight", 0.1)),
-            consistency_weight=float(loss.get("consistency_weight", 0.1)),
-            consistency_start_step=int(loss.get("consistency_start_step", 0)),
-            consistency_warmup_steps=(
-                None if loss.get("consistency_warmup_steps") is None else int(loss.get("consistency_warmup_steps"))
-            ),
-            consistency_gate_only=bool(loss.get("consistency_gate_only", False)),
-            consistency_reliability_power=float(loss.get("consistency_reliability_power", 1.0)),
-            alignment_start_step=int(loss.get("alignment_start_step", 0)),
-            alignment_use_reliable_only=bool(loss.get("alignment_use_reliable_only", True)),
-            prototype_momentum=float(loss.get("prototype_momentum", 0.9)),
-            prototype_separation_margin=float(loss.get("prototype_separation_margin", 0.2)),
-            target_prototype_update_mode=str(loss.get("target_prototype_update_mode", "all")),
-            target_prototype_blend_start=float(loss.get("target_prototype_blend_start", 1.0)),
-            target_prototype_blend_end=float(loss.get("target_prototype_blend_end", 1.0)),
-            target_prototype_blend_schedule_steps=int(loss.get("target_prototype_blend_schedule_steps", 1)),
-            multi_source_weighting=bool(loss.get("multi_source_weighting", False)),
-            source_weight_temperature=float(loss.get("source_weight_temperature", 4.0)),
-            source_weight_momentum=float(loss.get("source_weight_momentum", 0.0)),
-            source_weight_floor=float(loss.get("source_weight_floor", 0.0)),
-            source_weight_proto=float(loss.get("source_weight_proto", 1.0)),
-            source_weight_confidence=float(loss.get("source_weight_confidence", 0.0)),
-            source_weight_coverage=float(loss.get("source_weight_coverage", 0.0)),
-            hybrid_aligners=[str(item) for item in loss.get("hybrid_aligners", ["dann", "cdan", "dan"])],
-            track_detailed_metrics=bool(training_context.get("track_detailed_metrics", False) or num_sources > 1),
-            hybrid_alignment_weights={
-                str(key): float(value)
-                for key, value in (loss.get("hybrid_alignment_weights") or {}).items()
-            },
-            augment_kwargs={
-                "weak_jitter_std": float(augment_loss.get("weak_jitter_std", 0.01)),
-                "weak_scaling_std": float(augment_loss.get("weak_scaling_std", 0.01)),
-                "strong_jitter_std": float(augment_loss.get("strong_jitter_std", 0.02)),
-                "strong_scaling_std": float(augment_loss.get("strong_scaling_std", 0.02)),
-                "strong_time_mask_ratio": float(augment_loss.get("strong_time_mask_ratio", 0.1)),
-                "strong_channel_dropout_prob": float(augment_loss.get("strong_channel_dropout_prob", 0.1)),
-            },
-            cdan_kwargs={
-                "adaptation_weight": float(cdan_loss.get("adaptation_weight", 0.2)),
-                "adaptation_schedule": str(cdan_loss.get("adaptation_schedule", "warm_start")),
-                "adaptation_max_steps": int(cdan_loss.get("adaptation_max_steps", 1000)),
-                "adaptation_schedule_alpha": float(cdan_loss.get("adaptation_schedule_alpha", 10.0)),
-                "grl_lambda": float(cdan_loss.get("grl_lambda", 1.0)),
-                "grl_warm_start": bool(cdan_loss.get("grl_warm_start", True)),
-                "grl_max_iters": int(cdan_loss.get("grl_max_iters", 1000)),
-                "randomized": bool(cdan_loss.get("randomized", True)),
-                "randomized_dim": int(cdan_loss.get("randomized_dim", 256)),
-                "entropy_conditioning": bool(cdan_loss.get("entropy_conditioning", True)),
-                "domain_hidden_dim": (
-                    None if cdan_loss.get("domain_hidden_dim") is None else int(cdan_loss.get("domain_hidden_dim"))
-                ),
-                "domain_num_hidden_layers": int(cdan_loss.get("domain_num_hidden_layers", 2)),
-            },
-            dann_kwargs={
-                "adaptation_weight": float(dann_loss.get("adaptation_weight", 0.5)),
-                "adaptation_schedule": str(dann_loss.get("adaptation_schedule", "warm_start")),
-                "adaptation_max_steps": int(dann_loss.get("adaptation_max_steps", 1000)),
-                "adaptation_schedule_alpha": float(dann_loss.get("adaptation_schedule_alpha", 10.0)),
-                "grl_lambda": float(dann_loss.get("grl_lambda", 1.0)),
-                "grl_warm_start": bool(dann_loss.get("grl_warm_start", True)),
-                "grl_max_iters": int(dann_loss.get("grl_max_iters", 1000)),
-                "domain_hidden_dim": (
-                    None if dann_loss.get("domain_hidden_dim") is None else int(dann_loss.get("domain_hidden_dim"))
-                ),
-                "domain_num_hidden_layers": int(dann_loss.get("domain_num_hidden_layers", 2)),
-            },
-            dan_kwargs={
-                "adaptation_weight": float(dan_loss.get("adaptation_weight", 0.1)),
-                "adaptation_schedule": str(dan_loss.get("adaptation_schedule", "warm_start")),
-                "adaptation_max_steps": int(dan_loss.get("adaptation_max_steps", 1000)),
-                "adaptation_schedule_alpha": float(dan_loss.get("adaptation_schedule_alpha", 10.0)),
-                "kernel_scales": kernel_scales,
-                "linear_mmd": bool(dan_loss.get("linear_mmd", True)),
-            },
-            deepjdot_kwargs={
-                "adaptation_weight": float(deepjdot_loss.get("adaptation_weight", 1.0)),
-                "adaptation_schedule": str(deepjdot_loss.get("adaptation_schedule", "constant")),
-                "adaptation_max_steps": int(deepjdot_loss.get("adaptation_max_steps", 1000)),
-                "adaptation_schedule_alpha": float(deepjdot_loss.get("adaptation_schedule_alpha", 10.0)),
-                "reg_dist": float(deepjdot_loss.get("reg_dist", 0.1)),
-                "reg_cl": float(deepjdot_loss.get("reg_cl", 1.0)),
-                "normalize_feature_cost": bool(deepjdot_loss.get("normalize_feature_cost", False)),
-                "transport_solver": str(deepjdot_loss.get("transport_solver", "emd")),
-                "sinkhorn_reg": float(deepjdot_loss.get("sinkhorn_reg", 0.05)),
-                "sinkhorn_num_iter_max": int(deepjdot_loss.get("sinkhorn_num_iter_max", 100)),
-            },
-            **shared_kwargs,
-        )
     raise KeyError(f"Unsupported method: {method_name}")
 
 
 __all__ = [
     "CDANMethod",
     "CDANTSMethod",
-    "CCSRPLTCCDANMethod",
     "CBTPDeepJDOTMethod",
     "CBTPUDeepJDOTMethod",
     "CoDATSMethod",
@@ -775,13 +552,10 @@ __all__ = [
     "DANNMethod",
     "DSANMethod",
     "RAINCOATMethod",
-    "RCTAMethod",
-    "RPLTCCDANMethod",
     "SourceOnlyMethod",
     "TargetOnlyMethod",
     "TPDeepJDOTMethod",
     "TPUDeepJDOTMethod",
-    "TCCDANMethod",
     "UDeepJDOTMethod",
     "WJDOTMethod",
     "TPWJDOTMethod",

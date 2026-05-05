@@ -14,87 +14,73 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class AutomationPlanTests(unittest.TestCase):
-    def test_rescue_smoke_plan_expands_to_6_runs(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/rescue_smoke.yaml")
-        plan = build_run_plan(payload)
-
-        self.assertEqual(len(plan["methods"]), 6)
-        self.assertEqual(len(plan["scene_settings"]), 1)
-        self.assertEqual(len(plan["runs"]), 6)
-
-    def test_main_90_benchmark_plan_expands_to_90_runs(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/benchmark_90_mode125_9scenes_10methods_fixedfold.yaml")
+    def test_single_source_mainline_plan_expands_to_48_runs(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml")
         plan = build_run_plan(payload)
 
         self.assertEqual(
             plan["methods"],
             [
                 "source_only",
-                "target_only",
-                "coral",
-                "dan",
-                "dann",
-                "cdan",
-                "deepjdot",
-                "tc_cdan",
-                "rpl_tc_cdan",
-                "ccs_rpl_tc_cdan",
-            ],
-        )
-        self.assertEqual(len(plan["scene_settings"]), 9)
-        self.assertEqual(len(plan["runs"]), 90)
-
-        single_source = [item for item in plan["scene_settings"] if item["setting"] == "single_source"]
-        multi_source = [item for item in plan["scene_settings"] if item["setting"] == "multi_source"]
-        self.assertEqual(len(single_source), 6)
-        self.assertEqual(len(multi_source), 3)
-
-    def test_mode125_baseline_plan_expands_to_63_runs(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/benchmark_63_mode125_9scenes_7baselines_fixedfold.yaml")
-        plan = build_run_plan(payload)
-
-        self.assertEqual(
-            plan["methods"],
-            [
-                "source_only",
-                "codats",
-                "cdan_ts",
                 "dsan",
-                "deepjdot",
-                "raincoat",
-                "target_only",
-            ],
-        )
-        self.assertEqual(len(plan["scene_settings"]), 9)
-        self.assertEqual(len(plan["runs"]), 63)
-
-    def test_single_source_deepjdot_plan_expands_to_48_runs(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_single_source_deepjdot_125_fixedfold.yaml")
-        plan = build_run_plan(payload)
-
-        self.assertEqual(
-            plan["methods"],
-            [
-                "source_only",
-                "deepjdot",
-                "tp_deepjdot",
-                "cbtp_deepjdot",
                 "cdan_ts",
                 "codats",
-                "dsan",
+                "deepjdot",
+                "tpu_deepjdot",
+                "cbtpu_deepjdot",
                 "target_only",
             ],
         )
         self.assertEqual(len(plan["scene_settings"]), 6)
         self.assertEqual(len(plan["runs"]), 48)
+        self.assertTrue(all(item["setting"] == "single_source" for item in plan["scene_settings"]))
 
-    def test_rescue_9scenes_plan_expands_to_90_runs(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/rescue_9scenes_10methods.yaml")
+    def test_multisource_mainline_plan_expands_to_45_runs(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_multisource_ca_ccsr_wjdot_stage1_probe_fold0.yaml")
         plan = build_run_plan(payload)
 
-        self.assertEqual(len(plan["methods"]), 10)
+        self.assertEqual(
+            plan["methods"],
+            [
+                "source_only",
+                "codats",
+                "wjdot",
+                "ca_ccsr_wjdot_prior20",
+                "target_ref",
+            ],
+        )
         self.assertEqual(len(plan["scene_settings"]), 9)
-        self.assertEqual(len(plan["runs"]), 90)
+        self.assertEqual(len(plan["runs"]), 45)
+        self.assertTrue(all(item["setting"] == "multi_source" for item in plan["scene_settings"]))
+
+    def test_single_source_mainline_keeps_fold0_policy(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml")
+        plan = build_run_plan(payload)
+
+        self.assertFalse(plan["fold_policy"]["random_fold_enabled"])
+        self.assertEqual(
+            [run["source_fold"] for run in plan["runs"][:: len(plan["methods"])]],
+            ["Fold 1"] * 6,
+        )
+        self.assertEqual(
+            [run["target_fold"] for run in plan["runs"][:: len(plan["methods"])]],
+            ["Fold 1"] * 6,
+        )
+
+    def test_single_source_tpu_diagnostic_plan_expands_to_18_runs(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_single_source_tpu_stage1_fold0.yaml")
+        plan = build_run_plan(payload)
+
+        self.assertEqual(
+            plan["methods"],
+            [
+                "deepjdot",
+                "tpu_deepjdot",
+                "cbtpu_deepjdot",
+            ],
+        )
+        self.assertEqual(len(plan["scene_settings"]), 6)
+        self.assertEqual(len(plan["runs"]), 18)
 
     def _random_fold_payload(self) -> dict:
         return {
@@ -151,47 +137,6 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertIsInstance(plan["seed"], int)
         self.assertEqual(len(plan["runs"]), 6)
 
-    def test_mode125_fixed_fold_plan_uses_configured_scene_folds(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/benchmark_90_mode125_9scenes_10methods_fixedfold.yaml")
-        plan = build_run_plan(payload)
-
-        self.assertEqual(len(plan["methods"]), 10)
-        self.assertEqual(len(plan["scene_settings"]), 9)
-        self.assertEqual(len(plan["runs"]), 90)
-        self.assertFalse(plan["fold_policy"]["random_fold_enabled"])
-
-        expected = {
-            "mode1_to_mode2": ("Fold 2", {"mode1": "Fold 2"}, "Fold 4"),
-            "mode2_to_mode1": ("Fold 5", {"mode2": "Fold 5"}, "Fold 3"),
-            "mode1_to_mode5": ("Fold 4", {"mode1": "Fold 4"}, "Fold 3"),
-            "mode5_to_mode1": ("Fold 4", {"mode5": "Fold 4"}, "Fold 4"),
-            "mode2_to_mode5": ("Fold 1", {"mode2": "Fold 1"}, "Fold 3"),
-            "mode5_to_mode2": ("Fold 3", {"mode5": "Fold 3"}, "Fold 4"),
-            "mode1-mode2_to_mode5": (
-                "Fold 4+Fold 1",
-                {"mode1": "Fold 4", "mode2": "Fold 1"},
-                "Fold 3",
-            ),
-            "mode1-mode5_to_mode2": (
-                "Fold 2+Fold 3",
-                {"mode1": "Fold 2", "mode5": "Fold 3"},
-                "Fold 4",
-            ),
-            "mode2-mode5_to_mode1": (
-                "Fold 4",
-                {"mode2": "Fold 4", "mode5": "Fold 4"},
-                "Fold 4",
-            ),
-        }
-
-        first_run_by_scene = {str(run["label"]): run for run in plan["runs"][:: len(plan["methods"])]}
-        self.assertEqual(set(first_run_by_scene), set(expected))
-        for label, (source_fold, source_folds_by_domain, target_fold) in expected.items():
-            run = first_run_by_scene[label]
-            self.assertEqual(run["source_fold"], source_fold)
-            self.assertEqual(run["source_folds_by_domain"], source_folds_by_domain)
-            self.assertEqual(run["target_fold"], target_fold)
-
     def test_cli_scene_accepts_hyphen_separator_to_avoid_shell_redirection(self) -> None:
         payload = {
             "seed": 42,
@@ -225,16 +170,6 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertEqual(plan["runs"][0]["source_domains"], ["mode1", "mode2"])
         self.assertEqual(plan["runs"][0]["target_domain"], "mode5")
 
-    def test_ccsr_wjdot_stage_plan_keeps_wjdot_before_posthoc_fusion(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_multisource_ccsr_wjdot_stage1_fold0.yaml")
-        plan = build_run_plan(
-            payload,
-            cli_methods=["wjdot", "ccsr_wjdot_fusion"],
-            cli_scenes=["mode1+mode2->mode5"],
-        )
-
-        self.assertEqual([run["method_name"] for run in plan["runs"]], ["wjdot", "ccsr_wjdot_fusion"])
-
     def test_result_matcher_finds_same_scene_base_wjdot_run(self) -> None:
         payload = {
             "seed": 42,
@@ -256,21 +191,13 @@ class AutomationPlanTests(unittest.TestCase):
         }
 
         self.assertTrue(_result_matches_run(result_payload, run, "wjdot"))
-        self.assertFalse(_result_matches_run(result_payload, run, "ccsr_wjdot_fusion"))
-
-    def test_rcta_mode125_ablation_uses_three_cumulative_stages(self) -> None:
-        payload = _load_yaml(ROOT / "configs/experiment/rcta_mode125_ablation_fixedfold.yaml")
-        plan = build_run_plan(payload)
-
-        self.assertEqual(plan["methods"], ["rcta_a_teacher_temporal", "rcta_ab_gate", "rcta_abc_proto_multi"])
-        self.assertEqual(len(plan["scene_settings"]), 9)
-        self.assertEqual(len(plan["runs"]), 27)
+        self.assertFalse(_result_matches_run(result_payload, run, "ca_ccsr_wjdot"))
 
     def test_method_overrides_resolve_for_method_and_scene_maps(self) -> None:
         payload = {
             "seed": 42,
             "automation": {
-                "methods": ["deepjdot", "rpl_tc_cdan"],
+                "methods": ["deepjdot", "cbtpu_deepjdot"],
                 "single_source_scenes": ["mode1->mode2"],
             },
             "method_overrides": {
@@ -280,14 +207,14 @@ class AutomationPlanTests(unittest.TestCase):
                     },
                 },
                 "all": {
-                    "rpl_tc_cdan": {
+                    "cbtpu_deepjdot": {
                         "loss": {
                             "pseudo_weight": 0.03,
                         },
                     },
                 },
                 "m1_m2": {
-                    "rpl_tc_cdan": {
+                    "cbtpu_deepjdot": {
                         "loss": {
                             "pseudo_start_step": 2200,
                         },
@@ -308,11 +235,11 @@ class AutomationPlanTests(unittest.TestCase):
             0.55,
         )
         self.assertEqual(
-            runs_by_method["rpl_tc_cdan"]["method_overrides"]["loss"]["pseudo_weight"],
+            runs_by_method["cbtpu_deepjdot"]["method_overrides"]["loss"]["pseudo_weight"],
             0.03,
         )
         self.assertEqual(
-            runs_by_method["rpl_tc_cdan"]["method_overrides"]["loss"]["pseudo_start_step"],
+            runs_by_method["cbtpu_deepjdot"]["method_overrides"]["loss"]["pseudo_start_step"],
             2200,
         )
 

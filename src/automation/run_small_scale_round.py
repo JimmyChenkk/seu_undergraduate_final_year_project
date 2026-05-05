@@ -26,13 +26,7 @@ ALL_MODES = [
     "mode6",
 ]
 
-POSTHOC_BASE_METHODS = {
-    "ccsr_wjdot_fusion": "wjdot",
-    "ccsr_raw": "sourceaware_wjdot_multi_head",
-    "ccsr_safe": "sourceaware_wjdot_multi_head",
-    "ccsr_calibrated_override": "sourceaware_wjdot_multi_head",
-    "sa_ccsr_wjdot_fusion": "sourceaware_wjdot_multi_head",
-}
+POSTHOC_BASE_METHODS: dict[str, str] = {}
 
 TEACHER_BASE_METHODS = {
     "ca_ccsr_wjdot": "codats",
@@ -603,7 +597,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--experiment-config",
         type=Path,
-        default=Path("configs/experiment/quick_debug.yaml"),
+        default=Path("configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml"),
     )
     parser.add_argument("--methods", nargs="*", default=None)
     parser.add_argument("--scenes", nargs="*", default=None)

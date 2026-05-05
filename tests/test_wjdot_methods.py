@@ -42,10 +42,6 @@ class WJDOTMethodTests(unittest.TestCase):
             "tp_wjdot",
             "cbtp_wjdot",
             "ms_cbtp_wjdot",
-            "pooled_wjdot",
-            "sourceaware_wjdot_shared_head",
-            "sourceaware_wjdot_multi_head",
-            "sa_ccsr_wjdot_train",
             "ca_ccsr_wjdot",
         ]:
             with self.subTest(method=method_name):
@@ -59,9 +55,6 @@ class WJDOTMethodTests(unittest.TestCase):
                     if method_name
                     in {
                         "ms_cbtp_wjdot",
-                        "sourceaware_wjdot_shared_head",
-                        "sourceaware_wjdot_multi_head",
-                        "sa_ccsr_wjdot_train",
                         "ca_ccsr_wjdot",
                     }
                     else 1,
@@ -74,9 +67,6 @@ class WJDOTMethodTests(unittest.TestCase):
                 source_batches = [(source_x, source_y)]
                 if method_name in {
                     "ms_cbtp_wjdot",
-                    "sourceaware_wjdot_shared_head",
-                    "sourceaware_wjdot_multi_head",
-                    "sa_ccsr_wjdot_train",
                     "ca_ccsr_wjdot",
                 }:
                     source_batches.append(

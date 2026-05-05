@@ -66,7 +66,6 @@ class ReportFiguresTests(unittest.TestCase):
             _sort_methods_for_mean_chart(
                 [
                     "target_ref",
-                    "sa_ccsr_wjdot_train",
                     "codats",
                     "source_only",
                     "wjdot",
@@ -161,32 +160,34 @@ class ReportFiguresTests(unittest.TestCase):
             ["source_only", "deepjdot", "tp_deepjdot", "cbtp_deepjdot", "target_only"],
         )
 
-    def test_heatmap_method_order_keeps_rcta_ablation_stages_in_sequence(self) -> None:
+    def test_heatmap_method_order_keeps_multisource_mainline_sequence(self) -> None:
         methods = _sort_methods_for_heatmap(
             [
-                "rcta_m3_dual_proto_static",
-                "rcta_m1_temporal_mt",
-                "rcta_m4_full",
-                "rcta_m0_base_da",
-                "rcta_m2_reliability_gate",
+                "target_ref",
+                "ca_ccsr_wjdot_prior20",
+                "wjdot",
+                "source_only",
+                "codats",
             ]
         )
 
         self.assertEqual(
             methods,
             [
-                "rcta_m0_base_da",
-                "rcta_m1_temporal_mt",
-                "rcta_m2_reliability_gate",
-                "rcta_m3_dual_proto_static",
-                "rcta_m4_full",
+                "source_only",
+                "codats",
+                "wjdot",
+                "ca_ccsr_wjdot_prior20",
+                "target_ref",
             ],
         )
 
-    def test_heatmap_method_order_keeps_compact_three_stage_ablation_sequence(self) -> None:
-        methods = _sort_methods_for_heatmap(["rcta_abc_full", "rcta_a_temporal", "rcta_ab_reliable"])
+    def test_heatmap_method_order_keeps_single_source_mainline_sequence(self) -> None:
+        methods = _sort_methods_for_heatmap(
+            ["target_only", "cbtpu_deepjdot", "source_only", "tpu_deepjdot", "deepjdot"]
+        )
 
-        self.assertEqual(methods, ["rcta_a_temporal", "rcta_ab_reliable", "rcta_abc_full"])
+        self.assertEqual(methods, ["source_only", "deepjdot", "tpu_deepjdot", "cbtpu_deepjdot", "target_only"])
 
     def test_heatmap_scenario_order_keeps_two_source_before_five_source_stage_sequence(self) -> None:
         def row(scenario_id: str, source_domains: list[str], target_domain: str) -> dict:
