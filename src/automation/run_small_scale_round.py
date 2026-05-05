@@ -641,7 +641,11 @@ def _refresh_batch_outputs(batch_root: Path) -> None:
     summary_dir = export_comparison_summary(batch_root)
     if summary_dir is None:
         return
-    export_summary_figures(batch_root, summary_dir.parent / "figures")
+    export_summary_figures(
+        batch_root,
+        summary_dir.parent / "figures",
+        include_all_methods=True,
+    )
 
 
 def main() -> None:

@@ -14,7 +14,7 @@ optimization:
 
 loss:
   name: tpu_deepjdot
-  adaptation_weight: 0.55
+  adaptation_weight: 0.60
   adaptation_schedule: warm_start
   adaptation_max_steps: 2200
   adaptation_schedule_alpha: 10.0
@@ -28,21 +28,21 @@ loss:
   uot_tau_s: 1.0
   uot_tau_t: 1.0
   use_ce_cost_for_plan: true
-  source_warmup_steps: 500
-  alignment_start_step: 500
-  supcon_weight: 0.04
+  source_warmup_steps: 350
+  alignment_start_step: 350
+  supcon_weight: 0.05
   supcon_temperature: 0.10
   supcon_warmup_only: true
-  prototype_cost_weight: 0.015
+  prototype_cost_weight: 0.02
   prototype_distance: normalized_l2
   prototype_momentum: 0.95
-  prototype_start_step: 500
-  prototype_warmup_steps: 800
+  prototype_start_step: 350
+  prototype_warmup_steps: 650
   prototype_relative_min: -1.0
   prototype_relative_max: 3.0
-  temporal_cost_weight: 0.01
-  temporal_start_step: 500
-  temporal_warmup_steps: 800
+  temporal_cost_weight: 0.012
+  temporal_start_step: 350
+  temporal_warmup_steps: 650
 
 notes:
   - TPU-DeepJDOT uses source CE plus warmup supervised contrastive loss, normalized EMA source prototypes, relative prototype cost shaping, temporal cost shaping, and UOT.

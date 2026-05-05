@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 import random
 import unittest
 
@@ -10,7 +11,11 @@ from src.trainers.train_benchmark import (
     _resolve_metric_score,
     apply_method_overrides,
     apply_method_runtime_defaults,
+    load_yaml,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class TrainBenchmarkTests(unittest.TestCase):
@@ -100,6 +105,43 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
         self.assertEqual(merged_experiment["runtime"]["num_workers"], 0)
         self.assertFalse(merged_experiment["runtime"]["cudnn_benchmark"])
+
+    def test_target_ref_config_uses_target_confidence_selection(self) -> None:
+        method_payload = load_yaml(ROOT / "configs/method/target_ref.yaml")
+        merged_experiment = apply_method_runtime_defaults(
+            {"runtime": {"target_eval_during_training": False}},
+            method_payload,
+        )
+
+        self.assertEqual(merged_experiment["runtime"]["model_selection"], "target_confidence")
+        self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
+        self.assertEqual(method_payload["optimization"]["epochs"], 120)
+
+    def test_single_source_tuned_config_keeps_codats_capacity_matched_and_cbtpu_stronger(self) -> None:
+        experiment_payload = load_yaml(ROOT / "configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml")
+
+        codats_payload = load_yaml(ROOT / "configs/method/codats.yaml")
+        _, codats_method = apply_method_overrides(
+            apply_method_runtime_defaults(experiment_payload, codats_payload),
+            codats_payload,
+        )
+        self.assertEqual(codats_method["backbone"]["classifier_hidden_dim"], 128)
+
+        tpu_payload = load_yaml(ROOT / "configs/method/tpu_deepjdot.yaml")
+        _, tpu_method = apply_method_overrides(
+            apply_method_runtime_defaults(experiment_payload, tpu_payload),
+            tpu_payload,
+        )
+        cbtpu_payload = load_yaml(ROOT / "configs/method/cbtpu_deepjdot.yaml")
+        _, cbtpu_method = apply_method_overrides(
+            apply_method_runtime_defaults(experiment_payload, cbtpu_payload),
+            cbtpu_payload,
+        )
+
+        self.assertGreater(cbtpu_method["loss"]["adaptation_weight"], tpu_method["loss"]["adaptation_weight"])
+        self.assertGreater(cbtpu_method["loss"]["prototype_cost_weight"], tpu_method["loss"]["prototype_cost_weight"])
+        self.assertGreater(cbtpu_method["loss"]["temporal_cost_weight"], tpu_method["loss"]["temporal_cost_weight"])
+        self.assertGreater(cbtpu_method["loss"]["pseudo_weight"], 0.0)
 
     def test_method_overrides_runtime_defaults_apply_to_runtime(self) -> None:
         experiment_payload = {

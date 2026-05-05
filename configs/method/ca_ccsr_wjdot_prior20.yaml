@@ -90,8 +90,8 @@ loss:
   domain_num_hidden_layers: 2
   teacher_safe_fusion:
     fusion_base: prior_balanced
-    prior_balance_student_mix: 0.70
-    prior_balance_strength: 1.10
+    prior_balance_student_mix: 0.65
+    prior_balance_strength: 1.30
     prior_balance_min_prior: 0.0001
     lambda_same: 0.05
     lambda_override: 0.60

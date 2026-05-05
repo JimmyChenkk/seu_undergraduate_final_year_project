@@ -7,14 +7,22 @@ backbone:
   dropout: 0.1
 
 optimization:
-  epochs: 70
+  epochs: 120
   batch_size: 32
   learning_rate: 0.0001
   weight_decay: 0.0
   max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: target_confidence
+  early_stopping_metric: target_confidence
+  early_stopping_patience: 18
+  early_stopping_min_delta: 0.0005
+  early_stopping_min_epochs: 35
 
 loss:
   name: supervised_target_reference
 
 notes:
   - Supervised target-domain reference. Do not rank as a UDA baseline.
+  - Uses target-train confidence for checkpoint selection so the reference is not selected by unrelated source-domain validation.

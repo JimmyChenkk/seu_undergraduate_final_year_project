@@ -14,7 +14,7 @@ optimization:
 
 loss:
   name: cbtpu_deepjdot
-  adaptation_weight: 0.55
+  adaptation_weight: 0.62
   adaptation_schedule: warm_start
   adaptation_max_steps: 2200
   adaptation_schedule_alpha: 10.0
@@ -28,50 +28,51 @@ loss:
   uot_tau_s: 1.0
   uot_tau_t: 1.0
   use_ce_cost_for_plan: true
-  source_warmup_steps: 500
-  alignment_start_step: 500
-  supcon_weight: 0.04
+  source_warmup_steps: 350
+  alignment_start_step: 350
+  supcon_weight: 0.055
   supcon_temperature: 0.10
   supcon_warmup_only: true
-  prototype_cost_weight: 0.015
+  prototype_cost_weight: 0.028
   prototype_distance: normalized_l2
   prototype_momentum: 0.95
-  prototype_start_step: 500
-  prototype_warmup_steps: 800
+  prototype_start_step: 350
+  prototype_warmup_steps: 650
   prototype_relative_min: -1.0
   prototype_relative_max: 3.0
-  temporal_cost_weight: 0.01
-  temporal_start_step: 500
-  temporal_warmup_steps: 800
-  teacher_ema_decay: 0.995
+  temporal_cost_weight: 0.018
+  temporal_start_step: 350
+  temporal_warmup_steps: 650
+  teacher_ema_decay: 0.996
   teacher_temperature: 1.0
-  proto_temperature: 0.20
+  proto_temperature: 0.18
   q_ot_power: 1.0
   q_cls_power: 1.0
   q_proto_power: 1.0
-  pseudo_weight: 0.012
-  pseudo_start_step: 1100
-  pseudo_warmup_steps: 1200
-  tau_start: 0.96
-  tau_end: 0.88
-  tau_steps: 1500
-  pseudo_max_acceptance: 0.60
-  q_ot_entropy_threshold: 0.70
-  js_threshold: 0.06
-  consistency_weight: 0.015
-  consistency_start_step: 1100
-  consistency_warmup_steps: 1200
-  consistency_mid_tau: 0.55
-  logit_adjustment_eta: 0.10
-  infomax_weight: 0.0
+  pseudo_weight: 0.022
+  pseudo_start_step: 850
+  pseudo_warmup_steps: 900
+  tau_start: 0.94
+  tau_end: 0.84
+  tau_steps: 1300
+  pseudo_max_acceptance: 0.70
+  q_ot_entropy_threshold: 0.78
+  js_threshold: 0.08
+  consistency_weight: 0.028
+  consistency_start_step: 850
+  consistency_warmup_steps: 900
+  consistency_mid_tau: 0.50
+  logit_adjustment_eta: 0.14
+  infomax_weight: 0.003
   infomax_start_ratio: 0.70
+  infomax_warmup_steps: 600
   augment:
     weak_jitter_std: 0.006
     weak_scaling_std: 0.006
-    strong_jitter_std: 0.014
-    strong_scaling_std: 0.014
-    strong_time_mask_ratio: 0.06
-    strong_channel_dropout_prob: 0.05
+    strong_jitter_std: 0.016
+    strong_scaling_std: 0.016
+    strong_time_mask_ratio: 0.08
+    strong_channel_dropout_prob: 0.06
 
 notes:
   - CBTPU-DeepJDOT accepts target pseudo labels only through OT, EMA-teacher, and prototype agreement or low JS disagreement.
