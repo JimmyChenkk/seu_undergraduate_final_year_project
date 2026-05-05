@@ -3,16 +3,40 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 from typing import Any
 
-from src.evaluation.report_figures import METHOD_ORDER
+from src.evaluation.report_figures import FINAL_MAIN_METHODS, MAIN_TABLE_METHOD_PREFIXES, METHOD_ORDER
 from src.evaluation.review import extract_core_metrics, load_review
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
 
 
 METHOD_RANK = {method_name: index for index, method_name in enumerate(METHOD_ORDER)}
+MAIN_TABLE_METHODS = set(FINAL_MAIN_METHODS)
+
+
+def _display_method_name(method_name: Any) -> str:
+    normalized = str(method_name)
+    if normalized == "target_only":
+        return "target_ref"
+    return normalized
+
+
+def _method_sort_anchor(method_name: Any) -> str:
+    display_name = _display_method_name(method_name)
+    for prefix in MAIN_TABLE_METHOD_PREFIXES:
+        if display_name.startswith(prefix):
+            return prefix.rstrip("_")
+    return display_name
+
+
+def _is_main_table_method(method_name: Any) -> bool:
+    display_name = _display_method_name(method_name)
+    return display_name in MAIN_TABLE_METHODS or any(
+        display_name.startswith(prefix) for prefix in MAIN_TABLE_METHOD_PREFIXES
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,10 +76,13 @@ def build_rows(results_dir: Path) -> list[dict[str, Any]]:
         metrics = extract_core_metrics(payload)
         review_payload = _load_run_review(payload, path)
         figure_paths = payload.get("figure_paths", {})
+        method_name = _display_method_name(payload.get("method_name"))
+        if not _is_main_table_method(method_name):
+            continue
         rows.append(
             {
                 "file": _relative_or_name(path, results_dir),
-                "method": payload.get("method_name"),
+                "method": method_name,
                 "setting": payload.get("setting"),
                 "scenario_id": payload.get("scenario_id"),
                 "backbone": payload.get("backbone_name"),
@@ -70,6 +97,7 @@ def build_rows(results_dir: Path) -> list[dict[str, Any]]:
                 "source_train_acc": metrics["source_train_acc"],
                 "source_eval_acc": metrics["source_eval_acc"],
                 "target_eval_acc": metrics["target_eval_acc"],
+                "target_eval_macro_f1": result.get("target_eval_macro_f1"),
                 "target_eval_balanced_acc": metrics["target_eval_balanced_acc"],
                 "run_root": payload.get("run_root"),
                 "figure_paths": figure_paths,
@@ -114,7 +142,7 @@ def sort_comparison_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows,
         key=lambda row: (
             scenario_rank[str(row.get("scenario_id"))],
-            METHOD_RANK.get(str(row.get("method")), len(METHOD_RANK)),
+            METHOD_RANK.get(_method_sort_anchor(row.get("method")), len(METHOD_RANK)),
             str(row.get("method")),
         ),
     )
@@ -143,7 +171,14 @@ def render_markdown_table(rows: list[dict[str, Any]]) -> str:
 
 def build_round_review(rows: list[dict[str, Any]]) -> dict[str, Any]:
     items = []
-    for row in sorted(rows, key=lambda item: (str(item["scenario_id"]), str(item["method"]))):
+    for row in sorted(
+        rows,
+        key=lambda item: (
+            str(item["scenario_id"]),
+            METHOD_RANK.get(_method_sort_anchor(item["method"]), len(METHOD_RANK)),
+            str(item["method"]),
+        ),
+    ):
         item = {
             "method": row["method"],
             "scenario_id": row["scenario_id"],
@@ -234,6 +269,120 @@ def _save_summary(summary_dir: Path, rows: list[dict[str, Any]], markdown_table:
         json.dumps(build_round_review(rows), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    fieldnames = [
+        "method",
+        "setting",
+        "scenario_id",
+        "source",
+        "target",
+        "source_fold",
+        "target_fold",
+        "target_eval_acc",
+        "target_eval_macro_f1",
+        "target_eval_balanced_acc",
+        "delta_target_vs_source_only",
+        "run_root",
+    ]
+    for filename in ("comparison.csv", "multisource_summary.csv"):
+        with (summary_dir / filename).open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({key: row.get(key) for key in fieldnames})
+    with (summary_dir / "multisource_v2_summary.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key) for key in fieldnames})
+
+    capacity_methods = {
+        "codats_128",
+        "codats_500",
+        "pooled_wjdot_128",
+        "pooled_wjdot_500",
+        "sourceaware_wjdot_128",
+        "sourceaware_wjdot_500",
+        "sa_ccsr_wjdot_train_128",
+        "sa_ccsr_wjdot_train_500",
+    }
+    with (summary_dir / "capacity_fairness_probe.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            if row.get("method") in capacity_methods:
+                writer.writerow({key: row.get(key) for key in fieldnames})
+
+    by_scene_method = {
+        (str(row.get("scenario_id")), str(row.get("method"))): row
+        for row in rows
+    }
+    compare_fields = [
+        "scenario_id",
+        "pooled_wjdot_acc",
+        "sourceaware_shared_head_acc",
+        "sourceaware_multi_head_acc",
+        "delta_shared_vs_pooled",
+        "delta_multi_vs_pooled",
+    ]
+    with (summary_dir / "sourceaware_vs_pooled_wjdot.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=compare_fields)
+        writer.writeheader()
+        for scenario_id in sorted({str(row.get("scenario_id")) for row in rows}):
+            pooled = by_scene_method.get((scenario_id, "pooled_wjdot")) or by_scene_method.get(
+                (scenario_id, "pooled_wjdot_128")
+            )
+            shared = by_scene_method.get((scenario_id, "sourceaware_wjdot_shared_head"))
+            multi = by_scene_method.get((scenario_id, "sourceaware_wjdot_multi_head")) or by_scene_method.get(
+                (scenario_id, "sourceaware_wjdot_128")
+            )
+            pooled_acc = pooled.get("target_eval_acc") if pooled else None
+            shared_acc = shared.get("target_eval_acc") if shared else None
+            multi_acc = multi.get("target_eval_acc") if multi else None
+            writer.writerow(
+                {
+                    "scenario_id": scenario_id,
+                    "pooled_wjdot_acc": pooled_acc,
+                    "sourceaware_shared_head_acc": shared_acc,
+                    "sourceaware_multi_head_acc": multi_acc,
+                    "delta_shared_vs_pooled": (
+                        None if pooled_acc is None or shared_acc is None else float(shared_acc - pooled_acc)
+                    ),
+                    "delta_multi_vs_pooled": (
+                        None if pooled_acc is None or multi_acc is None else float(multi_acc - pooled_acc)
+                    ),
+                }
+            )
+
+    gate_fields = [
+        "scenario_id",
+        "ccsr_raw_acc",
+        "ccsr_safe_acc",
+        "ccsr_calibrated_override_acc",
+        "delta_calibrated_vs_safe",
+        "delta_raw_vs_safe",
+    ]
+    with (summary_dir / "ccsr_gate_ablation.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=gate_fields)
+        writer.writeheader()
+        for scenario_id in sorted({str(row.get("scenario_id")) for row in rows}):
+            raw = by_scene_method.get((scenario_id, "ccsr_raw"))
+            safe = by_scene_method.get((scenario_id, "ccsr_safe"))
+            calibrated = by_scene_method.get((scenario_id, "ccsr_calibrated_override"))
+            raw_acc = raw.get("target_eval_acc") if raw else None
+            safe_acc = safe.get("target_eval_acc") if safe else None
+            calibrated_acc = calibrated.get("target_eval_acc") if calibrated else None
+            writer.writerow(
+                {
+                    "scenario_id": scenario_id,
+                    "ccsr_raw_acc": raw_acc,
+                    "ccsr_safe_acc": safe_acc,
+                    "ccsr_calibrated_override_acc": calibrated_acc,
+                    "delta_calibrated_vs_safe": (
+                        None if calibrated_acc is None or safe_acc is None else float(calibrated_acc - safe_acc)
+                    ),
+                    "delta_raw_vs_safe": None if raw_acc is None or safe_acc is None else float(raw_acc - safe_acc),
+                }
+            )
 
 
 def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None) -> Path | None:

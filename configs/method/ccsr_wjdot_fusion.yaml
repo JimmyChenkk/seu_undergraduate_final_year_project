@@ -1,0 +1,63 @@
+method_name: ccsr_wjdot_fusion
+method_display_name: ccsr_wjdot_fusion
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: hybrid_source_eval_target_confidence
+  early_stopping_metric: hybrid_source_eval_target_confidence
+  selection_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+  early_stopping_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+
+loss:
+  name: ccsr_wjdot_fusion
+  adaptation_weight: 0.55
+  source_ce_weight: 1.0
+  feature_weight: 0.08
+  label_weight: 1.0
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 200
+  use_source_class_balance: true
+  alignment_start_step: 0
+  alignment_ramp_steps: 800
+  pseudo_weight: 0.0
+  consistency_weight: 0.0
+
+  ccsr:
+    tau_proto: 0.85
+    min_proto_samples: 3
+    proto_probability_temperature: 0.25
+    w_proto: 0.35
+    w_ot: 0.35
+    w_entropy: 0.15
+    w_source_error: 0.15
+    lambda_safe: 0.75
+    rho_mode: simple
+    rho_min: 0.2
+    rho_max: 0.95
+    override_on_source_agreement: true
+    override_agreement_threshold: 0.8
+    override_entropy_threshold: 0.98
+    override_alpha_concentration_min: 0.0
+    override_strength: 1.0
+
+notes:
+  - In batch automation, CCSR-WJDOT is exported post-hoc from the matching WJDOT checkpoint to avoid comparing against a separately trained WJDOT base.
+  - Reliability uses source labels and unlabeled target-train samples; target-eval labels are used only for final metrics.
+  - Fusion keeps WJDOT as the base model but uses a more assertive CCSR mixture so the reported method can differ visibly from the base predictions.

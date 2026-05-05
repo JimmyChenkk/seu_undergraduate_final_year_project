@@ -1,0 +1,32 @@
+method_name: sa_ccsr_wjdot_fusion
+method_display_name: sa_ccsr_wjdot_fusion
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: sa_ccsr_wjdot_fusion
+  prediction_mode: ccsr_calibrated_override
+  tau_proto: 0.85
+  min_proto_samples: 3
+  proto_probability_temperature: 0.25
+  w_proto: 0.35
+  w_ot: 0.35
+  w_entropy: 0.20
+  w_source_error: 0.10
+  lambda_same: 0.5
+  lambda_override: 0.8
+  override_threshold: 0.55
+  source_meta_calibration: true
+
+notes:
+  - Posthoc SA-CCSR fusion from the source-aware multi-head WJDOT expert checkpoint.

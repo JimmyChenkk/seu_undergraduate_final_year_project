@@ -2,23 +2,36 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import replace
+import math
 from typing import Any
 
 import torch
+from torch import nn
 import torch.nn.functional as F
 
+from src.backbones import ClassifierHead
+from src.losses import (
+    DomainDiscriminator,
+    GradientReverseLayer,
+    WarmStartGradientReverseLayer,
+    domain_adversarial_loss,
+)
 from src.tep_ot.augment import augment_signal
 from src.tep_ot.ot_losses import (
     OTLossConfig,
     compute_class_prototypes,
     inverse_sqrt_class_weights,
     jdot_transport_loss,
+    normalize_cost,
+    solve_coupling,
     source_outlier_weights,
     target_pseudo_class_weights,
 )
 
-from .base import MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
+from .base import AdaptationWeightScheduler, MethodStepOutput, SingleSourceMethodBase, accuracy_from_logits
+from .codats import CoDATSClassifierHead
 
 
 def _weighted_ce(
@@ -31,6 +44,127 @@ def _weighted_ce(
         return losses.mean()
     weights = sample_weights.to(device=logits.device, dtype=logits.dtype).clamp_min(0.0)
     return (losses * weights).sum() / weights.sum().clamp_min(1e-8)
+
+
+def _normalized_entropy(probabilities: torch.Tensor) -> torch.Tensor:
+    class_count = max(int(probabilities.shape[1]), 2)
+    entropy = -(probabilities * probabilities.clamp_min(1e-8).log()).sum(dim=1)
+    return entropy / math.log(float(class_count))
+
+
+def _minmax_normalize_by_class(values: torch.Tensor, present: torch.Tensor) -> torch.Tensor:
+    normalized = values.new_zeros(values.shape)
+    for class_id in range(values.shape[1]):
+        valid = present[:, class_id] & torch.isfinite(values[:, class_id])
+        if not bool(valid.any()):
+            normalized[:, class_id] = 1.0
+            continue
+        column = values[valid, class_id]
+        minimum = column.min()
+        maximum = column.max()
+        if float((maximum - minimum).detach().item()) <= 1e-8:
+            normalized[valid, class_id] = 0.0
+        else:
+            normalized[valid, class_id] = (column - minimum) / (maximum - minimum).clamp_min(1e-8)
+        normalized[~valid, class_id] = 1.0
+    return normalized
+
+
+def _softmax_source_floor(
+    reliability: torch.Tensor,
+    *,
+    temperature: float,
+    floor: float,
+    top_m: int,
+) -> torch.Tensor:
+    source_count, num_classes = int(reliability.shape[0]), int(reliability.shape[1])
+    raw = F.softmax(-reliability / max(float(temperature), 1e-8), dim=0)
+    floor_value = max(float(floor), 0.0)
+    alpha = raw.new_zeros(raw.shape)
+    for class_id in range(num_classes):
+        values = raw[:, class_id].clamp_min(floor_value)
+        if 0 < int(top_m) < source_count:
+            keep = torch.topk(raw[:, class_id], k=int(top_m), largest=True).indices
+            filtered = raw.new_full((source_count,), floor_value)
+            filtered[keep] = raw[keep, class_id].clamp_min(floor_value)
+            values = filtered
+        alpha[:, class_id] = values / values.sum().clamp_min(1e-8)
+    return alpha
+
+
+def _source_class_recall_error(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    *,
+    num_classes: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    predictions = logits.detach().argmax(dim=1)
+    errors = logits.new_ones(num_classes)
+    supports = logits.new_zeros(num_classes)
+    for class_id in range(num_classes):
+        mask = labels == class_id
+        supports[class_id] = float(mask.sum().detach().item())
+        if bool(mask.any()):
+            recall = (predictions[mask] == class_id).float().mean()
+            errors[class_id] = 1.0 - recall.to(device=logits.device, dtype=logits.dtype)
+    return errors, supports
+
+
+def _sourceaware_transport_loss(
+    *,
+    source_features: torch.Tensor,
+    source_labels: torch.Tensor,
+    target_features: torch.Tensor,
+    target_logits: torch.Tensor,
+    num_classes: int,
+    config: OTLossConfig,
+    source_sample_weights: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict[str, float]]:
+    """Compute one source-specific WJDOT coupling and class-wise transport costs."""
+
+    source_labels = source_labels.long()
+    feature_cost = torch.cdist(source_features, target_features, p=2).pow(2)
+    label_cost = -F.log_softmax(target_logits.float(), dim=1)[:, source_labels].transpose(0, 1)
+    label_cost = label_cost.to(dtype=feature_cost.dtype)
+    if bool(config.normalize_costs):
+        feature_plan = normalize_cost(feature_cost)
+        label_plan = normalize_cost(label_cost)
+    else:
+        feature_plan = feature_cost
+        label_plan = label_cost
+    plan_cost = float(config.feature_weight) * feature_plan + float(config.label_weight) * label_plan
+    gamma = solve_coupling(
+        plan_cost,
+        source_weights=source_sample_weights,
+        solver=config.solver,
+        sinkhorn_reg=config.sinkhorn_reg,
+        sinkhorn_num_iter=config.sinkhorn_num_iter,
+    )
+    gamma_detached = gamma.detach()
+    row_mass = gamma_detached.sum(dim=1)
+    weighted_cost_by_row = (gamma_detached * plan_cost).sum(dim=1)
+    class_mass = gamma_detached.new_zeros(num_classes)
+    class_cost_sum = gamma_detached.new_zeros(num_classes)
+    source_index = source_labels.detach().clamp(0, num_classes - 1)
+    class_mass.index_add_(0, source_index, row_mass)
+    class_cost_sum.index_add_(0, source_index, weighted_cost_by_row)
+    class_loss = class_cost_sum / class_mass.clamp_min(1e-8)
+    source_present = torch.bincount(source_index, minlength=num_classes).to(
+        device=class_loss.device,
+    )[:num_classes] > 0
+    class_loss = torch.where(source_present, class_loss, torch.zeros_like(class_loss))
+    loss = (gamma_detached * plan_cost).sum()
+    metrics = {
+        "loss_ot": float(loss.detach().item()),
+        "ot_feature_cost": float((gamma_detached * feature_plan).sum().detach().item()),
+        "ot_label_cost": float((gamma_detached * label_plan).sum().detach().item()),
+        "ot_gamma_max": float(gamma_detached.max().detach().item()),
+        "ot_transport_mass": float(gamma_detached.sum().detach().item()),
+    }
+    for class_id in range(num_classes):
+        metrics[f"ot_transport_mass_class_{class_id:02d}"] = float(class_mass[class_id].detach().item())
+        metrics[f"ot_cost_class_{class_id:02d}"] = float(class_loss[class_id].detach().item())
+    return loss, class_loss, class_mass, gamma_detached, metrics
 
 
 class WJDOTMethod(SingleSourceMethodBase):
@@ -465,6 +599,1087 @@ class WJDOTMethod(SingleSourceMethodBase):
         if self._last_class_source_weights is not None:
             snapshot["class_source_weights"] = self._last_class_source_weights.detach().cpu()
         return snapshot
+
+
+class PooledWJDOTMethod(WJDOTMethod):
+    """Explicit name for the legacy pooled-source WJDOT baseline."""
+
+    method_name = "pooled_wjdot"
+
+
+class SourceAwareWJDOTSharedHeadMethod(WJDOTMethod):
+    """Source-aware WJDOT with shared encoder/head and per-source OT plans."""
+
+    method_name = "sourceaware_wjdot_shared_head"
+
+    def __init__(
+        self,
+        *,
+        num_sources: int = 1,
+        source_alpha_mode: str = "uniform",
+        source_alpha_temperature: float = 1.0,
+        source_ce_reduction: str = "mean",
+        class_transport_normalize: bool = True,
+        sample_outlier_downweight: bool = False,
+        sample_weight_min: float = 0.3,
+        sample_weight_max: float = 1.0,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.num_sources = max(int(num_sources), 1)
+        self.source_alpha_mode = str(source_alpha_mode).strip().lower()
+        self.source_alpha_temperature = max(float(source_alpha_temperature), 1e-8)
+        self.source_ce_reduction = str(source_ce_reduction).strip().lower()
+        self.class_transport_normalize = bool(class_transport_normalize)
+        self.sample_outlier_downweight = bool(sample_outlier_downweight)
+        self.sample_weight_min = float(sample_weight_min)
+        self.sample_weight_max = float(sample_weight_max)
+        self._last_transport_mass_matrix: torch.Tensor | None = None
+        self._last_per_class_ot_cost_matrix: torch.Tensor | None = None
+        self._last_source_ot_plans: list[torch.Tensor] = []
+        self._last_source_prediction_histogram: torch.Tensor | None = None
+        self.store_source_ot_plans = True
+
+    def _source_head_logits(
+        self,
+        features: torch.Tensor,
+        source_index: int,
+    ) -> torch.Tensor:
+        del source_index
+        return self.classifier(features)
+
+    def _target_head_logits(
+        self,
+        features: torch.Tensor,
+        source_index: int,
+    ) -> torch.Tensor:
+        del source_index
+        return self.classifier(features)
+
+    def _source_expert_probabilities_from_features(self, features: torch.Tensor) -> torch.Tensor:
+        probabilities = F.softmax(self.classifier(features).float(), dim=1)
+        return probabilities.unsqueeze(0).repeat(self.num_sources, 1, 1)
+
+    def source_expert_probabilities(self, x: torch.Tensor) -> torch.Tensor:
+        features = self.encoder(x)
+        return self._source_expert_probabilities_from_features(features)
+
+    def _source_alpha_from_losses(self, losses: list[torch.Tensor], *, device, dtype) -> torch.Tensor:
+        count = max(len(losses), 1)
+        if not losses or self.source_alpha_mode in {"uniform", "equal", "none"}:
+            return torch.full((count,), 1.0 / float(count), device=device, dtype=dtype)
+        values = torch.stack([loss.detach().to(device=device, dtype=dtype) for loss in losses])
+        if self.source_alpha_mode in {"softmax_loss", "ot_loss", "softmax"}:
+            normalized = values / values.mean().clamp_min(1e-8)
+            return F.softmax(-normalized / self.source_alpha_temperature, dim=0).detach()
+        return torch.full((count,), 1.0 / float(count), device=device, dtype=dtype)
+
+    def _source_ce_loss(self, losses: list[torch.Tensor]) -> torch.Tensor:
+        stacked = torch.stack(losses)
+        if self.source_ce_reduction == "sum":
+            return stacked.sum()
+        return stacked.mean()
+
+    def _sample_weights_for_source(
+        self,
+        *,
+        features: torch.Tensor,
+        labels: torch.Tensor,
+        class_weights: torch.Tensor,
+        prototypes: torch.Tensor,
+    ) -> torch.Tensor:
+        weights = class_weights[labels.long()]
+        if self.sample_outlier_downweight:
+            outlier = source_outlier_weights(features.detach(), labels, prototypes.detach()).to(
+                device=features.device,
+                dtype=features.dtype,
+            )
+            weights = weights * outlier.clamp(self.sample_weight_min, self.sample_weight_max)
+        return weights
+
+    def _compute_sourceaware_terms(
+        self,
+        source_batches,
+        target_batch,
+    ) -> dict[str, Any]:
+        self.global_step += 1
+        target_x, target_y = target_batch
+        features_target = self.encoder(target_x)
+        fused_target_logits = torch.log(
+            self._source_expert_probabilities_from_features(features_target).mean(dim=0).clamp_min(1e-8)
+        )
+        num_classes = int(fused_target_logits.shape[1])
+        current_alignment_weight = self.current_alignment_weight()
+
+        source_logits: list[torch.Tensor] = []
+        source_features: list[torch.Tensor] = []
+        source_ot_features: list[torch.Tensor] = []
+        source_target_logits: list[torch.Tensor] = []
+        source_target_probs: list[torch.Tensor] = []
+        source_labels: list[torch.Tensor] = []
+        source_prototypes: list[torch.Tensor] = []
+        source_present: list[torch.Tensor] = []
+        source_ce_losses: list[torch.Tensor] = []
+        source_ot_losses: list[torch.Tensor] = []
+        source_class_losses: list[torch.Tensor] = []
+        source_class_mass: list[torch.Tensor] = []
+        source_eval_errors: list[torch.Tensor] = []
+        source_eval_supports: list[torch.Tensor] = []
+        source_transport_weights: list[torch.Tensor] = []
+        gamma_plans: list[torch.Tensor] = []
+        metrics: dict[str, float] = {}
+
+        for source_index, (source_x, source_y) in enumerate(source_batches):
+            features_source = self.encoder(source_x)
+            logits_source = self._source_head_logits(features_source, source_index)
+            target_logits_k = self._target_head_logits(features_target, source_index)
+            target_probs_k = F.softmax(target_logits_k.detach().float(), dim=1)
+            class_weights = inverse_sqrt_class_weights(source_y, num_classes=num_classes).to(
+                device=source_y.device,
+                dtype=features_source.dtype,
+            )
+            source_sample_weights = class_weights[source_y.long()] if self.use_source_class_balance else None
+            loss_ce_k = _weighted_ce(logits_source, source_y, source_sample_weights)
+            ot_source_features, ot_target_features = self._prepare_ot_features(features_source, features_target)
+            prototypes, present = compute_class_prototypes(
+                ot_source_features.detach(),
+                source_y,
+                num_classes=num_classes,
+                sample_weights=source_sample_weights,
+            )
+            transport_weights = None
+            if self.use_source_class_balance or self.sample_outlier_downweight:
+                transport_weights = self._sample_weights_for_source(
+                    features=ot_source_features,
+                    labels=source_y,
+                    class_weights=class_weights,
+                    prototypes=prototypes,
+                )
+            source_logits.append(logits_source)
+            source_features.append(features_source)
+            source_ot_features.append(ot_source_features)
+            source_target_logits.append(target_logits_k)
+            source_target_probs.append(target_probs_k)
+            source_labels.append(source_y)
+            source_prototypes.append(prototypes)
+            source_present.append(present)
+            source_ce_losses.append(loss_ce_k)
+            source_transport_weights.append(
+                torch.ones_like(source_y, dtype=features_source.dtype)
+                if transport_weights is None
+                else transport_weights.detach()
+            )
+            error_k, support_k = _source_class_recall_error(
+                logits_source,
+                source_y,
+                num_classes=num_classes,
+            )
+            source_eval_errors.append(error_k)
+            source_eval_supports.append(support_k)
+
+            if current_alignment_weight > 0:
+                ot_loss_k, class_loss_k, class_mass_k, gamma_k, ot_metrics = _sourceaware_transport_loss(
+                    source_features=ot_source_features,
+                    source_labels=source_y,
+                    target_features=ot_target_features,
+                    target_logits=target_logits_k,
+                    num_classes=num_classes,
+                    config=self.ot_config,
+                    source_sample_weights=transport_weights,
+                )
+            else:
+                ot_loss_k = features_target.new_zeros(())
+                class_loss_k = features_target.new_zeros(num_classes)
+                class_mass_k = features_target.new_zeros(num_classes)
+                gamma_k = features_target.new_zeros((int(source_y.shape[0]), int(target_x.shape[0])))
+                ot_metrics = {
+                    "loss_ot": 0.0,
+                    "ot_transport_mass": 0.0,
+                    **{f"ot_transport_mass_class_{class_id:02d}": 0.0 for class_id in range(num_classes)},
+                    **{f"ot_cost_class_{class_id:02d}": 0.0 for class_id in range(num_classes)},
+                }
+            source_ot_losses.append(ot_loss_k)
+            source_class_losses.append(class_loss_k)
+            source_class_mass.append(class_mass_k)
+            if self.store_source_ot_plans:
+                gamma_plans.append(gamma_k.detach().cpu())
+            metrics[f"loss_ce_source_{source_index}"] = float(loss_ce_k.detach().item())
+            metrics[f"loss_ot_source_{source_index}"] = float(ot_loss_k.detach().item())
+            metrics[f"transport_mass_source_{source_index}"] = float(ot_metrics.get("ot_transport_mass", 0.0))
+            for class_id in range(num_classes):
+                metrics[f"loss_ot_source_{source_index}_class_{class_id:02d}"] = float(
+                    class_loss_k[class_id].detach().item()
+                )
+                metrics[f"transport_mass_source_{source_index}_class_{class_id:02d}"] = float(
+                    class_mass_k[class_id].detach().item()
+                )
+
+        loss_cls = self._source_ce_loss(source_ce_losses)
+        loss_norm = self._embedding_norm_loss(*source_features, features_target)
+        target_label_assist, target_label_metrics = self._target_label_assist_loss(fused_target_logits, target_y)
+        source_alpha = self._source_alpha_from_losses(
+            source_ot_losses,
+            device=features_target.device,
+            dtype=features_target.dtype,
+        )
+        transport_mass_matrix = torch.stack(source_class_mass, dim=0).detach()
+        per_class_ot_cost_matrix = torch.stack(source_class_losses, dim=0).detach()
+        source_present_matrix = torch.stack(
+            [present.to(device=features_target.device, dtype=torch.bool) for present in source_present],
+            dim=0,
+        )
+        source_target_prob_tensor = torch.stack(source_target_probs, dim=0)
+        prediction_histogram = features_target.new_zeros((len(source_batches), num_classes))
+        for source_index, probs in enumerate(source_target_prob_tensor):
+            counts = torch.bincount(probs.argmax(dim=1), minlength=num_classes).to(
+                device=features_target.device,
+                dtype=features_target.dtype,
+            )
+            prediction_histogram[source_index] = counts
+
+        metrics.update(
+            {
+                "loss_cls": float(loss_cls.detach().item()),
+                "loss_embedding_norm": float(loss_norm.detach().item()),
+                "lambda_alignment": float(current_alignment_weight),
+                "acc_source": accuracy_from_logits(torch.cat(source_logits, dim=0), torch.cat(source_labels, dim=0)),
+                "sourceaware_source_count": float(len(source_batches)),
+            }
+        )
+        for source_index, alpha_value in enumerate(source_alpha):
+            metrics[f"alpha_source_{source_index}"] = float(alpha_value.detach().item())
+            metrics[f"loss_source_weight_{source_index}"] = float(alpha_value.detach().item())
+        metrics.update(target_label_metrics)
+
+        return {
+            "features_target": features_target,
+            "target_logits": fused_target_logits,
+            "target_y": target_y,
+            "source_logits": source_logits,
+            "source_features": source_features,
+            "source_ot_features": source_ot_features,
+            "source_labels": source_labels,
+            "source_prototypes": source_prototypes,
+            "source_present": source_present_matrix,
+            "source_target_probs": source_target_prob_tensor,
+            "source_eval_errors": torch.stack(source_eval_errors, dim=0),
+            "source_eval_supports": torch.stack(source_eval_supports, dim=0),
+            "source_ce_losses": source_ce_losses,
+            "source_ot_losses": source_ot_losses,
+            "source_class_losses": torch.stack(source_class_losses, dim=0),
+            "source_class_mass": transport_mass_matrix,
+            "source_alpha": source_alpha,
+            "loss_cls": loss_cls,
+            "loss_norm": loss_norm,
+            "target_label_assist": target_label_assist,
+            "current_alignment_weight": current_alignment_weight,
+            "metrics": metrics,
+            "gamma_plans": gamma_plans,
+            "per_class_ot_cost_matrix": per_class_ot_cost_matrix,
+            "transport_mass_matrix": transport_mass_matrix,
+            "prediction_histogram": prediction_histogram.detach(),
+        }
+
+    def _aggregate_transport_loss(self, terms: dict[str, Any]) -> torch.Tensor:
+        losses = terms["source_ot_losses"]
+        source_alpha = terms["source_alpha"]
+        if not losses:
+            return terms["features_target"].new_zeros(())
+        stacked = torch.stack(losses)
+        return (source_alpha.to(device=stacked.device, dtype=stacked.dtype) * stacked).sum()
+
+    def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
+        terms = self._compute_sourceaware_terms(source_batches, target_batch)
+        loss_ot = self._aggregate_transport_loss(terms)
+        loss_total = (
+            self.source_ce_weight * terms["loss_cls"]
+            + float(terms["current_alignment_weight"]) * loss_ot
+            + terms["target_label_assist"]
+            + self.embedding_norm_weight * terms["loss_norm"]
+        )
+        metrics = dict(terms["metrics"])
+        metrics.update(
+            {
+                "loss_total": float(loss_total.detach().item()),
+                "loss_alignment": float(loss_ot.detach().item()),
+                "sourceaware_class_transport_training": 0.0,
+            }
+        )
+        self._last_source_weights = terms["source_alpha"].detach()
+        self._last_class_source_weights = terms["source_alpha"].view(-1, 1).repeat(
+            1,
+            int(terms["source_class_losses"].shape[1]),
+        ).detach()
+        self._last_transport_mass_matrix = terms["transport_mass_matrix"].detach()
+        self._last_per_class_ot_cost_matrix = terms["per_class_ot_cost_matrix"].detach()
+        self._last_source_ot_plans = terms["gamma_plans"]
+        self._last_source_prediction_histogram = terms["prediction_histogram"].detach()
+        return MethodStepOutput(loss=loss_total, metrics=metrics)
+
+    def reliability_snapshot(self) -> dict[str, torch.Tensor]:
+        snapshot = super().reliability_snapshot()
+        if self._last_transport_mass_matrix is not None:
+            snapshot["transport_mass_matrix"] = self._last_transport_mass_matrix.detach().cpu()
+        if self._last_per_class_ot_cost_matrix is not None:
+            snapshot["per_class_ot_cost_matrix"] = self._last_per_class_ot_cost_matrix.detach().cpu()
+        if self._last_source_prediction_histogram is not None:
+            snapshot["source_prediction_histogram"] = self._last_source_prediction_histogram.detach().cpu()
+        return snapshot
+
+
+class SourceAwareWJDOTMultiHeadMethod(SourceAwareWJDOTSharedHeadMethod):
+    """Source-aware WJDOT with shared encoder and one classifier head per source."""
+
+    method_name = "sourceaware_wjdot_multi_head"
+
+    def __init__(self, *, num_sources: int = 1, **kwargs: Any) -> None:
+        hidden_dim = int(kwargs.get("classifier_hidden_dim", 128))
+        dropout = float(kwargs.get("dropout", 0.1))
+        num_classes = int(kwargs.get("num_classes"))
+        super().__init__(num_sources=num_sources, **kwargs)
+        self.extra_source_classifiers = nn.ModuleList(
+            [
+                ClassifierHead(
+                    in_features=self.encoder.out_dim,
+                    num_classes=num_classes,
+                    hidden_dim=hidden_dim,
+                    dropout=dropout,
+                )
+                for _ in range(max(self.num_sources - 1, 0))
+            ]
+        )
+
+    def _head_for_source(self, source_index: int) -> nn.Module:
+        if source_index <= 0 or len(self.extra_source_classifiers) == 0:
+            return self.classifier
+        index = min(source_index - 1, len(self.extra_source_classifiers) - 1)
+        return self.extra_source_classifiers[index]
+
+    def _source_head_logits(
+        self,
+        features: torch.Tensor,
+        source_index: int,
+    ) -> torch.Tensor:
+        return self._head_for_source(source_index)(features)
+
+    def _target_head_logits(
+        self,
+        features: torch.Tensor,
+        source_index: int,
+    ) -> torch.Tensor:
+        return self._head_for_source(source_index)(features)
+
+    def _source_expert_probabilities_from_features(self, features: torch.Tensor) -> torch.Tensor:
+        probabilities = [
+            F.softmax(self._head_for_source(source_index)(features).float(), dim=1)
+            for source_index in range(self.num_sources)
+        ]
+        return torch.stack(probabilities, dim=0)
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        features = self.encoder(x)
+        probabilities = self._source_expert_probabilities_from_features(features)
+        fused = probabilities.mean(dim=0)
+        logits = torch.log(fused.clamp_min(1e-8))
+        return logits, features
+
+
+class SACCsrWJDOTTrainMethod(SourceAwareWJDOTMultiHeadMethod):
+    """SA-CCSR-WJDOT: class-source reliability influences transport training."""
+
+    method_name = "sa_ccsr_wjdot_train"
+
+    def __init__(
+        self,
+        *,
+        reliability_start_ratio: float = 0.30,
+        reliability_ramp_ratio: float = 0.20,
+        reliability_total_steps: int = 1000,
+        reliability_start_step: int | None = None,
+        reliability_ramp_steps: int | None = None,
+        class_temperature: float | None = None,
+        T_class: float | None = None,
+        top_m_per_class: int | None = None,
+        floor: float | None = None,
+        w_proto: float = 0.35,
+        w_ot: float = 0.35,
+        w_entropy: float = 0.20,
+        w_source_error: float = 0.10,
+        tau_proto: float = 0.85,
+        min_proto_samples: int = 3,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.store_source_ot_plans = False
+        total_steps = max(int(reliability_total_steps), 1)
+        self.reliability_start_step = (
+            max(int(reliability_start_step), 0)
+            if reliability_start_step is not None
+            else max(int(round(float(reliability_start_ratio) * total_steps)), 0)
+        )
+        self.reliability_ramp_steps = (
+            max(int(reliability_ramp_steps), 1)
+            if reliability_ramp_steps is not None
+            else max(int(round(float(reliability_ramp_ratio) * total_steps)), 1)
+        )
+        default_temperature = 1.0 if self.num_sources <= 2 else 0.5
+        self.class_temperature = max(float(T_class if T_class is not None else (class_temperature if class_temperature is not None else default_temperature)), 1e-8)
+        self.top_m_per_class = (
+            0 if self.num_sources <= 2 else 3
+        ) if top_m_per_class is None else max(int(top_m_per_class), 0)
+        self.class_floor = (
+            0.05 if self.num_sources <= 2 else 0.03
+        ) if floor is None else max(float(floor), 0.0)
+        self.reliability_component_weights = {
+            "D_proto": float(w_proto),
+            "D_ot": float(w_ot),
+            "H_pred": float(w_entropy),
+            "E_src": float(w_source_error),
+        }
+        self.tau_proto = float(tau_proto)
+        self.min_proto_samples = max(int(min_proto_samples), 1)
+        self._last_reliability_matrix: torch.Tensor | None = None
+        self._last_reliability_components: dict[str, torch.Tensor] = {}
+
+    def _reliability_ramp(self) -> float:
+        if self.global_step <= self.reliability_start_step:
+            return 0.0
+        progress = (self.global_step - self.reliability_start_step) / float(self.reliability_ramp_steps)
+        return max(0.0, min(float(progress), 1.0))
+
+    def _target_prototypes_from_terms(self, terms: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]:
+        target_features = terms["features_target"].detach()
+        target_features = F.normalize(target_features, p=2, dim=1, eps=1e-6)
+        source_probs = terms["source_target_probs"].detach()
+        mean_probs = source_probs.mean(dim=0)
+        confidence, provisional = mean_probs.max(dim=1)
+        num_classes = int(mean_probs.shape[1])
+        prototypes = target_features.new_zeros((num_classes, target_features.shape[1]))
+        present = torch.zeros(num_classes, device=target_features.device, dtype=torch.bool)
+        for class_id in range(num_classes):
+            high_conf = (provisional == class_id) & (confidence >= self.tau_proto)
+            if int(high_conf.sum().detach().item()) >= self.min_proto_samples:
+                prototypes[class_id] = F.normalize(
+                    target_features[high_conf].mean(dim=0, keepdim=True),
+                    p=2,
+                    dim=1,
+                    eps=1e-6,
+                )[0]
+                present[class_id] = True
+                continue
+            barycenters = []
+            for source_index in range(source_probs.shape[0]):
+                weights = source_probs[source_index, :, class_id]
+                mass = weights.sum()
+                if float(mass.detach().item()) <= 1e-8:
+                    continue
+                barycenter = (target_features * weights.view(-1, 1)).sum(dim=0, keepdim=True) / mass.clamp_min(1e-8)
+                barycenters.append(F.normalize(barycenter, p=2, dim=1, eps=1e-6)[0])
+            if barycenters:
+                prototypes[class_id] = F.normalize(
+                    torch.stack(barycenters, dim=0).mean(dim=0, keepdim=True),
+                    p=2,
+                    dim=1,
+                    eps=1e-6,
+                )[0]
+                present[class_id] = True
+        return prototypes, present
+
+    def _compute_class_alpha(self, terms: dict[str, Any]) -> torch.Tensor:
+        source_count = int(terms["source_class_losses"].shape[0])
+        num_classes = int(terms["source_class_losses"].shape[1])
+        uniform = terms["features_target"].new_full((source_count, num_classes), 1.0 / float(max(source_count, 1)))
+        ramp = self._reliability_ramp()
+        if ramp <= 0:
+            self._last_reliability_matrix = uniform.new_zeros(uniform.shape)
+            self._last_reliability_components = {"alpha_uniform": uniform.detach()}
+            return uniform
+
+        target_prototypes, target_present = self._target_prototypes_from_terms(terms)
+        d_proto = uniform.new_ones((source_count, num_classes))
+        for source_index, prototypes in enumerate(terms["source_prototypes"]):
+            normalized_source = F.normalize(prototypes.detach(), p=2, dim=1, eps=1e-6)
+            distances = (normalized_source - target_prototypes).pow(2).sum(dim=1)
+            valid = terms["source_present"][source_index] & target_present
+            d_proto[source_index] = torch.where(valid, distances, torch.full_like(distances, 1e6))
+        d_ot = torch.where(
+            terms["source_present"],
+            terms["source_class_losses"].detach(),
+            torch.full_like(terms["source_class_losses"].detach(), 1e6),
+        )
+        source_probs = terms["source_target_probs"].detach()
+        mean_pred = source_probs.mean(dim=0).argmax(dim=1)
+        h_pred = uniform.new_ones((source_count, num_classes))
+        for source_index in range(source_count):
+            entropy = _normalized_entropy(source_probs[source_index])
+            for class_id in range(num_classes):
+                mask = mean_pred == class_id
+                if bool(mask.any()):
+                    h_pred[source_index, class_id] = entropy[mask].mean()
+        e_src = torch.where(
+            terms["source_present"],
+            terms["source_eval_errors"].detach(),
+            torch.ones_like(terms["source_eval_errors"].detach()),
+        )
+        present = terms["source_present"]
+        d_proto_norm = _minmax_normalize_by_class(d_proto, present)
+        d_ot_norm = _minmax_normalize_by_class(d_ot, present)
+        h_pred_norm = _minmax_normalize_by_class(h_pred, present)
+        e_src_norm = _minmax_normalize_by_class(e_src, present)
+        reliability = (
+            self.reliability_component_weights["D_proto"] * d_proto_norm
+            + self.reliability_component_weights["D_ot"] * d_ot_norm
+            + self.reliability_component_weights["H_pred"] * h_pred_norm
+            + self.reliability_component_weights["E_src"] * e_src_norm
+        )
+        alpha = _softmax_source_floor(
+            reliability,
+            temperature=self.class_temperature,
+            floor=self.class_floor,
+            top_m=self.top_m_per_class,
+        )
+        mixed = (1.0 - ramp) * uniform + ramp * alpha
+        mixed = mixed / mixed.sum(dim=0, keepdim=True).clamp_min(1e-8)
+        self._last_reliability_matrix = reliability.detach()
+        self._last_reliability_components = {
+            "D_proto": d_proto.detach(),
+            "D_ot": d_ot.detach(),
+            "H_pred": h_pred.detach(),
+            "E_src": e_src.detach(),
+            "D_proto_norm": d_proto_norm.detach(),
+            "D_ot_norm": d_ot_norm.detach(),
+            "H_pred_norm": h_pred_norm.detach(),
+            "E_src_norm": e_src_norm.detach(),
+            "R": reliability.detach(),
+            "alpha": mixed.detach(),
+        }
+        return mixed
+
+    def _aggregate_class_transport_loss(self, terms: dict[str, Any], alpha: torch.Tensor) -> torch.Tensor:
+        class_losses = terms["source_class_losses"]
+        present = terms["source_present"].to(device=class_losses.device, dtype=class_losses.dtype)
+        weights = alpha.to(device=class_losses.device, dtype=class_losses.dtype) * present
+        value = (weights * class_losses).sum()
+        if self.class_transport_normalize:
+            active_classes = present.sum(dim=0).clamp_max(1.0).sum().clamp_min(1.0)
+            value = value / active_classes
+        return value
+
+    def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
+        terms = self._compute_sourceaware_terms(source_batches, target_batch)
+        class_alpha = self._compute_class_alpha(terms)
+        loss_ot = self._aggregate_class_transport_loss(terms, class_alpha)
+        loss_total = (
+            self.source_ce_weight * terms["loss_cls"]
+            + float(terms["current_alignment_weight"]) * loss_ot
+            + terms["target_label_assist"]
+            + self.embedding_norm_weight * terms["loss_norm"]
+        )
+        metrics = dict(terms["metrics"])
+        metrics.update(
+            {
+                "loss_total": float(loss_total.detach().item()),
+                "loss_alignment": float(loss_ot.detach().item()),
+                "sourceaware_class_transport_training": 1.0,
+                "reliability_ramp": float(self._reliability_ramp()),
+                "class_alpha_min": float(class_alpha.min().detach().item()),
+                "class_alpha_max": float(class_alpha.max().detach().item()),
+                "class_alpha_std": float(class_alpha.std(unbiased=False).detach().item()),
+            }
+        )
+        for source_index in range(class_alpha.shape[0]):
+            metrics[f"alpha_source_{source_index}"] = float(class_alpha[source_index].mean().detach().item())
+            for class_id in range(class_alpha.shape[1]):
+                metrics[f"alpha_source_{source_index}_class_{class_id:02d}"] = float(
+                    class_alpha[source_index, class_id].detach().item()
+                )
+        self._last_source_weights = class_alpha.mean(dim=1).detach()
+        self._last_class_source_weights = class_alpha.detach()
+        self._last_transport_mass_matrix = terms["transport_mass_matrix"].detach()
+        self._last_per_class_ot_cost_matrix = terms["per_class_ot_cost_matrix"].detach()
+        self._last_source_ot_plans = terms["gamma_plans"]
+        self._last_source_prediction_histogram = terms["prediction_histogram"].detach()
+        return MethodStepOutput(loss=loss_total, metrics=metrics)
+
+    def reliability_snapshot(self) -> dict[str, torch.Tensor]:
+        snapshot = super().reliability_snapshot()
+        if self._last_reliability_matrix is not None:
+            snapshot["reliability_matrix"] = self._last_reliability_matrix.detach().cpu()
+        for key, value in self._last_reliability_components.items():
+            snapshot[f"reliability_{key}"] = value.detach().cpu()
+        return snapshot
+
+
+class CACCSRWJDOTMethod(SourceAwareWJDOTSharedHeadMethod):
+    """CoDATS-augmented CCSR-WJDOT with a frozen teacher anchor."""
+
+    method_name = "ca_ccsr_wjdot"
+
+    def __init__(
+        self,
+        *,
+        reliability_start_ratio: float = 0.30,
+        reliability_ramp_ratio: float = 0.20,
+        reliability_total_steps: int = 1000,
+        reliability_start_step: int | None = None,
+        reliability_ramp_steps: int | None = None,
+        class_temperature: float | None = None,
+        T_class: float | None = None,
+        top_m_per_class: int | None = None,
+        floor: float | None = None,
+        w_proto: float = 0.30,
+        w_ot: float = 0.35,
+        w_entropy: float = 0.20,
+        w_source_error: float = 0.15,
+        tau_proto: float = 0.85,
+        min_proto_samples: int = 3,
+        lambda_adv: float = 0.5,
+        lambda_ot: float = 0.10,
+        lambda_ccsr: float = 0.10,
+        lambda_teacher: float = 0.05,
+        teacher_temperature: float = 1.0,
+        teacher_anchor_mode: str = "kl",
+        teacher_requires_checkpoint: bool = True,
+        teacher_start_step: int = 0,
+        teacher_ramp_steps: int = 1,
+        domain_adaptation_schedule: str = "warm_start",
+        domain_adaptation_max_steps: int = 1000,
+        domain_adaptation_schedule_alpha: float = 10.0,
+        grl_lambda: float = 1.0,
+        grl_warm_start: bool = True,
+        grl_max_iters: int = 1000,
+        domain_hidden_dim: int | None = None,
+        domain_num_hidden_layers: int = 2,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.store_source_ot_plans = False
+        num_classes = int(kwargs.get("num_classes"))
+        hidden_dim = int(kwargs.get("classifier_hidden_dim", 128))
+        dropout = float(kwargs.get("dropout", 0.1))
+        self.classifier = CoDATSClassifierHead(
+            in_features=self.encoder.out_dim,
+            num_classes=num_classes,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+        )
+
+        self.domain_alignment_scheduler = AdaptationWeightScheduler(
+            base_weight=float(lambda_adv),
+            schedule=str(domain_adaptation_schedule),
+            max_steps=int(domain_adaptation_max_steps),
+            alpha=float(domain_adaptation_schedule_alpha),
+        )
+        if grl_warm_start:
+            self.grl = WarmStartGradientReverseLayer(
+                alpha=float(domain_adaptation_schedule_alpha),
+                lo=0.0,
+                hi=float(grl_lambda),
+                max_iters=int(grl_max_iters),
+                auto_step=True,
+            )
+        else:
+            self.grl = GradientReverseLayer(lambda_=float(grl_lambda))
+        self.discriminator = DomainDiscriminator(
+            self.encoder.out_dim,
+            hidden_dim=domain_hidden_dim or max(128, self.encoder.out_dim),
+            dropout=dropout,
+            num_hidden_layers=int(domain_num_hidden_layers),
+        )
+
+        total_steps = max(int(reliability_total_steps), 1)
+        self.reliability_start_step = (
+            max(int(reliability_start_step), 0)
+            if reliability_start_step is not None
+            else max(int(round(float(reliability_start_ratio) * total_steps)), 0)
+        )
+        self.reliability_ramp_steps = (
+            max(int(reliability_ramp_steps), 1)
+            if reliability_ramp_steps is not None
+            else max(int(round(float(reliability_ramp_ratio) * total_steps)), 1)
+        )
+        default_temperature = 1.0 if self.num_sources <= 2 else 0.5
+        self.class_temperature = max(
+            float(T_class if T_class is not None else (class_temperature if class_temperature is not None else default_temperature)),
+            1e-8,
+        )
+        self.top_m_per_class = (
+            0 if self.num_sources <= 2 else 3
+        ) if top_m_per_class is None else max(int(top_m_per_class), 0)
+        self.class_floor = (
+            0.05 if self.num_sources <= 2 else 0.03
+        ) if floor is None else max(float(floor), 0.0)
+        self.reliability_component_weights = {
+            "D_proto": float(w_proto),
+            "D_ot": float(w_ot),
+            "H_pred": float(w_entropy),
+            "E_src": float(w_source_error),
+        }
+        self.tau_proto = float(tau_proto)
+        self.min_proto_samples = max(int(min_proto_samples), 1)
+        self.lambda_ot = float(lambda_ot)
+        self.lambda_ccsr = float(lambda_ccsr)
+        self.lambda_teacher = float(lambda_teacher)
+        self.teacher_temperature = max(float(teacher_temperature), 1e-6)
+        self.teacher_anchor_mode = str(teacher_anchor_mode).strip().lower()
+        self.teacher_requires_checkpoint = bool(teacher_requires_checkpoint)
+        self.teacher_start_step = max(int(teacher_start_step), 0)
+        self.teacher_ramp_steps = max(int(teacher_ramp_steps), 1)
+        self.teacher_checkpoint_loaded = False
+        self._last_reliability_matrix: torch.Tensor | None = None
+        self._last_reliability_components: dict[str, torch.Tensor] = {}
+
+        self.teacher_encoder = deepcopy(self.encoder)
+        self.teacher_classifier = deepcopy(self.classifier)
+        self._freeze_teacher()
+
+    def _freeze_teacher(self) -> None:
+        self.teacher_encoder.eval()
+        self.teacher_classifier.eval()
+        for module in (self.teacher_encoder, self.teacher_classifier):
+            for parameter in module.parameters():
+                parameter.requires_grad_(False)
+
+    def reset_teacher_from_student(self) -> None:
+        self.teacher_encoder.load_state_dict(self.encoder.state_dict())
+        self.teacher_classifier.load_state_dict(self.classifier.state_dict())
+        self._freeze_teacher()
+
+    @staticmethod
+    def _compatible_state_dict(module: nn.Module, state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        current = module.state_dict()
+        compatible: dict[str, torch.Tensor] = {}
+        for key, value in state_dict.items():
+            if key in current and tuple(current[key].shape) == tuple(value.shape):
+                compatible[key] = value
+        return compatible
+
+    def load_teacher_checkpoint_state(self, state_dict: dict[str, torch.Tensor]) -> dict[str, float]:
+        compatible = self._compatible_state_dict(self, state_dict)
+        missing, unexpected = self.load_state_dict(compatible, strict=False)
+        del unexpected
+        self.reset_teacher_from_student()
+        self.teacher_checkpoint_loaded = bool(compatible)
+        return {
+            "teacher_checkpoint_loaded": float(self.teacher_checkpoint_loaded),
+            "teacher_checkpoint_loaded_tensors": float(len(compatible)),
+            "teacher_checkpoint_missing_tensors": float(len(missing)),
+        }
+
+    def teacher_logits_and_features(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        self.teacher_encoder.eval()
+        self.teacher_classifier.eval()
+        features = self.teacher_encoder(x)
+        logits = self.teacher_classifier(features)
+        return logits, features
+
+    def student_logits_and_features(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        features = self.encoder(x)
+        logits = self.classifier(features)
+        return logits, features
+
+    def _reliability_ramp(self) -> float:
+        if self.global_step <= self.reliability_start_step:
+            return 0.0
+        progress = (self.global_step - self.reliability_start_step) / float(self.reliability_ramp_steps)
+        return max(0.0, min(float(progress), 1.0))
+
+    def _scheduled_teacher_weight(self) -> float:
+        if (
+            self.lambda_teacher <= 0
+            or self.global_step <= self.teacher_start_step
+            or (self.teacher_requires_checkpoint and not self.teacher_checkpoint_loaded)
+        ):
+            return 0.0
+        progress = min((self.global_step - self.teacher_start_step) / float(self.teacher_ramp_steps), 1.0)
+        return self.lambda_teacher * progress
+
+    def _teacher_available_for_anchor(self) -> bool:
+        return (not self.teacher_requires_checkpoint) or self.teacher_checkpoint_loaded
+
+    def _target_prototypes_from_terms(self, terms: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]:
+        target_features = F.normalize(terms["features_target"].detach(), p=2, dim=1, eps=1e-6)
+        student_probs = terms["source_target_probs"].detach().mean(dim=0)
+        teacher_probs = terms.get("teacher_target_probs")
+        if teacher_probs is not None:
+            mean_probs = 0.5 * (student_probs + teacher_probs.detach().to(device=student_probs.device, dtype=student_probs.dtype))
+        else:
+            mean_probs = student_probs
+        confidence, provisional = mean_probs.max(dim=1)
+        num_classes = int(mean_probs.shape[1])
+        prototypes = target_features.new_zeros((num_classes, target_features.shape[1]))
+        present = torch.zeros(num_classes, device=target_features.device, dtype=torch.bool)
+        for class_id in range(num_classes):
+            high_conf = (provisional == class_id) & (confidence >= self.tau_proto)
+            if int(high_conf.sum().detach().item()) >= self.min_proto_samples:
+                prototypes[class_id] = F.normalize(
+                    target_features[high_conf].mean(dim=0, keepdim=True),
+                    p=2,
+                    dim=1,
+                    eps=1e-6,
+                )[0]
+                present[class_id] = True
+                continue
+
+            barycenters = []
+            if terms.get("gamma_plans"):
+                for source_index, gamma_cpu in enumerate(terms["gamma_plans"]):
+                    gamma = gamma_cpu.to(device=target_features.device, dtype=target_features.dtype)
+                    labels = terms["source_labels"][source_index].detach().long()
+                    if gamma.numel() == 0 or gamma.shape[0] != labels.shape[0]:
+                        continue
+                    class_rows = labels == class_id
+                    if not bool(class_rows.any()):
+                        continue
+                    weights = gamma[class_rows].sum(dim=0)
+                    mass = weights.sum()
+                    if float(mass.detach().item()) <= 1e-8:
+                        continue
+                    barycenter = (target_features * weights.view(-1, 1)).sum(dim=0, keepdim=True) / mass.clamp_min(1e-8)
+                    barycenters.append(F.normalize(barycenter, p=2, dim=1, eps=1e-6)[0])
+            else:
+                source_probs = terms["source_target_probs"].detach()
+                for source_index in range(source_probs.shape[0]):
+                    weights = source_probs[source_index, :, class_id]
+                    mass = weights.sum()
+                    if float(mass.detach().item()) <= 1e-8:
+                        continue
+                    barycenter = (target_features * weights.view(-1, 1)).sum(dim=0, keepdim=True) / mass.clamp_min(1e-8)
+                    barycenters.append(F.normalize(barycenter, p=2, dim=1, eps=1e-6)[0])
+            if barycenters:
+                prototypes[class_id] = F.normalize(
+                    torch.stack(barycenters, dim=0).mean(dim=0, keepdim=True),
+                    p=2,
+                    dim=1,
+                    eps=1e-6,
+                )[0]
+                present[class_id] = True
+        return prototypes, present
+
+    def _compute_class_alpha(self, terms: dict[str, Any]) -> torch.Tensor:
+        source_count = int(terms["source_class_losses"].shape[0])
+        num_classes = int(terms["source_class_losses"].shape[1])
+        uniform = terms["features_target"].new_full((source_count, num_classes), 1.0 / float(max(source_count, 1)))
+        ramp = self._reliability_ramp()
+        if ramp <= 0:
+            self._last_reliability_matrix = uniform.new_zeros(uniform.shape)
+            self._last_reliability_components = {"alpha_uniform": uniform.detach()}
+            return uniform
+
+        target_prototypes, target_present = self._target_prototypes_from_terms(terms)
+        d_proto = uniform.new_ones((source_count, num_classes))
+        for source_index, prototypes in enumerate(terms["source_prototypes"]):
+            normalized_source = F.normalize(prototypes.detach(), p=2, dim=1, eps=1e-6)
+            distances = (normalized_source - target_prototypes).pow(2).sum(dim=1)
+            valid = terms["source_present"][source_index] & target_present
+            d_proto[source_index] = torch.where(valid, distances, torch.full_like(distances, 1e6))
+        d_ot = torch.where(
+            terms["source_present"],
+            terms["source_class_losses"].detach(),
+            torch.full_like(terms["source_class_losses"].detach(), 1e6),
+        )
+        source_probs = terms["source_target_probs"].detach()
+        teacher_probs = terms.get("teacher_target_probs")
+        if teacher_probs is not None:
+            provisional_probs = 0.5 * (
+                source_probs.mean(dim=0)
+                + teacher_probs.detach().to(device=source_probs.device, dtype=source_probs.dtype)
+            )
+        else:
+            provisional_probs = source_probs.mean(dim=0)
+        mean_pred = provisional_probs.argmax(dim=1)
+        h_pred = uniform.new_ones((source_count, num_classes))
+        for source_index in range(source_count):
+            entropy = _normalized_entropy(source_probs[source_index])
+            for class_id in range(num_classes):
+                mask = mean_pred == class_id
+                if bool(mask.any()):
+                    h_pred[source_index, class_id] = entropy[mask].mean()
+        e_src = torch.where(
+            terms["source_present"],
+            terms["source_eval_errors"].detach(),
+            torch.ones_like(terms["source_eval_errors"].detach()),
+        )
+        present = terms["source_present"]
+        d_proto_norm = _minmax_normalize_by_class(d_proto, present)
+        d_ot_norm = _minmax_normalize_by_class(d_ot, present)
+        h_pred_norm = _minmax_normalize_by_class(h_pred, present)
+        e_src_norm = _minmax_normalize_by_class(e_src, present)
+        reliability = (
+            self.reliability_component_weights["D_proto"] * d_proto_norm
+            + self.reliability_component_weights["D_ot"] * d_ot_norm
+            + self.reliability_component_weights["H_pred"] * h_pred_norm
+            + self.reliability_component_weights["E_src"] * e_src_norm
+        )
+        alpha = _softmax_source_floor(
+            reliability,
+            temperature=self.class_temperature,
+            floor=self.class_floor,
+            top_m=self.top_m_per_class,
+        )
+        mixed = (1.0 - ramp) * uniform + ramp * alpha
+        mixed = mixed / mixed.sum(dim=0, keepdim=True).clamp_min(1e-8)
+        self._last_reliability_matrix = reliability.detach()
+        self._last_reliability_components = {
+            "D_proto": d_proto.detach(),
+            "D_ot": d_ot.detach(),
+            "H_pred": h_pred.detach(),
+            "E_src": e_src.detach(),
+            "D_proto_norm": d_proto_norm.detach(),
+            "D_ot_norm": d_ot_norm.detach(),
+            "H_pred_norm": h_pred_norm.detach(),
+            "E_src_norm": e_src_norm.detach(),
+            "R": reliability.detach(),
+            "alpha": mixed.detach(),
+        }
+        return mixed
+
+    def _aggregate_class_transport_loss(self, terms: dict[str, Any], alpha: torch.Tensor) -> torch.Tensor:
+        class_losses = terms["source_class_losses"]
+        present = terms["source_present"].to(device=class_losses.device, dtype=class_losses.dtype)
+        weights = alpha.to(device=class_losses.device, dtype=class_losses.dtype) * present
+        value = (weights * class_losses).sum()
+        if self.class_transport_normalize:
+            active_classes = present.sum(dim=0).clamp_max(1.0).sum().clamp_min(1.0)
+            value = value / active_classes
+        return value
+
+    def _teacher_anchor_loss(
+        self,
+        target_x: torch.Tensor,
+        student_logits: torch.Tensor,
+        student_features: torch.Tensor,
+    ) -> tuple[torch.Tensor, dict[str, float], torch.Tensor | None]:
+        weight = self._scheduled_teacher_weight()
+        zero = student_logits.new_zeros(())
+        if not self._teacher_available_for_anchor():
+            return zero, {
+                "lambda_teacher": 0.0,
+                "loss_teacher_anchor": 0.0,
+                "teacher_student_agreement": 0.0,
+                "teacher_checkpoint_loaded": float(self.teacher_checkpoint_loaded),
+                "teacher_anchor_enabled": 0.0,
+            }, None
+        with torch.no_grad():
+            teacher_logits, teacher_features = self.teacher_logits_and_features(target_x)
+        metrics = {
+            "lambda_teacher": float(weight),
+            "loss_teacher_anchor": 0.0,
+            "teacher_student_agreement": 0.0,
+            "teacher_checkpoint_loaded": float(self.teacher_checkpoint_loaded),
+            "teacher_anchor_enabled": 1.0,
+        }
+        teacher_probs = F.softmax(teacher_logits.detach().float(), dim=1).to(dtype=student_logits.dtype)
+        student_probs = F.softmax(student_logits.detach().float(), dim=1).to(dtype=student_logits.dtype)
+        if teacher_probs.numel() > 0:
+            metrics["teacher_student_agreement"] = float(
+                (teacher_probs.argmax(dim=1) == student_probs.argmax(dim=1)).float().mean().detach().item()
+            )
+        if weight <= 0:
+            return zero, metrics, teacher_probs.detach()
+
+        temperature = self.teacher_temperature
+        mode = self.teacher_anchor_mode
+        losses: list[torch.Tensor] = []
+        if mode in {"kl", "ce", "logit_kl", "kl_mse"}:
+            teacher_soft = F.softmax(teacher_logits.detach().float() / temperature, dim=1)
+            student_log = F.log_softmax(student_logits.float() / temperature, dim=1)
+            losses.append(F.kl_div(student_log, teacher_soft, reduction="batchmean") * (temperature ** 2))
+        if mode in {"mse", "embedding_mse", "kl_mse"}:
+            losses.append(
+                F.mse_loss(
+                    F.normalize(student_features.float(), p=2, dim=1, eps=1e-6),
+                    F.normalize(teacher_features.detach().float(), p=2, dim=1, eps=1e-6),
+                )
+            )
+        if not losses:
+            teacher_soft = F.softmax(teacher_logits.detach().float() / temperature, dim=1)
+            student_log = F.log_softmax(student_logits.float() / temperature, dim=1)
+            losses.append(F.kl_div(student_log, teacher_soft, reduction="batchmean") * (temperature ** 2))
+        loss = torch.stack(losses).mean()
+        metrics["loss_teacher_anchor"] = float(loss.detach().item())
+        return weight * loss, metrics, teacher_probs.detach()
+
+    def compute_loss(self, source_batches, target_batch) -> MethodStepOutput:
+        target_x, _ = target_batch
+        terms = self._compute_sourceaware_terms(source_batches, target_batch)
+        loss_teacher, teacher_metrics, teacher_target_probs = self._teacher_anchor_loss(
+            target_x,
+            terms["target_logits"],
+            terms["features_target"],
+        )
+        if teacher_target_probs is not None:
+            terms["teacher_target_probs"] = teacher_target_probs
+        class_alpha = self._compute_class_alpha(terms)
+        loss_ot = self._aggregate_transport_loss(terms)
+        loss_ccsr = self._aggregate_class_transport_loss(terms, class_alpha)
+        source_features = torch.cat(terms["source_features"], dim=0)
+        loss_adv, domain_acc = domain_adversarial_loss(
+            source_features,
+            terms["features_target"],
+            discriminator=self.discriminator,
+            grl=self.grl,
+        )
+        lambda_adv = self.domain_alignment_scheduler.step()
+        ot_ramp = float(terms["current_alignment_weight"])
+        ccsr_ramp = self._reliability_ramp()
+        loss_total = (
+            self.source_ce_weight * terms["loss_cls"]
+            + lambda_adv * loss_adv
+            + self.lambda_ot * ot_ramp * loss_ot
+            + self.lambda_ccsr * ccsr_ramp * loss_ccsr
+            + loss_teacher
+            + terms["target_label_assist"]
+            + self.embedding_norm_weight * terms["loss_norm"]
+        )
+        metrics = dict(terms["metrics"])
+        metrics.update(
+            {
+                "loss_total": float(loss_total.detach().item()),
+                "loss_alignment": float((loss_ot + loss_ccsr).detach().item()),
+                "loss_ot": float(loss_ot.detach().item()),
+                "loss_ccsr": float(loss_ccsr.detach().item()),
+                "loss_domain_adv": float(loss_adv.detach().item()),
+                "lambda_adv": float(lambda_adv),
+                "lambda_ot": float(self.lambda_ot * ot_ramp),
+                "lambda_ccsr": float(self.lambda_ccsr * ccsr_ramp),
+                "sourceaware_class_transport_training": 1.0,
+                "reliability_ramp": float(ccsr_ramp),
+                "class_alpha_min": float(class_alpha.min().detach().item()),
+                "class_alpha_max": float(class_alpha.max().detach().item()),
+                "class_alpha_std": float(class_alpha.std(unbiased=False).detach().item()),
+                "acc_domain": float(domain_acc),
+                "grl_coeff": float(getattr(self.grl, "last_coeff", 1.0)),
+            }
+        )
+        metrics.update(teacher_metrics)
+        for source_index in range(class_alpha.shape[0]):
+            metrics[f"alpha_source_{source_index}"] = float(class_alpha[source_index].mean().detach().item())
+            for class_id in range(class_alpha.shape[1]):
+                metrics[f"alpha_source_{source_index}_class_{class_id:02d}"] = float(
+                    class_alpha[source_index, class_id].detach().item()
+                )
+        self._last_source_weights = class_alpha.mean(dim=1).detach()
+        self._last_class_source_weights = class_alpha.detach()
+        self._last_transport_mass_matrix = terms["transport_mass_matrix"].detach()
+        self._last_per_class_ot_cost_matrix = terms["per_class_ot_cost_matrix"].detach()
+        self._last_source_ot_plans = terms["gamma_plans"]
+        self._last_source_prediction_histogram = terms["prediction_histogram"].detach()
+        return MethodStepOutput(loss=loss_total, metrics=metrics)
+
+    def reliability_snapshot(self) -> dict[str, torch.Tensor]:
+        snapshot = super().reliability_snapshot()
+        if self._last_reliability_matrix is not None:
+            snapshot["reliability_matrix"] = self._last_reliability_matrix.detach().cpu()
+        for key, value in self._last_reliability_components.items():
+            snapshot[f"reliability_{key}"] = value.detach().cpu()
+        return snapshot
+
+
+class CCSRWJDOTFusionMethod(WJDOTMethod):
+    """WJDOT training with final-stage CCSR prediction fusion."""
+
+    method_name = "ccsr_wjdot_fusion"
 
 
 class JDOTMethod(WJDOTMethod):

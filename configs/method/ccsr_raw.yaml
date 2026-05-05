@@ -1,0 +1,29 @@
+method_name: ccsr_raw
+method_display_name: ccsr_raw
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: ccsr_raw
+  prediction_mode: ccsr_raw
+  tau_proto: 0.85
+  min_proto_samples: 3
+  proto_probability_temperature: 0.25
+  w_proto: 0.35
+  w_ot: 0.35
+  w_entropy: 0.20
+  w_source_error: 0.10
+  source_meta_calibration: false
+
+notes:
+  - Posthoc gate ablation. Requires a completed sourceaware_wjdot_multi_head run in the same batch.

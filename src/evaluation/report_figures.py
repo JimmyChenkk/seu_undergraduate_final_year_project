@@ -6,6 +6,7 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import re
 
 from src.evaluation.review import extract_core_metrics
 from src.utils.run_layout import find_result_json_paths, resolve_comparison_root
@@ -21,23 +22,39 @@ _FONT_WARNING_EMITTED = False
 
 METHOD_ORDER = [
     "source_only",
+    "dsan",
+    "cdan_ts",
+    "codats",
     "coral",
     "dan",
     "dann",
-    "codats",
     "cdan",
-    "cdan_ts",
-    "dsan",
     "deepjdot",
-    "u_deepjdot",
     "tpu_deepjdot",
     "cbtpu_deepjdot",
+    "u_deepjdot",
     "tp_deepjdot",
     "cbtp_deepjdot",
     "jdot",
     "tp_jdot",
     "cbtp_jdot",
     "wjdot",
+    "pooled_wjdot",
+    "pooled_wjdot_128",
+    "pooled_wjdot_500",
+    "sourceaware_wjdot_shared_head",
+    "sourceaware_wjdot_multi_head",
+    "sourceaware_wjdot_128",
+    "sourceaware_wjdot_500",
+    "ccsr_raw",
+    "ccsr_safe",
+    "ccsr_calibrated_override",
+    "sa_ccsr_wjdot_fusion",
+    "sa_ccsr_wjdot_train",
+    "sa_ccsr_wjdot_train_128",
+    "sa_ccsr_wjdot_train_500",
+    "ccsr_wjdot_fusion",
+    "ca_ccsr_wjdot",
     "tp_wjdot",
     "cbtp_wjdot",
     "ms_cbtp_wjdot",
@@ -54,18 +71,44 @@ METHOD_ORDER = [
     "rcta_a_temporal",
     "rcta_ab_reliable",
     "rcta_abc_full",
+    "target_ref",
     "target_only",
 ]
-
-FIGURE_HIDDEN_METHODS = {
-    "u_deepjdot",
-}
 
 METHOD_DISPLAY_NAMES = {
     "deepjdot": "deepjdot",
     "tpu_deepjdot": "tpu_dpjdot",
     "cbtpu_deepjdot": "cbtpu_dpjdot",
+    "ca_ccsr_wjdot": "ca_ccsr_wjdot",
+    "target_only": "target_ref",
 }
+
+FINAL_MAIN_METHODS = (
+    "source_only",
+    "codats",
+    "wjdot",
+    "ca_ccsr_wjdot",
+    "target_ref",
+)
+MAIN_TABLE_METHOD_PREFIXES = ("ca_ccsr_wjdot_",)
+
+FIGURE_HIDDEN_METHODS = {
+    method_name
+    for method_name in METHOD_ORDER
+    if METHOD_DISPLAY_NAMES.get(method_name, method_name) not in FINAL_MAIN_METHODS
+}
+
+MULTISOURCE_HEATMAP_SCENARIO_ORDER = [
+    "mode1-mode2_to_mode5",
+    "mode2-mode5_to_mode1",
+    "mode1-mode5_to_mode2",
+    "mode2-mode3-mode4-mode5-mode6_to_mode1",
+    "mode1-mode3-mode4-mode5-mode6_to_mode2",
+    "mode1-mode2-mode4-mode5-mode6_to_mode3",
+    "mode1-mode2-mode3-mode5-mode6_to_mode4",
+    "mode1-mode2-mode3-mode4-mode6_to_mode5",
+    "mode1-mode2-mode3-mode4-mode5_to_mode6",
+]
 
 
 class FigureDependencyError(RuntimeError):
@@ -150,7 +193,7 @@ def _register_project_fonts() -> None:
                         print(f"[report_figures] failed to register font {resolved_path}: {exc}")
 
 
-def load_result_rows(results_dir: Path) -> list[dict]:
+def load_result_rows(results_dir: Path, *, include_all_methods: bool = False) -> list[dict]:
     rows = []
     for path in find_result_json_paths(results_dir):
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -160,10 +203,13 @@ def load_result_rows(results_dir: Path) -> list[dict]:
         if not isinstance(result, dict) or not payload.get("method_name"):
             continue
         metrics = extract_core_metrics(payload)
+        method_name = str(payload.get("method_name"))
+        if not include_all_methods and not _is_main_table_method(method_name):
+            continue
         rows.append(
             {
                 "path": path,
-                "method": str(payload.get("method_name")),
+                "method": method_name,
                 "setting": str(payload.get("setting")),
                 "scenario_id": str(payload.get("scenario_id", path.stem)),
                 "backbone_name": str(payload.get("backbone_name", "unknown")),
@@ -241,13 +287,22 @@ def _compact_scenario_label(label: str) -> str:
     return f"{left}_{right}"
 
 
+def _method_sort_anchor(method_name: str) -> str:
+    normalized = str(method_name)
+    display_name = _display_method_name(normalized)
+    for prefix in MAIN_TABLE_METHOD_PREFIXES:
+        if normalized.startswith(prefix) or display_name.startswith(prefix):
+            return prefix.rstrip("_")
+    return normalized
+
+
 def _sort_methods_for_mean_chart(methods) -> list[str]:
     """Keep the no-adaptation baseline visually anchored on the left."""
 
     method_rank = {name: index for index, name in enumerate(METHOD_ORDER)}
     return sorted(
         (str(method) for method in methods),
-        key=lambda name: (method_rank.get(name, len(METHOD_ORDER)), name),
+        key=lambda name: (method_rank.get(_method_sort_anchor(name), len(METHOD_ORDER)), name),
     )
 
 
@@ -257,20 +312,77 @@ def _sort_methods_for_heatmap(methods) -> list[str]:
     method_rank = {name: index for index, name in enumerate(METHOD_ORDER)}
     return sorted(
         (str(method) for method in methods),
-        key=lambda name: (method_rank.get(name, len(METHOD_ORDER)), name),
+        key=lambda name: (method_rank.get(_method_sort_anchor(name), len(METHOD_ORDER)), name),
     )
 
 
-def _visible_figure_methods(methods) -> list[str]:
+def _parse_mode_number(value: str | None) -> int:
+    match = re.search(r"mode(\d+)", str(value or ""))
+    return int(match.group(1)) if match else 999
+
+
+def _source_count_from_row(row: dict) -> int:
+    source_domains = row.get("source_domains")
+    if isinstance(source_domains, (list, tuple)):
+        return len(source_domains)
+    if isinstance(source_domains, str):
+        return len([item for item in source_domains.split(",") if item.strip()])
+
+    scenario_id = str(row.get("scenario_id", ""))
+    source_part = scenario_id.split("_to_", maxsplit=1)[0]
+    return len([item for item in source_part.split("-") if item.strip()])
+
+
+def _target_order_from_row(row: dict) -> int:
+    target_domain = row.get("target_domain")
+    if target_domain:
+        return _parse_mode_number(str(target_domain))
+
+    scenario_id = str(row.get("scenario_id", ""))
+    if "_to_" in scenario_id:
+        return _parse_mode_number(scenario_id.rsplit("_to_", maxsplit=1)[-1])
+    return 999
+
+
+def _sort_scenarios_for_heatmap(rows: list[dict]) -> list[str]:
+    """Keep multi-source heatmaps in the planned 2-source then 5-source order."""
+
+    preferred_rank = {
+        scenario_id: index
+        for index, scenario_id in enumerate(MULTISOURCE_HEATMAP_SCENARIO_ORDER)
+    }
+    representative_rows: dict[str, dict] = {}
+    for row in rows:
+        representative_rows.setdefault(str(row["scenario_id"]), row)
+
+    def _sort_key(scenario_id: str):
+        row = representative_rows[scenario_id]
+        if scenario_id in preferred_rank:
+            return (0, preferred_rank[scenario_id], scenario_id)
+        return (1, _source_count_from_row(row), _target_order_from_row(row), scenario_id)
+
+    return sorted(representative_rows, key=_sort_key)
+
+
+def _visible_figure_methods(methods, *, include_all_methods: bool = False) -> list[str]:
+    if include_all_methods:
+        return [str(method) for method in methods]
     return [
         method
         for method in methods
-        if str(method) not in FIGURE_HIDDEN_METHODS
+        if _is_main_table_method(str(method))
     ]
 
 
 def _display_method_name(method_name: str) -> str:
     return METHOD_DISPLAY_NAMES.get(str(method_name), str(method_name))
+
+
+def _is_main_table_method(method_name: str) -> bool:
+    display_name = _display_method_name(str(method_name))
+    return display_name in FINAL_MAIN_METHODS or any(
+        display_name.startswith(prefix) for prefix in MAIN_TABLE_METHOD_PREFIXES
+    )
 
 
 def export_mean_bar_chart(
@@ -279,6 +391,7 @@ def export_mean_bar_chart(
     *,
     setting_name: str | None = None,
     figure_format: str | None = None,
+    include_all_methods: bool = False,
 ) -> None:
     np, plt, _ = _runtime_dependencies()
     subset = [row for row in rows if setting_name is None or row["setting"] == setting_name]
@@ -289,7 +402,7 @@ def export_mean_bar_chart(
     for row in subset:
         grouped.setdefault(row["method"], []).append(row["target_eval_acc"])
 
-    methods = _visible_figure_methods(_sort_methods_for_mean_chart(grouped))
+    methods = _visible_figure_methods(_sort_methods_for_mean_chart(grouped), include_all_methods=include_all_methods)
     values = [np.mean(grouped[method]) for method in methods]
 
     plt.figure(figsize=(10, 5))
@@ -310,15 +423,19 @@ def export_setting_heatmap(
     output_path: Path,
     *,
     figure_format: str | None = None,
+    include_all_methods: bool = False,
 ) -> None:
     np, plt, _ = _runtime_dependencies()
     subset = [row for row in rows if row["setting"] == setting_name]
     if not subset:
         return
 
-    scenarios = sorted(set(row["scenario_id"] for row in subset))
+    scenarios = _sort_scenarios_for_heatmap(subset)
     scenario_labels = [_compact_scenario_label(scenario) for scenario in scenarios]
-    methods = _visible_figure_methods(_sort_methods_for_heatmap(set(row["method"] for row in subset)))
+    methods = _visible_figure_methods(
+        _sort_methods_for_heatmap(set(row["method"] for row in subset)),
+        include_all_methods=include_all_methods,
+    )
     matrix = np.full((len(scenarios), len(methods)), np.nan, dtype=float)
     for row in subset:
         if row["method"] not in methods:
@@ -624,8 +741,14 @@ def export_run_review_figures(artifact_path: Path, output_dir: Path, *, figure_f
         print(f"[report_figures] confusion matrix export skipped for {artifact_path.name}: {exc}")
 
 
-def export_summary_figures(results_dir: Path, output_dir: Path, *, figure_format: str | None = None) -> None:
-    rows = load_result_rows(results_dir)
+def export_summary_figures(
+    results_dir: Path,
+    output_dir: Path,
+    *,
+    figure_format: str | None = None,
+    include_all_methods: bool = False,
+) -> None:
+    rows = load_result_rows(results_dir, include_all_methods=include_all_methods)
     if not rows:
         return
 
@@ -634,6 +757,7 @@ def export_summary_figures(results_dir: Path, output_dir: Path, *, figure_format
         rows,
         _build_figure_output_path(output_dir / "method_mean_accuracy", figure_format=figure_format),
         figure_format=figure_format,
+        include_all_methods=include_all_methods,
     )
     for setting_name in sorted(set(str(row["setting"]) for row in rows)):
         export_mean_bar_chart(
@@ -641,12 +765,14 @@ def export_summary_figures(results_dir: Path, output_dir: Path, *, figure_format
             _build_figure_output_path(output_dir / f"{setting_name}_method_mean_accuracy", figure_format=figure_format),
             setting_name=setting_name,
             figure_format=figure_format,
+            include_all_methods=include_all_methods,
         )
         export_setting_heatmap(
             rows,
             setting_name,
             _build_figure_output_path(output_dir / f"{setting_name}_heatmap", figure_format=figure_format),
             figure_format=figure_format,
+            include_all_methods=include_all_methods,
         )
 
 
@@ -680,6 +806,11 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_PRIMARY_FIGURE_FORMAT,
         help="Primary export format. PDF is always emitted; PNG companion export is disabled for now.",
     )
+    parser.add_argument(
+        "--include-all-methods",
+        action="store_true",
+        help="Include every method found under results-dir in summary figures instead of only thesis main methods.",
+    )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(
         "--compare-domain-artifacts",
@@ -694,14 +825,19 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    rows = load_result_rows(args.results_dir)
+    rows = load_result_rows(args.results_dir, include_all_methods=args.include_all_methods)
     if not rows and not args.artifact and not args.compare_domain_artifacts:
         print("No result JSON files found.")
         return
 
     summary_output_dir = _resolve_summary_output_dir(args.results_dir, args.output_dir)
     if rows:
-        export_summary_figures(args.results_dir, summary_output_dir, figure_format=args.figure_format)
+        export_summary_figures(
+            args.results_dir,
+            summary_output_dir,
+            figure_format=args.figure_format,
+            include_all_methods=args.include_all_methods,
+        )
 
     for artifact_item in args.artifact:
         artifact_path = Path(artifact_item)

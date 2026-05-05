@@ -486,9 +486,15 @@ def ensure_dependencies(
         "tp_jdot",
         "cbtp_jdot",
         "wjdot",
+        "pooled_wjdot",
+        "sourceaware_wjdot_shared_head",
+        "sourceaware_wjdot_multi_head",
+        "sa_ccsr_wjdot_train",
+        "ca_ccsr_wjdot",
         "tp_wjdot",
         "cbtp_wjdot",
         "ms_cbtp_wjdot",
+        "ccsr_wjdot_fusion",
     }
     if method_name == "rcta":
         base_align = str((method_config or {}).get("loss", {}).get("base_align", "cdan")).strip().lower()
@@ -937,6 +943,9 @@ def _export_reliability_tables(
             "transport_mass_matrix_path": None,
             "per_class_ot_cost_matrix_path": None,
             "per_class_proto_distance_matrix_path": None,
+            "per_source_ot_loss_path": None,
+            "per_source_alpha_path": None,
+            "target_prediction_histogram_per_source_path": None,
         }
 
     snapshot = model.reliability_snapshot()
@@ -947,6 +956,9 @@ def _export_reliability_tables(
     transport_mass_matrix_path: str | None = None
     per_class_ot_cost_matrix_path: str | None = None
     per_class_proto_distance_matrix_path: str | None = None
+    per_source_ot_loss_path: str | None = None
+    per_source_alpha_path: str | None = None
+    target_prediction_histogram_per_source_path: str | None = None
 
     def _write_source_class_matrix(filename: str, values: Any) -> str:
         path = tables_dir / filename
@@ -959,7 +971,11 @@ def _export_reliability_tables(
         return str(path)
 
     alpha_keys = sorted(
-        [key for key in history[-1].keys() if key.startswith("alpha_source_")]
+        [
+            key
+            for key in history[-1].keys()
+            if key.startswith("alpha_source_") and "_class_" not in key
+        ]
     ) if history else []
     if alpha_keys:
         path = tables_dir / "source_weights.csv"
@@ -1004,6 +1020,31 @@ def _export_reliability_tables(
             "per_class_proto_distance_matrix.csv",
             snapshot["per_class_proto_distance_matrix"],
         )
+    if snapshot.get("per_class_ot_cost_matrix") is not None:
+        matrix = snapshot["per_class_ot_cost_matrix"].detach().cpu().numpy()
+        path = tables_dir / "per_source_ot_loss.csv"
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("source_domain,mean_class_ot_cost\n")
+            for source_index, domain_id in enumerate(source_domain_ids[: matrix.shape[0]]):
+                handle.write(f"{domain_id},{float(matrix[source_index].mean())}\n")
+        per_source_ot_loss_path = str(path)
+    if snapshot.get("source_weights") is not None:
+        values = snapshot["source_weights"].detach().cpu().numpy()
+        path = tables_dir / "per_source_alpha.csv"
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("source_domain,alpha\n")
+            for domain_id, value in zip(source_domain_ids, values.tolist()):
+                handle.write(f"{domain_id},{float(value)}\n")
+        per_source_alpha_path = str(path)
+    if snapshot.get("source_prediction_histogram") is not None:
+        matrix = snapshot["source_prediction_histogram"].detach().cpu().numpy()
+        path = tables_dir / "target_prediction_histogram_per_source.csv"
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write("source_domain,class_id,count\n")
+            for source_index, domain_id in enumerate(source_domain_ids[: matrix.shape[0]]):
+                for class_id in range(matrix.shape[1]):
+                    handle.write(f"{domain_id},{class_id},{float(matrix[source_index, class_id])}\n")
+        target_prediction_histogram_per_source_path = str(path)
 
     return {
         "source_weight_path": source_weight_path,
@@ -1012,6 +1053,9 @@ def _export_reliability_tables(
         "transport_mass_matrix_path": transport_mass_matrix_path,
         "per_class_ot_cost_matrix_path": per_class_ot_cost_matrix_path,
         "per_class_proto_distance_matrix_path": per_class_proto_distance_matrix_path,
+        "per_source_ot_loss_path": per_source_ot_loss_path,
+        "per_source_alpha_path": per_source_alpha_path,
+        "target_prediction_histogram_per_source_path": target_prediction_histogram_per_source_path,
     }
 
 
@@ -1243,6 +1287,19 @@ def run_deep_experiment(
         input_length=int(prepared_data.target_split.input_shape[-1]),
         num_sources=len(prepared_data.source_splits),
     ).to(device)
+    teacher_init_metrics: dict[str, float] = {}
+    teacher_checkpoint_path = method_config.get("loss", {}).get("teacher_checkpoint_path")
+    if teacher_checkpoint_path and hasattr(model, "load_teacher_checkpoint_state"):
+        checkpoint_path = Path(str(teacher_checkpoint_path))
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"CoDATS teacher checkpoint not found: {checkpoint_path}")
+        checkpoint_payload = torch.load(checkpoint_path, map_location=device)
+        if isinstance(checkpoint_payload, dict) and "state_dict" in checkpoint_payload:
+            checkpoint_payload = checkpoint_payload["state_dict"]
+        if not isinstance(checkpoint_payload, dict):
+            raise TypeError(f"Unsupported teacher checkpoint payload: {checkpoint_path}")
+        teacher_init_metrics = model.load_teacher_checkpoint_state(checkpoint_payload)
+        model.to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -1588,6 +1645,66 @@ def run_deep_experiment(
     )
     timing["target_metrics_seconds"] += perf_counter() - target_metrics_timer_start
     selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
+    ccsr_fusion_summary: dict[str, Any] | None = None
+    ca_ccsr_wjdot_summary: dict[str, Any] | None = None
+    if method_name == "ccsr_wjdot_fusion":
+        ccsr_timer_start = perf_counter()
+        from src.evaluation.ccsr_wjdot_fusion import export_ccsr_wjdot_fusion_artifacts
+
+        ccsr_fusion_summary = export_ccsr_wjdot_fusion_artifacts(
+            model=model,
+            prepared_data=prepared_data,
+            device=device,
+            analysis_path=run_paths["artifacts_dir"] / "ccsr_analysis.npz",
+            tables_dir=run_paths["tables_dir"],
+            figures_dir=run_paths["figures_dir"],
+            scenario_id=scenario_id,
+            method_name=method_display_name,
+            ccsr_config=method_config.get("loss", {}),
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+            amp_enabled=False,
+        )
+        selected_target_metrics = {
+            **selected_target_metrics,
+            "target_eval_acc": float(ccsr_fusion_summary["target_eval_acc"]),
+            "target_eval_macro_f1": float(ccsr_fusion_summary["target_eval_macro_f1"]),
+            "target_eval_balanced_acc": float(ccsr_fusion_summary["target_eval_balanced_acc"]),
+            "target_confusion_matrix": ccsr_fusion_summary["target_confusion_matrix"],
+        }
+        selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
+        timing["ccsr_fusion_seconds"] = timing.get("ccsr_fusion_seconds", 0.0) + (
+            perf_counter() - ccsr_timer_start
+        )
+    elif method_name == "ca_ccsr_wjdot":
+        ca_timer_start = perf_counter()
+        from src.evaluation.ca_ccsr_wjdot import export_ca_ccsr_wjdot_artifacts
+
+        ca_ccsr_wjdot_summary = export_ca_ccsr_wjdot_artifacts(
+            model=model,
+            prepared_data=prepared_data,
+            device=device,
+            analysis_path=run_paths["artifacts_dir"] / "ca_ccsr_wjdot_analysis.npz",
+            tables_dir=run_paths["tables_dir"],
+            figures_dir=run_paths["figures_dir"],
+            scenario_id=scenario_id,
+            method_name=method_display_name,
+            ca_config=method_config.get("loss", {}),
+            max_batches=evaluation_max_batches,
+            non_blocking=transfer_non_blocking,
+            amp_enabled=False,
+        )
+        selected_target_metrics = {
+            **selected_target_metrics,
+            "target_eval_acc": float(ca_ccsr_wjdot_summary["target_eval_acc"]),
+            "target_eval_macro_f1": float(ca_ccsr_wjdot_summary["target_eval_macro_f1"]),
+            "target_eval_balanced_acc": float(ca_ccsr_wjdot_summary["target_eval_balanced_acc"]),
+            "target_confusion_matrix": ca_ccsr_wjdot_summary["target_confusion_matrix"],
+        }
+        selected_target_eval_acc = float(selected_target_metrics["target_eval_acc"])
+        timing["ca_ccsr_wjdot_seconds"] = timing.get("ca_ccsr_wjdot_seconds", 0.0) + (
+            perf_counter() - ca_timer_start
+        )
     target_table_paths = _export_target_metric_tables(
         tables_dir=run_paths["tables_dir"],
         confusion_matrix=selected_target_metrics["target_confusion_matrix"],
@@ -1634,6 +1751,11 @@ def run_deep_experiment(
         "transport_mass_matrix_path": reliability_table_paths["transport_mass_matrix_path"],
         "per_class_ot_cost_matrix_path": reliability_table_paths["per_class_ot_cost_matrix_path"],
         "per_class_proto_distance_matrix_path": reliability_table_paths["per_class_proto_distance_matrix_path"],
+        "per_source_ot_loss_path": reliability_table_paths["per_source_ot_loss_path"],
+        "per_source_alpha_path": reliability_table_paths["per_source_alpha_path"],
+        "target_prediction_histogram_per_source_path": reliability_table_paths[
+            "target_prediction_histogram_per_source_path"
+        ],
         "checkpoint_diagnostics_path": checkpoint_diagnostic_paths["checkpoint_diagnostics_path"],
         "checkpoint_curve_path": checkpoint_diagnostic_paths["checkpoint_curve_path"],
         "selected_target_train_mean_confidence": (
@@ -1654,6 +1776,11 @@ def run_deep_experiment(
             None
             if selected_summary is None or selected_summary.get("model_selection_score") is None
             else float(selected_summary["model_selection_score"])
+        ),
+        "teacher_checkpoint_path": str(teacher_checkpoint_path) if teacher_checkpoint_path else None,
+        "teacher_checkpoint_loaded": float(teacher_init_metrics.get("teacher_checkpoint_loaded", 0.0)),
+        "teacher_checkpoint_loaded_tensors": float(
+            teacher_init_metrics.get("teacher_checkpoint_loaded_tensors", 0.0)
         ),
         "model_selection_best_score": (
             None if selection_mode == "final" or best_selection_score == float("-inf") else float(best_selection_score)
@@ -1686,16 +1813,21 @@ def run_deep_experiment(
 
     if bool(runtime.get("save_analysis", True)):
         analysis_timer_start = perf_counter()
-        analysis_summary = export_analysis_artifacts(
-            model=model,
-            prepared_data=prepared_data,
-            device=device,
-            analysis_path=run_paths["analysis_path"],
-            scenario_id=scenario_id,
-            method_name=method_display_name,
-            max_batches=analysis_max_batches,
-            non_blocking=transfer_non_blocking,
-        )
+        if ccsr_fusion_summary is not None:
+            analysis_summary = ccsr_fusion_summary
+        elif ca_ccsr_wjdot_summary is not None:
+            analysis_summary = ca_ccsr_wjdot_summary
+        else:
+            analysis_summary = export_analysis_artifacts(
+                model=model,
+                prepared_data=prepared_data,
+                device=device,
+                analysis_path=run_paths["analysis_path"],
+                scenario_id=scenario_id,
+                method_name=method_display_name,
+                max_batches=analysis_max_batches,
+                non_blocking=transfer_non_blocking,
+            )
         result.update(analysis_summary)
         result["target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
         result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
@@ -1703,6 +1835,13 @@ def run_deep_experiment(
         result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
         result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
         timing["analysis_seconds"] += perf_counter() - analysis_timer_start
+    elif ccsr_fusion_summary is not None or ca_ccsr_wjdot_summary is not None:
+        result.update(ccsr_fusion_summary or ca_ccsr_wjdot_summary or {})
+        result["target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
+        result["selected_target_eval_acc"] = float(selected_target_metrics["target_eval_acc"])
+        result["target_eval_macro_f1"] = float(selected_target_metrics["target_eval_macro_f1"])
+        result["target_eval_balanced_acc"] = float(selected_target_metrics["target_eval_balanced_acc"])
+        result["target_confusion_matrix"] = selected_target_metrics["target_confusion_matrix"]
 
     result["cache_key"] = getattr(prepared_data, "cache_key", None)
     result["cache_hit"] = bool(getattr(prepared_data, "cache_hit", False))
@@ -1747,6 +1886,13 @@ def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any
         "tsne_domain": "tsne_domain.pdf",
         "tsne_class": "tsne_class.pdf",
         "confusion_matrix": "confusion_matrix.pdf",
+        "class_source_alpha_heatmap": "class_source_alpha_heatmap.png",
+        "reliability_component_heatmaps": "reliability_component_heatmaps.png",
+        "target_prediction_histogram": "target_prediction_histogram.png",
+        "source_weight_global_vs_class_conditional": "source_weight_global_vs_class_conditional.png",
+        "global_source_alpha_vs_class_alpha": "global_source_alpha_vs_class_alpha.png",
+        "target_entropy_rho_distribution": "target_entropy_rho_distribution.png",
+        "wjdot_vs_ccsr_confusion_matrix": "wjdot_vs_ccsr_confusion_matrix.png",
     }.items():
         figure_path = run_paths["figures_dir"] / filename
         figure_paths[key] = str(figure_path) if figure_path.exists() else None
@@ -1800,7 +1946,7 @@ def main() -> None:
     data_config = TEDADatasetConfig.from_dict(data_payload)
     protocol_payload = deepcopy(data_payload.get("protocol", {}))
     protocol_payload.update(experiment_payload.get("protocol_override", {}))
-    if method_name == "target_only":
+    if method_name in {"target_only", "target_ref", "target_supervised_reference", "target_oracle_matched"}:
         protocol_payload["use_target_labels"] = True
         experiment_payload.setdefault("protocol_override", {})
         experiment_payload["protocol_override"]["use_target_labels"] = True

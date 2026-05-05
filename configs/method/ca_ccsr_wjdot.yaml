@@ -1,0 +1,90 @@
+method_name: ca_ccsr_wjdot
+method_display_name: ca_ccsr_wjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 500
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  target_eval_during_training: false
+  model_selection: hybrid_source_eval_target_confidence
+  early_stopping_metric: hybrid_source_eval_target_confidence
+  selection_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+  early_stopping_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+
+loss:
+  name: ca_ccsr_wjdot
+  adaptation_weight: 0.55
+  source_ce_weight: 1.0
+  source_ce_reduction: mean
+  source_alpha_mode: uniform
+  source_alpha_temperature: 1.0
+  feature_weight: 0.08
+  label_weight: 1.0
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 80
+  use_source_class_balance: true
+  alignment_start_step: 0
+  alignment_ramp_steps: 800
+  pseudo_weight: 0.0
+  consistency_weight: 0.0
+  target_label_assist_weight: 0.0
+  reliability_start_ratio: 0.30
+  reliability_ramp_ratio: 0.20
+  reliability_total_steps: 4900
+  T_class:
+  top_m_per_class:
+  floor:
+  tau_proto: 0.85
+  min_proto_samples: 3
+  w_proto: 0.30
+  w_ot: 0.35
+  w_entropy: 0.20
+  w_source_error: 0.15
+  class_transport_normalize: true
+  sample_outlier_downweight: false
+  lambda_adv: 0.50
+  lambda_ot: 0.10
+  lambda_ccsr: 0.10
+  lambda_teacher: 0.05
+  teacher_checkpoint_path:
+  teacher_temperature: 1.0
+  teacher_anchor_mode: kl
+  teacher_requires_checkpoint: true
+  teacher_start_step: 0
+  teacher_ramp_steps: 800
+  domain_adaptation_schedule: warm_start
+  domain_adaptation_max_steps: 1000
+  domain_adaptation_schedule_alpha: 10.0
+  grl_lambda: 1.0
+  grl_warm_start: true
+  grl_max_iters: 1000
+  domain_hidden_dim: 256
+  domain_num_hidden_layers: 2
+  teacher_safe_fusion:
+    lambda_same: 0.15
+    lambda_override: 0.60
+    override_confidence_margin: 0.10
+    override_entropy_margin: 0.05
+    teacher_confidence_floor: 0.0
+    eta_min: 0.0
+    eta_max: 0.70
+
+notes:
+  - CA-CCSR-WJDOT mainline: CoDATS classifier head, domain adversarial alignment, per-source WJDOT, CCSR class alpha, and teacher-safe distillation/fusion.
+  - Target eval labels are not used during training, selection, early stopping, gate calibration, or teacher fusion.
+  - A CoDATS teacher checkpoint can be supplied through loss.teacher_checkpoint_path.

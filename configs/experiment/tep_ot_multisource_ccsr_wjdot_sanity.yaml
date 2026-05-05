@@ -1,0 +1,75 @@
+experiment_name: tep_ot_multisource_ccsr_wjdot_sanity
+seed: 42
+device: cuda:0
+output_dir: runs
+
+runtime:
+  dry_run: true
+  save_checkpoint: false
+  save_analysis: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 1
+  selection_interval: 1
+  early_stopping_interval: 1
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  target_eval_during_training: false
+  refresh_batch_outputs: true
+  eval_max_batches: 2
+
+automation:
+  methods:
+    - wjdot
+    - ccsr_wjdot_fusion
+  multisource_scenes:
+    - mode1+mode2->mode5
+
+method_overrides:
+  wjdot:
+    optimization: &sanity_optimization
+      epochs: 1
+      batch_size: 8
+      learning_rate: 0.0001
+      weight_decay: 0.0
+      max_grad_norm: 5.0
+  ccsr_wjdot_fusion:
+    optimization: *sanity_optimization
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode2
+  target_domain: mode5
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+
+notes:
+  - Tiny integration sanity config for WJDOT and CCSR-WJDOT fusion.
+  - Override --scenes with a plus-separated source list to sanity-check any requested multi-source task.

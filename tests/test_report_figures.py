@@ -12,8 +12,11 @@ from src.evaluation.report_figures import (
     _domain_visual_styles,
     _resolve_primary_figure_format,
     _save_figure,
+    _visible_figure_methods,
     _sort_methods_for_heatmap,
     _sort_methods_for_mean_chart,
+    _sort_scenarios_for_heatmap,
+    FINAL_MAIN_METHODS,
     THESIS_FIGURE_FONT,
 )
 
@@ -55,7 +58,97 @@ class ReportFiguresTests(unittest.TestCase):
 
         self.assertEqual(
             methods,
-            ["source_only", "codats", "cdan_ts", "dsan", "deepjdot", "raincoat", "target_only"],
+            ["source_only", "dsan", "cdan_ts", "codats", "deepjdot", "raincoat", "target_only"],
+        )
+
+    def test_final_main_method_order_is_five_method_thesis_table(self) -> None:
+        methods = _visible_figure_methods(
+            _sort_methods_for_mean_chart(
+                [
+                    "target_ref",
+                    "sa_ccsr_wjdot_train",
+                    "codats",
+                    "source_only",
+                    "wjdot",
+                    "ca_ccsr_wjdot",
+                    "deepjdot",
+                ]
+            )
+        )
+
+        self.assertEqual(tuple(methods), FINAL_MAIN_METHODS)
+
+    def test_ca_ccsr_tuning_variants_are_visible_next_to_parent_method(self) -> None:
+        methods = _visible_figure_methods(
+            _sort_methods_for_mean_chart(
+                [
+                    "ca_ccsr_wjdot_otlite20",
+                    "codats",
+                    "ca_ccsr_wjdot_refine20",
+                    "deepjdot",
+                ]
+            )
+        )
+
+        self.assertEqual(methods, ["codats", "ca_ccsr_wjdot_otlite20", "ca_ccsr_wjdot_refine20"])
+
+    def test_include_all_methods_keeps_full_summary_figure_method_set(self) -> None:
+        methods = _visible_figure_methods(
+            _sort_methods_for_mean_chart(
+                [
+                    "target_only",
+                    "cbtpu_deepjdot",
+                    "codats",
+                    "source_only",
+                    "tpu_deepjdot",
+                    "cdan_ts",
+                    "deepjdot",
+                    "dsan",
+                ]
+            ),
+            include_all_methods=True,
+        )
+
+        self.assertEqual(
+            methods,
+            [
+                "source_only",
+                "dsan",
+                "cdan_ts",
+                "codats",
+                "deepjdot",
+                "tpu_deepjdot",
+                "cbtpu_deepjdot",
+                "target_only",
+            ],
+        )
+
+    def test_mode125_paper_order_matches_requested_heatmap_sequence(self) -> None:
+        methods = _sort_methods_for_heatmap(
+            [
+                "target_only",
+                "cbtpu_deepjdot",
+                "codats",
+                "source_only",
+                "tpu_deepjdot",
+                "cdan_ts",
+                "deepjdot",
+                "dsan",
+            ]
+        )
+
+        self.assertEqual(
+            methods,
+            [
+                "source_only",
+                "dsan",
+                "cdan_ts",
+                "codats",
+                "deepjdot",
+                "tpu_deepjdot",
+                "cbtpu_deepjdot",
+                "target_only",
+            ],
         )
 
     def test_deepjdot_innovation_method_order_keeps_progressive_chain(self) -> None:
@@ -94,6 +187,41 @@ class ReportFiguresTests(unittest.TestCase):
         methods = _sort_methods_for_heatmap(["rcta_abc_full", "rcta_a_temporal", "rcta_ab_reliable"])
 
         self.assertEqual(methods, ["rcta_a_temporal", "rcta_ab_reliable", "rcta_abc_full"])
+
+    def test_heatmap_scenario_order_keeps_two_source_before_five_source_stage_sequence(self) -> None:
+        def row(scenario_id: str, source_domains: list[str], target_domain: str) -> dict:
+            return {
+                "scenario_id": scenario_id,
+                "source_domains": source_domains,
+                "target_domain": target_domain,
+            }
+
+        rows = [
+            row("mode1-mode2-mode3-mode4-mode6_to_mode5", ["mode1", "mode2", "mode3", "mode4", "mode6"], "mode5"),
+            row("mode1-mode2_to_mode5", ["mode1", "mode2"], "mode5"),
+            row("mode1-mode5_to_mode2", ["mode1", "mode5"], "mode2"),
+            row("mode2-mode3-mode4-mode5-mode6_to_mode1", ["mode2", "mode3", "mode4", "mode5", "mode6"], "mode1"),
+            row("mode1-mode2-mode4-mode5-mode6_to_mode3", ["mode1", "mode2", "mode4", "mode5", "mode6"], "mode3"),
+            row("mode2-mode5_to_mode1", ["mode2", "mode5"], "mode1"),
+            row("mode1-mode2-mode3-mode4-mode5_to_mode6", ["mode1", "mode2", "mode3", "mode4", "mode5"], "mode6"),
+            row("mode1-mode3-mode4-mode5-mode6_to_mode2", ["mode1", "mode3", "mode4", "mode5", "mode6"], "mode2"),
+            row("mode1-mode2-mode3-mode5-mode6_to_mode4", ["mode1", "mode2", "mode3", "mode5", "mode6"], "mode4"),
+        ]
+
+        self.assertEqual(
+            _sort_scenarios_for_heatmap(rows),
+            [
+                "mode1-mode2_to_mode5",
+                "mode2-mode5_to_mode1",
+                "mode1-mode5_to_mode2",
+                "mode2-mode3-mode4-mode5-mode6_to_mode1",
+                "mode1-mode3-mode4-mode5-mode6_to_mode2",
+                "mode1-mode2-mode4-mode5-mode6_to_mode3",
+                "mode1-mode2-mode3-mode5-mode6_to_mode4",
+                "mode1-mode2-mode3-mode4-mode6_to_mode5",
+                "mode1-mode2-mode3-mode4-mode5_to_mode6",
+            ],
+        )
 
     def test_compact_scenario_label_shortens_mode_transition_labels(self) -> None:
         self.assertEqual(_compact_scenario_label("mode1_to_mode4"), "m1_m4")

@@ -1,0 +1,43 @@
+method_name: wjdot
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 70
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+runtime_defaults:
+  model_selection: hybrid_source_eval_target_confidence
+  early_stopping_metric: hybrid_source_eval_target_confidence
+  selection_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+  early_stopping_weights:
+    source_eval: 0.70
+    target_confidence: 0.30
+
+loss:
+  name: wjdot
+  adaptation_weight: 0.55
+  source_ce_weight: 1.0
+  feature_weight: 0.08
+  label_weight: 1.0
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.05
+  sinkhorn_num_iter_max: 200
+  use_source_class_balance: true
+  alignment_start_step: 0
+  alignment_ramp_steps: 800
+  pseudo_weight: 0.0
+  consistency_weight: 0.0
+
+notes:
+  - Weighted JDOT baseline using the project-native WJDOT implementation.
+  - Multi-source runs pool source minibatches in the baseline method.

@@ -34,9 +34,9 @@ runtime:
 automation:
   methods:
     - source_only
-    - codats
     - dsan
     - cdan_ts
+    - codats
     - deepjdot
     - tpu_deepjdot
     - cbtpu_deepjdot
@@ -50,6 +50,13 @@ automation:
     - mode5->mode2
 
 method_overrides:
+  target_only:
+    optimization:
+      epochs: 120
+      batch_size: 32
+      learning_rate: 0.0001
+      weight_decay: 0.0
+      max_grad_norm: 5.0
   deepjdot:
     optimization: &stage1_optimization
       epochs: 120
@@ -138,20 +145,6 @@ method_overrides:
         strong_scaling_std: 0.014
         strong_time_mask_ratio: 0.06
         strong_channel_dropout_prob: 0.05
-  m1_m2:
-    tpu_deepjdot:
-      loss:
-        prototype_cost_weight: 0.010
-        prototype_start_step: 700
-        temporal_cost_weight: 0.006
-        temporal_start_step: 700
-  m2_m1:
-    cbtpu_deepjdot:
-      loss:
-        pseudo_weight: 0.010
-        pseudo_max_acceptance: 0.55
-        js_threshold: 0.05
-
 protocol_override:
   setting: single_source
   source_domains:
@@ -191,8 +184,8 @@ protocol_override:
 
 notes:
   - Full mode1/2/5 fixed-fold single-source grid, 8 methods x 6 directed scenes = 48 runs.
+  - Method order follows the thesis heatmap/table order source_only, dsan, cdan_ts, codats, deepjdot, tpu_deepjdot, cbtpu_deepjdot, target_only.
   - DeepJDOT, TPU-DeepJDOT, and CBTPU-DeepJDOT reuse the successful Stage 1 fold0 tuning from tep_ot_single_source_tpu_stage1_fold0.
-  - The m1->m2 TPU override delays and softens prototype/temporal shaping so OT is less constrained early.
-  - The m2->m1 CBTPU override tightens pseudo-label acceptance to avoid over-correction.
-  - Other scenes keep the successful TPU/CBTPU settings untouched.
+  - Target-only receives 120 epochs so the supervised target-domain reference has the same epoch budget as the DeepJDOT chain.
+  - DeepJDOT, TPU-DeepJDOT, and CBTPU-DeepJDOT result-affecting parameters match tep_ot_single_source_tpu_stage1_fold0; no scene-specific chain tuning is applied in this 48-run grid.
   - Target labels are not evaluated during training and are used only in final target metrics, except target_only as its supervised upper-bound protocol.

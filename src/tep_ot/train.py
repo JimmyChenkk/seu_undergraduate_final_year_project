@@ -289,7 +289,13 @@ def run_experiment(
     normalized_method = method_name.strip().lower()
     if pretrain_epochs is None:
         pretrain_epochs = 5 if normalized_method in OT_METHODS else 0
-    if normalized_method in {"source_only", "target_only"}:
+    target_reference_methods = {
+        "target_only",
+        "target_ref",
+        "target_supervised_reference",
+        "target_oracle_matched",
+    }
+    if normalized_method in {"source_only", *target_reference_methods}:
         pretrain_epochs = 0
 
     device_name = "cuda:0" if device_name == "auto" and torch.cuda.is_available() else device_name
@@ -336,7 +342,7 @@ def run_experiment(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        hide_labels=normalized_method != "target_only",
+        hide_labels=normalized_method not in target_reference_methods,
     )
     target_eval_loader = make_loader(
         data.target_split.eval_x,
@@ -364,7 +370,7 @@ def run_experiment(
         "device": str(device),
         "normalization": "domain-level per-domain standardization",
         "target_eval_labels_policy": "used only after training for final metrics",
-        "target_train_labels_hidden": normalized_method != "target_only",
+        "target_train_labels_hidden": normalized_method not in target_reference_methods,
     }
     write_json(run_root / "config.json", config_payload)
 
@@ -395,7 +401,7 @@ def run_experiment(
     for epoch in range(epochs):
         method.train()
         epoch_metrics = defaultdict(list)
-        steps = len(target_train_loader) if normalized_method == "target_only" else max(len(loader) for loader in source_loaders)
+        steps = len(target_train_loader) if normalized_method in target_reference_methods else max(len(loader) for loader in source_loaders)
         if max_train_batches is not None:
             steps = min(steps, int(max_train_batches))
         for _ in range(steps):

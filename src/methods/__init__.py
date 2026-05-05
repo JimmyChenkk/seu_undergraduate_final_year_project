@@ -27,8 +27,14 @@ from .tc_cdan import TCCDANMethod
 from .wjdot import (
     CBTPJDOTMethod,
     CBTPWJDOTMethod,
+    CACCSRWJDOTMethod,
+    CCSRWJDOTFusionMethod,
     JDOTMethod,
     MSCBTPWJDOTMethod,
+    PooledWJDOTMethod,
+    SACCsrWJDOTTrainMethod,
+    SourceAwareWJDOTMultiHeadMethod,
+    SourceAwareWJDOTSharedHeadMethod,
     TPJDOTMethod,
     TPWJDOTMethod,
     WJDOTMethod,
@@ -62,7 +68,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
     }
     if method_name == "source_only":
         return SourceOnlyMethod(**shared_kwargs)
-    if method_name == "target_only":
+    if method_name in {"target_only", "target_ref", "target_supervised_reference", "target_oracle_matched"}:
         return TargetOnlyMethod(**shared_kwargs)
     if method_name in {"cdan", "cdan_ts"}:
         method_cls = CDANTSMethod if method_name == "cdan_ts" else CDANMethod
@@ -321,9 +327,15 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
         "tp_jdot",
         "cbtp_jdot",
         "wjdot",
+        "pooled_wjdot",
+        "sourceaware_wjdot_shared_head",
+        "sourceaware_wjdot_multi_head",
+        "sa_ccsr_wjdot_train",
+        "ca_ccsr_wjdot",
         "tp_wjdot",
         "cbtp_wjdot",
         "ms_cbtp_wjdot",
+        "ccsr_wjdot_fusion",
     }:
         method_cls = {
             "jdot": JDOTMethod,
@@ -331,9 +343,15 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             "tp_jdot": TPJDOTMethod,
             "cbtp_jdot": CBTPJDOTMethod,
             "wjdot": WJDOTMethod,
+            "pooled_wjdot": PooledWJDOTMethod,
+            "sourceaware_wjdot_shared_head": SourceAwareWJDOTSharedHeadMethod,
+            "sourceaware_wjdot_multi_head": SourceAwareWJDOTMultiHeadMethod,
+            "sa_ccsr_wjdot_train": SACCsrWJDOTTrainMethod,
+            "ca_ccsr_wjdot": CACCSRWJDOTMethod,
             "tp_wjdot": TPWJDOTMethod,
             "cbtp_wjdot": CBTPWJDOTMethod,
             "ms_cbtp_wjdot": MSCBTPWJDOTMethod,
+            "ccsr_wjdot_fusion": CCSRWJDOTFusionMethod,
         }[method_name]
         if method_name in {"tp_jdot", "tp_wjdot"}:
             default_prototype_weight = 0.04
@@ -343,9 +361,15 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             default_prototype_weight = 0.0
         source_balance_default = method_name in {
             "wjdot",
+            "pooled_wjdot",
+            "sourceaware_wjdot_shared_head",
+            "sourceaware_wjdot_multi_head",
+            "sa_ccsr_wjdot_train",
+            "ca_ccsr_wjdot",
             "tp_wjdot",
             "cbtp_wjdot",
             "ms_cbtp_wjdot",
+            "ccsr_wjdot_fusion",
         }
         wjdot_kwargs = {
             "adaptation_weight": float(loss.get("adaptation_weight", 1.0)),
@@ -444,6 +468,86 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     "target_label_assisted_source_weights": bool(
                         loss.get("target_label_assisted_source_weights", False)
                     ),
+                }
+            )
+        if method_name in {
+            "sourceaware_wjdot_shared_head",
+            "sourceaware_wjdot_multi_head",
+            "sa_ccsr_wjdot_train",
+            "ca_ccsr_wjdot",
+        }:
+            wjdot_kwargs.update(
+                {
+                    "num_sources": int(num_sources),
+                    "source_alpha_mode": str(loss.get("source_alpha_mode", "uniform")),
+                    "source_alpha_temperature": float(loss.get("source_alpha_temperature", 1.0)),
+                    "source_ce_reduction": str(loss.get("source_ce_reduction", "mean")),
+                    "class_transport_normalize": bool(loss.get("class_transport_normalize", True)),
+                    "sample_outlier_downweight": bool(loss.get("sample_outlier_downweight", False)),
+                    "sample_weight_min": float(loss.get("sample_weight_min", 0.3)),
+                    "sample_weight_max": float(loss.get("sample_weight_max", 1.0)),
+                }
+            )
+        if method_name in {"sa_ccsr_wjdot_train", "ca_ccsr_wjdot"}:
+            wjdot_kwargs.update(
+                {
+                    "reliability_start_ratio": float(loss.get("reliability_start_ratio", 0.30)),
+                    "reliability_ramp_ratio": float(loss.get("reliability_ramp_ratio", 0.20)),
+                    "reliability_total_steps": int(loss.get("reliability_total_steps", 1000)),
+                    "reliability_start_step": (
+                        None
+                        if loss.get("reliability_start_step") is None
+                        else int(loss.get("reliability_start_step"))
+                    ),
+                    "reliability_ramp_steps": (
+                        None
+                        if loss.get("reliability_ramp_steps") is None
+                        else int(loss.get("reliability_ramp_steps"))
+                    ),
+                    "class_temperature": (
+                        None
+                        if loss.get("class_temperature") is None
+                        else float(loss.get("class_temperature"))
+                    ),
+                    "T_class": None if loss.get("T_class") is None else float(loss.get("T_class")),
+                    "top_m_per_class": (
+                        None if loss.get("top_m_per_class") is None else int(loss.get("top_m_per_class"))
+                    ),
+                    "floor": None if loss.get("floor") is None else float(loss.get("floor")),
+                    "w_proto": float(loss.get("w_proto", 0.30 if method_name == "ca_ccsr_wjdot" else 0.35)),
+                    "w_ot": float(loss.get("w_ot", 0.35)),
+                    "w_entropy": float(loss.get("w_entropy", 0.20)),
+                    "w_source_error": float(
+                        loss.get("w_source_error", 0.15 if method_name == "ca_ccsr_wjdot" else 0.10)
+                    ),
+                    "tau_proto": float(loss.get("tau_proto", 0.85)),
+                    "min_proto_samples": int(loss.get("min_proto_samples", 3)),
+                }
+            )
+        if method_name == "ca_ccsr_wjdot":
+            wjdot_kwargs.update(
+                {
+                    "lambda_adv": float(loss.get("lambda_adv", loss.get("codats_adaptation_weight", 0.5))),
+                    "lambda_ot": float(loss.get("lambda_ot", 0.10)),
+                    "lambda_ccsr": float(loss.get("lambda_ccsr", 0.10)),
+                    "lambda_teacher": float(loss.get("lambda_teacher", 0.05)),
+                    "teacher_temperature": float(loss.get("teacher_temperature", 1.0)),
+                    "teacher_anchor_mode": str(loss.get("teacher_anchor_mode", "kl")),
+                    "teacher_requires_checkpoint": bool(loss.get("teacher_requires_checkpoint", True)),
+                    "teacher_start_step": int(loss.get("teacher_start_step", 0)),
+                    "teacher_ramp_steps": int(loss.get("teacher_ramp_steps", 1)),
+                    "domain_adaptation_schedule": str(loss.get("domain_adaptation_schedule", "warm_start")),
+                    "domain_adaptation_max_steps": int(loss.get("domain_adaptation_max_steps", 1000)),
+                    "domain_adaptation_schedule_alpha": float(
+                        loss.get("domain_adaptation_schedule_alpha", 10.0)
+                    ),
+                    "grl_lambda": float(loss.get("grl_lambda", 1.0)),
+                    "grl_warm_start": bool(loss.get("grl_warm_start", True)),
+                    "grl_max_iters": int(loss.get("grl_max_iters", 1000)),
+                    "domain_hidden_dim": (
+                        None if loss.get("domain_hidden_dim") is None else int(loss.get("domain_hidden_dim"))
+                    ),
+                    "domain_num_hidden_layers": int(loss.get("domain_num_hidden_layers", 2)),
                 }
             )
         return method_cls(**wjdot_kwargs)
@@ -682,6 +786,7 @@ __all__ = [
     "WJDOTMethod",
     "TPWJDOTMethod",
     "CBTPWJDOTMethod",
+    "CACCSRWJDOTMethod",
     "MSCBTPWJDOTMethod",
     "build_method",
 ]

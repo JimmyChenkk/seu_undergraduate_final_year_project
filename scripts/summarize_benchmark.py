@@ -16,7 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.evaluation.report_figures import METHOD_ORDER
 from src.utils.run_layout import find_result_json_paths
+
+
+METHOD_RANK = {method_name: index for index, method_name in enumerate(METHOD_ORDER)}
 
 
 def _load_analysis_metrics(path_value: str | None) -> dict[str, float | None]:
@@ -91,7 +95,10 @@ def summarize(results_dir: Path) -> dict:
     }
 
     method_summary = {}
-    for method in sorted(set(str(row["method"]) for row in rows)):
+    for method in sorted(
+        set(str(row["method"]) for row in rows),
+        key=lambda name: (METHOD_RANK.get(name, len(METHOD_RANK)), name),
+    ):
         method_rows = [row for row in rows if str(row["method"]) == method]
         method_summary[method] = {
             "accuracy": _mean_std([row.get("accuracy") for row in method_rows]),

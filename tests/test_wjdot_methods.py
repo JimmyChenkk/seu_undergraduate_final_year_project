@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from tempfile import TemporaryDirectory
 
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 
+from src.evaluation.ca_ccsr_wjdot import _teacher_safe_fusion, export_ca_ccsr_wjdot_artifacts
 from src.methods import build_method
 from src.trainers.train_benchmark import _export_reliability_tables
 from src.tep_ot.ot_losses import OTLossConfig, jdot_transport_loss
@@ -39,6 +42,11 @@ class WJDOTMethodTests(unittest.TestCase):
             "tp_wjdot",
             "cbtp_wjdot",
             "ms_cbtp_wjdot",
+            "pooled_wjdot",
+            "sourceaware_wjdot_shared_head",
+            "sourceaware_wjdot_multi_head",
+            "sa_ccsr_wjdot_train",
+            "ca_ccsr_wjdot",
         ]:
             with self.subTest(method=method_name):
                 torch.manual_seed(7)
@@ -47,7 +55,16 @@ class WJDOTMethodTests(unittest.TestCase):
                     num_classes=5,
                     in_channels=4,
                     input_length=32,
-                    num_sources=2 if method_name == "ms_cbtp_wjdot" else 1,
+                    num_sources=2
+                    if method_name
+                    in {
+                        "ms_cbtp_wjdot",
+                        "sourceaware_wjdot_shared_head",
+                        "sourceaware_wjdot_multi_head",
+                        "sa_ccsr_wjdot_train",
+                        "ca_ccsr_wjdot",
+                    }
+                    else 1,
                 )
                 method.train()
                 source_x = torch.randn(4, 4, 32)
@@ -55,7 +72,13 @@ class WJDOTMethodTests(unittest.TestCase):
                 target_x = torch.randn(4, 4, 32)
                 target_y = torch.full((4,), -1, dtype=torch.long)
                 source_batches = [(source_x, source_y)]
-                if method_name == "ms_cbtp_wjdot":
+                if method_name in {
+                    "ms_cbtp_wjdot",
+                    "sourceaware_wjdot_shared_head",
+                    "sourceaware_wjdot_multi_head",
+                    "sa_ccsr_wjdot_train",
+                    "ca_ccsr_wjdot",
+                }:
                     source_batches.append(
                         (
                             torch.randn(4, 4, 32),
@@ -71,6 +94,21 @@ class WJDOTMethodTests(unittest.TestCase):
                 self.assertGreater(step_output.metrics["loss_alignment"], 0.0)
                 self.assertTrue(gradients)
                 self.assertGreater(float(sum(gradient.abs().sum() for gradient in gradients)), 0.0)
+
+    def test_ca_ccsr_wjdot_registry_builds_codats_teacher_model(self) -> None:
+        method = build_method(
+            _config("ca_ccsr_wjdot"),
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=2,
+        )
+
+        self.assertEqual(method.method_name, "ca_ccsr_wjdot")
+        self.assertEqual(method.classifier.__class__.__name__, "CoDATSClassifierHead")
+        self.assertTrue(hasattr(method, "teacher_logits_and_features"))
+        self.assertTrue(all(not parameter.requires_grad for parameter in method.teacher_encoder.parameters()))
+        self.assertTrue(all(not parameter.requires_grad for parameter in method.teacher_classifier.parameters()))
 
     def test_jdot_family_keeps_source_ce_unweighted(self) -> None:
         for method_name in ["jdot", "tp_jdot", "cbtp_jdot"]:
@@ -152,6 +190,183 @@ class WJDOTMethodTests(unittest.TestCase):
             losses.append(float(output.loss.item()))
 
         self.assertAlmostEqual(losses[0], losses[1], places=6)
+
+    def test_ca_ccsr_wjdot_ignores_target_batch_labels(self) -> None:
+        losses = []
+        config = _config("ca_ccsr_wjdot")
+        config["loss"].update(
+            {
+                "alignment_start_step": 0,
+                "alignment_ramp_steps": 1,
+                "reliability_start_step": 0,
+                "reliability_ramp_steps": 1,
+                "lambda_teacher": 0.1,
+                "teacher_ramp_steps": 1,
+                "domain_hidden_dim": 16,
+            }
+        )
+        for target_y in (
+            torch.tensor([0, 1, 2, 3], dtype=torch.long),
+            torch.tensor([4, 3, 2, 1], dtype=torch.long),
+        ):
+            torch.manual_seed(13)
+            method = build_method(
+                config,
+                num_classes=5,
+                in_channels=4,
+                input_length=32,
+                num_sources=2,
+            )
+            method.train()
+            source_batches = [
+                (torch.randn(4, 4, 32), torch.tensor([0, 1, 2, 3], dtype=torch.long)),
+                (torch.randn(4, 4, 32), torch.tensor([1, 2, 3, 4], dtype=torch.long)),
+            ]
+            target_x = torch.randn(4, 4, 32)
+            output = method.compute_loss(source_batches, (target_x, target_y))
+            losses.append(float(output.loss.item()))
+
+        self.assertAlmostEqual(losses[0], losses[1], places=6)
+
+    def test_ca_ccsr_wjdot_reliability_snapshot_shape(self) -> None:
+        config = _config("ca_ccsr_wjdot")
+        config["loss"].update(
+            {
+                "alignment_start_step": 0,
+                "alignment_ramp_steps": 1,
+                "reliability_start_step": 0,
+                "reliability_ramp_steps": 1,
+                "domain_hidden_dim": 16,
+            }
+        )
+        torch.manual_seed(43)
+        method = build_method(
+            config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=2,
+        )
+        method.train()
+        source_batches = [
+            (torch.randn(4, 4, 32), torch.tensor([0, 1, 2, 3], dtype=torch.long)),
+            (torch.randn(4, 4, 32), torch.tensor([1, 2, 3, 4], dtype=torch.long)),
+        ]
+        target_x = torch.randn(4, 4, 32)
+        target_y = torch.full((4,), -1, dtype=torch.long)
+
+        method.compute_loss(source_batches, (target_x, target_y))
+        snapshot = method.reliability_snapshot()
+
+        self.assertIn("class_source_weights", snapshot)
+        self.assertIn("reliability_matrix", snapshot)
+        self.assertIn("reliability_alpha", snapshot)
+        self.assertEqual(tuple(snapshot["class_source_weights"].shape), (2, 5))
+        self.assertEqual(tuple(snapshot["reliability_matrix"].shape), (2, 5))
+
+    def test_ca_ccsr_wjdot_final_artifact_export_writes_diagnostics(self) -> None:
+        config = _config("ca_ccsr_wjdot")
+        config["loss"].update(
+            {
+                "alignment_start_step": 0,
+                "alignment_ramp_steps": 1,
+                "reliability_start_step": 0,
+                "reliability_ramp_steps": 1,
+                "domain_hidden_dim": 16,
+            }
+        )
+        torch.manual_seed(47)
+        method = build_method(
+            config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=2,
+        )
+        method.train()
+        source_batches = [
+            (torch.randn(4, 4, 32), torch.tensor([0, 1, 2, 3], dtype=torch.long)),
+            (torch.randn(4, 4, 32), torch.tensor([1, 2, 3, 4], dtype=torch.long)),
+        ]
+        target_x = torch.randn(4, 4, 32)
+        target_y = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        method.compute_loss(source_batches, (target_x, torch.full((4,), -1, dtype=torch.long)))
+
+        prepared_data = SimpleNamespace(
+            source_splits=[
+                SimpleNamespace(domain_id="mode1"),
+                SimpleNamespace(domain_id="mode2"),
+            ],
+            source_eval_loaders=[
+                DataLoader(TensorDataset(source_x, source_y), batch_size=2)
+                for source_x, source_y in source_batches
+            ],
+            target_eval_loader=DataLoader(TensorDataset(target_x, target_y), batch_size=2),
+            target_split=SimpleNamespace(domain_id="mode3"),
+        )
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            summary = export_ca_ccsr_wjdot_artifacts(
+                model=method,
+                prepared_data=prepared_data,
+                device=torch.device("cpu"),
+                analysis_path=root / "artifacts" / "ca_ccsr_wjdot_analysis.npz",
+                tables_dir=root / "tables",
+                figures_dir=root / "figures",
+                scenario_id="mode1-mode2_to_mode3",
+                method_name="ca_ccsr_wjdot",
+                ca_config=config["loss"],
+            )
+
+            for key in [
+                "teacher_student_disagreement_path",
+                "teacher_safe_fusion_summary_path",
+                "eta_distribution_path",
+                "override_cases_path",
+                "per_class_recall_gain_vs_codats_path",
+                "per_class_recall_gain_vs_wjdot_path",
+                "alpha_entropy_per_class_path",
+                "analysis_path",
+            ]:
+                self.assertTrue(Path(summary[key]).exists())
+            self.assertIn("target_eval_acc", summary)
+            self.assertIn("ca_ccsr_wjdot", summary)
+
+    def test_ca_ccsr_prior_balanced_fusion_reweights_batch_probability_prior(self) -> None:
+        import numpy as np
+
+        student_probs = np.asarray(
+            [
+                [0.20, 0.80],
+                [0.20, 0.80],
+                [0.45, 0.55],
+                [0.55, 0.45],
+            ],
+            dtype=np.float32,
+        )
+        teacher_probs = np.asarray(
+            [
+                [0.10, 0.90],
+                [0.10, 0.90],
+                [0.10, 0.90],
+                [0.10, 0.90],
+            ],
+            dtype=np.float32,
+        )
+
+        fusion = _teacher_safe_fusion(
+            student_probs,
+            teacher_probs,
+            {
+                "fusion_base": "prior_balanced",
+                "prior_balance_student_mix": 0.5,
+                "prior_balance_strength": 1.0,
+            },
+        )
+
+        self.assertEqual(fusion["prior_balance_student_mix"], 0.5)
+        self.assertEqual(fusion["prior_balance_strength"], 1.0)
+        self.assertEqual(fusion["p_final"].argmax(axis=1).tolist()[-1], 0)
 
     def test_target_label_assist_uses_visible_target_labels(self) -> None:
         losses = []

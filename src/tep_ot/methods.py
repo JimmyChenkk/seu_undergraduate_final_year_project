@@ -621,7 +621,7 @@ def build_method(
     shared = {"num_classes": num_classes}
     if normalized == "source_only":
         return SourceOnlyMethod(model, **shared)
-    if normalized == "target_only":
+    if normalized in {"target_only", "target_ref", "target_supervised_reference", "target_oracle_matched"}:
         return TargetOnlyMethod(model, **shared)
     if normalized == "mmd":
         return MMDMethod(model, adaptation_weight=adaptation_weight, **shared)

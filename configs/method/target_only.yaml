@@ -24,4 +24,4 @@ loss:
 notes:
   - Minimal target-only baseline for the TEP benchmark.
   - Trains a classifier on the target-domain labeled fold only, mirroring the source-only setup.
-  - Uses target-train confidence for checkpoint selection so the supervised upper bound is not selected by source-domain validation.
+  - Uses target-train confidence for checkpoint selection so the supervised target-domain reference is not selected by source-domain validation.

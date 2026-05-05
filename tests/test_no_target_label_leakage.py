@@ -11,6 +11,31 @@ from tests.test_rpl_tc_cdan import _rpl_config
 from tests.test_tc_cdan import _tc_config
 
 
+def _ca_ccsr_wjdot_config() -> dict:
+    return {
+        "method_name": "ca_ccsr_wjdot",
+        "backbone": {
+            "name": "fcn",
+            "classifier_hidden_dim": 16,
+            "dropout": 0.0,
+            "embedding_dim": 32,
+        },
+        "loss": {
+            "transport_solver": "sinkhorn",
+            "sinkhorn_reg": 0.1,
+            "sinkhorn_num_iter_max": 10,
+            "alignment_start_step": 0,
+            "alignment_ramp_steps": 1,
+            "reliability_start_step": 0,
+            "reliability_ramp_steps": 1,
+            "lambda_teacher": 0.1,
+            "teacher_ramp_steps": 1,
+            "domain_hidden_dim": 16,
+            "target_label_assist_weight": 0.0,
+        },
+    }
+
+
 class NoTargetLabelLeakageTests(unittest.TestCase):
     def _loss_with_target_labels(self, config: dict, target_y: torch.Tensor) -> float:
         torch.manual_seed(10)
@@ -27,6 +52,7 @@ class NoTargetLabelLeakageTests(unittest.TestCase):
             _tc_config(),
             _rpl_config(no_reliable=False),
             _ccs_config(no_reliable=False),
+            _ca_ccsr_wjdot_config(),
         ]
         labels_a = torch.tensor([0, 1, 2, 3])
         labels_b = torch.tensor([28, 27, 26, 25])

@@ -1,0 +1,101 @@
+method_name: ca_ccsr_wjdot
+method_display_name: ca_ccsr_wjdot_otlite20
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 500
+  dropout: 0.1
+
+optimization:
+  epochs: 20
+  batch_size: 32
+  learning_rate: 0.00002
+  weight_decay: 0.0
+  max_grad_norm: 3.0
+
+runtime_defaults:
+  target_eval_during_training: false
+  model_selection: target_free_checkpoint_guard
+  early_stopping_metric: target_free_checkpoint_guard
+  selection_weights:
+    source_eval: 1.0
+    target_entropy_badness: 0.20
+    confidence_collapse: 0.20
+    class_distribution_collapse: 0.40
+    ot_cost_instability: 0.10
+  selection_params:
+    target_entropy_floor: 0.05
+    confidence_ceiling: 0.95
+    class_entropy_floor: 0.70
+  early_stopping_weights:
+    source_eval: 1.0
+    target_entropy_badness: 0.20
+    confidence_collapse: 0.20
+    class_distribution_collapse: 0.40
+    ot_cost_instability: 0.10
+  early_stopping_params:
+    target_entropy_floor: 0.05
+    confidence_ceiling: 0.95
+    class_entropy_floor: 0.70
+
+loss:
+  name: ca_ccsr_wjdot_otlite20
+  adaptation_weight: 0.35
+  source_ce_weight: 0.50
+  source_ce_reduction: mean
+  source_alpha_mode: uniform
+  feature_weight: 0.04
+  label_weight: 1.0
+  normalize_costs: true
+  transport_solver: sinkhorn
+  sinkhorn_reg: 0.06
+  sinkhorn_num_iter_max: 40
+  use_source_class_balance: true
+  alignment_start_step: 0
+  alignment_ramp_steps: 300
+  pseudo_weight: 0.0
+  consistency_weight: 0.0
+  target_label_assist_weight: 0.0
+  reliability_start_ratio: 0.40
+  reliability_ramp_ratio: 0.30
+  reliability_total_steps: 1440
+  T_class:
+  top_m_per_class:
+  floor:
+  tau_proto: 0.85
+  min_proto_samples: 3
+  w_proto: 0.30
+  w_ot: 0.35
+  w_entropy: 0.20
+  w_source_error: 0.15
+  class_transport_normalize: true
+  sample_outlier_downweight: false
+  lambda_adv: 0.05
+  lambda_ot: 0.02
+  lambda_ccsr: 0.02
+  lambda_teacher: 0.30
+  teacher_checkpoint_path:
+  teacher_temperature: 1.0
+  teacher_anchor_mode: kl
+  teacher_requires_checkpoint: true
+  teacher_start_step: 0
+  teacher_ramp_steps: 300
+  domain_adaptation_schedule: warm_start
+  domain_adaptation_max_steps: 500
+  domain_adaptation_schedule_alpha: 10.0
+  grl_lambda: 0.3
+  grl_warm_start: true
+  grl_max_iters: 500
+  domain_hidden_dim: 256
+  domain_num_hidden_layers: 2
+  teacher_safe_fusion:
+    fusion_base: teacher
+    lambda_same: 0.05
+    lambda_override: 0.70
+    override_confidence_margin: 0.03
+    override_entropy_margin: 0.01
+    eta_min: 0.0
+    eta_max: 0.75
+
+notes:
+  - Conservative OT-light CA refinement for probing whether source-aware OT can improve CoDATS without drifting.

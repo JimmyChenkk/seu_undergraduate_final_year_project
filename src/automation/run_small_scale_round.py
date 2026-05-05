@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 import importlib.util
+import json
 from pathlib import Path
 import random
 import subprocess
@@ -24,6 +25,18 @@ ALL_MODES = [
     "mode5",
     "mode6",
 ]
+
+POSTHOC_BASE_METHODS = {
+    "ccsr_wjdot_fusion": "wjdot",
+    "ccsr_raw": "sourceaware_wjdot_multi_head",
+    "ccsr_safe": "sourceaware_wjdot_multi_head",
+    "ccsr_calibrated_override": "sourceaware_wjdot_multi_head",
+    "sa_ccsr_wjdot_fusion": "sourceaware_wjdot_multi_head",
+}
+
+TEACHER_BASE_METHODS = {
+    "ca_ccsr_wjdot": "codats",
+}
 
 
 class AutomationDependencyError(RuntimeError):
@@ -127,6 +140,24 @@ def _build_multisource_settings(scene_tokens: Iterable[str]) -> list[dict[str, o
                 "label": f"{'-'.join(source_domains)}_to_{target_domain}",
             }
         )
+    return settings
+
+
+def _build_cli_scene_settings(scene_tokens: Iterable[str]) -> list[dict[str, object]]:
+    """Build single-source and multi-source settings from CLI scene tokens."""
+
+    settings: list[dict[str, object]] = []
+    for token in scene_tokens:
+        normalized = str(token).replace(":", "->")
+        is_multisource = False
+        if "->" in normalized:
+            source_token = normalized.split("->", maxsplit=1)[0]
+            source_parts = [item.strip() for item in source_token.replace("+", "-").split("-") if item.strip()]
+            is_multisource = len(source_parts) > 1
+        if is_multisource:
+            settings.extend(_build_multisource_settings([token]))
+        else:
+            settings.extend(_build_single_source_settings([token]))
     return settings
 
 
@@ -277,6 +308,66 @@ def _automation_section(experiment_payload: dict[str, Any]) -> dict[str, Any]:
     return automation
 
 
+def _scenario_id_for_run(run: dict[str, Any]) -> str:
+    return f"{'-'.join(str(item) for item in run['source_domains'])}_to_{run['target_domain']}"
+
+
+def _run_lookup_key(run: dict[str, Any], method_name: str) -> tuple[str, str, str, str, tuple[tuple[str, str], ...]]:
+    source_folds = tuple(
+        sorted((str(key), str(value)) for key, value in dict(run.get("source_folds_by_domain", {})).items())
+    )
+    return (
+        str(method_name),
+        _scenario_id_for_run(run),
+        str(run.get("source_fold")),
+        str(run.get("target_fold")),
+        source_folds,
+    )
+
+
+def _result_matches_run(payload: dict[str, Any], run: dict[str, Any], method_name: str) -> bool:
+    result_payload = payload.get("result", {})
+    payload_methods = {
+        str(payload.get("method_base_name", "")),
+        str(payload.get("method_name", "")),
+    }
+    if isinstance(result_payload, dict):
+        payload_methods.add(str(result_payload.get("method_base_name", "")))
+        payload_methods.add(str(result_payload.get("method_name", "")))
+    source_domains = [str(item) for item in payload.get("source_domains", [])]
+    return (
+        str(method_name) in payload_methods
+        and str(payload.get("scenario_id")) == _scenario_id_for_run(run)
+        and source_domains == [str(item) for item in run["source_domains"]]
+        and str(payload.get("target_domain")) == str(run["target_domain"])
+        and str(payload.get("source_fold")) == str(run.get("source_fold"))
+        and str(payload.get("target_fold")) == str(run.get("target_fold"))
+    )
+
+
+def _teacher_base_method_for(method_name: str) -> str | None:
+    method_key = str(method_name).strip().lower()
+    if method_key.startswith("ca_ccsr_wjdot"):
+        return "codats"
+    return TEACHER_BASE_METHODS.get(method_key)
+
+
+def _find_latest_matching_result(batch_root: Path, run: dict[str, Any], method_name: str) -> Path | None:
+    matches: list[Path] = []
+    if not batch_root.exists():
+        return None
+    for result_path in batch_root.glob("*/tables/result.json"):
+        try:
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if _result_matches_run(payload, run, method_name):
+            matches.append(result_path)
+    if not matches:
+        return None
+    return max(matches, key=lambda path: path.stat().st_mtime)
+
+
 def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     merged = deepcopy(base)
     for key, value in override.items():
@@ -404,7 +495,7 @@ def resolve_scene_settings(
         return _build_single_source_settings([f"{source}->{target}" for source, target in _build_all_directed_scenes()])
 
     if cli_scenes is not None:
-        return _build_single_source_settings(cli_scenes)
+        return _build_cli_scene_settings(cli_scenes)
 
     single_source_scenes = automation.get("single_source_scenes", [])
     multisource_scenes = automation.get("multisource_scenes", [])
@@ -599,6 +690,9 @@ def main() -> None:
     should_refresh_batch_outputs = bool(
         base_experiment.get("runtime", {}).get("refresh_batch_outputs", True)
     )
+    batch_root = Path(str(base_experiment.get("output_dir", "runs"))) / batch_root_name
+    completed_results: dict[tuple[str, str, str, str, tuple[tuple[str, str], ...]], Path] = {}
+    experiment_paths: dict[tuple[str, str, str, str, tuple[tuple[str, str], ...]], Path] = {}
 
     with tempfile.TemporaryDirectory(prefix="tep_batch_plan_") as temp_dir:
         temp_root = Path(temp_dir)
@@ -635,17 +729,79 @@ def main() -> None:
                     method_key: deepcopy(run["method_overrides"]),
                 }
 
+            teacher_base_method = _teacher_base_method_for(method_name)
+            if teacher_base_method is not None:
+                base_key = _run_lookup_key(run, teacher_base_method)
+                base_result_path = completed_results.get(base_key)
+                if base_result_path is None:
+                    base_result_path = _find_latest_matching_result(batch_root, run, teacher_base_method)
+                if base_result_path is None:
+                    raise SystemExit(
+                        f"{method_name} requires a completed {teacher_base_method} checkpoint "
+                        f"for {run['label']} in the same batch. Put {teacher_base_method} before "
+                        f"{method_name} in automation.methods."
+                    )
+                base_payload = json.loads(base_result_path.read_text(encoding="utf-8"))
+                checkpoint_path = base_payload.get("result", {}).get("checkpoint_path")
+                if not checkpoint_path:
+                    checkpoint_path = str(base_result_path.parents[1] / "checkpoints" / "model.pt")
+                if not Path(str(checkpoint_path)).exists():
+                    raise SystemExit(
+                        f"{method_name} requires {teacher_base_method} checkpoint, but it was not found: "
+                        f"{checkpoint_path}"
+                    )
+                method_overrides = experiment_payload.setdefault("method_overrides", {})
+                method_override = method_overrides.setdefault(method_name, {})
+                loss_override = method_override.setdefault("loss", {})
+                loss_override["teacher_checkpoint_path"] = str(checkpoint_path)
+
             temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"
             _save_yaml(temp_experiment_path, experiment_payload)
-            command = [
-                "bash",
-                "scripts/train.sh",
-                str(args.data_config),
-                str(method_config_path),
-                str(temp_experiment_path),
-                "--batch-root-name",
-                batch_root_name,
-            ]
+            run_key = _run_lookup_key(run, method_name)
+            experiment_paths[run_key] = temp_experiment_path
+
+            base_method_name = POSTHOC_BASE_METHODS.get(method_name)
+            if base_method_name is None:
+                command = [
+                    "bash",
+                    "scripts/train.sh",
+                    str(args.data_config),
+                    str(method_config_path),
+                    str(temp_experiment_path),
+                    "--batch-root-name",
+                    batch_root_name,
+                ]
+            else:
+                base_key = _run_lookup_key(run, base_method_name)
+                base_result_path = completed_results.get(base_key)
+                if base_result_path is None:
+                    base_result_path = _find_latest_matching_result(batch_root, run, base_method_name)
+                if base_result_path is None:
+                    raise SystemExit(
+                        f"{method_name} is a post-hoc method and requires a completed "
+                        f"{base_method_name} run for {run['label']} in the same batch. "
+                        f"Put {base_method_name} before {method_name} in automation.methods."
+                    )
+                base_experiment_path = experiment_paths.get(base_key, temp_experiment_path)
+                base_method_config_path = Path("configs/method") / f"{base_method_name}.yaml"
+                command = [
+                    "bash",
+                    "scripts/export_ccsr_wjdot_posthoc.sh",
+                    "--data-config",
+                    str(args.data_config),
+                    "--base-method-config",
+                    str(base_method_config_path),
+                    "--ccsr-method-config",
+                    str(method_config_path),
+                    "--base-experiment-config",
+                    str(base_experiment_path),
+                    "--experiment-config",
+                    str(temp_experiment_path),
+                    "--base-run-root",
+                    str(base_result_path.parents[1]),
+                    "--batch-root-name",
+                    batch_root_name,
+                ]
             completed = subprocess.run(command, check=False)
             if completed.returncode != 0:
                 raise SystemExit(
@@ -653,8 +809,10 @@ def main() -> None:
                     f"{method_name} on {run['label']} "
                     f"(exit code {completed.returncode})."
                 )
+            result_path = _find_latest_matching_result(batch_root, run, method_name)
+            if result_path is not None:
+                completed_results[run_key] = result_path
 
-    batch_root = Path(str(base_experiment.get("output_dir", "runs"))) / batch_root_name
     if should_refresh_batch_outputs:
         _refresh_batch_outputs(batch_root)
     print(f"Batch results written under {batch_root}")

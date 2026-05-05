@@ -3,7 +3,11 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from src.automation.run_small_scale_round import _load_yaml, build_run_plan
+from src.automation.run_small_scale_round import (
+    _load_yaml,
+    _result_matches_run,
+    build_run_plan,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -203,6 +207,56 @@ class AutomationPlanTests(unittest.TestCase):
         self.assertEqual(len(plan["scene_settings"]), 1)
         self.assertEqual(plan["runs"][0]["source_domains"], ["mode1"])
         self.assertEqual(plan["runs"][0]["target_domain"], "mode5")
+
+    def test_cli_scene_accepts_multisource_plus_separator(self) -> None:
+        payload = {
+            "seed": 42,
+            "automation": {"methods": ["wjdot"]},
+            "protocol_override": {
+                "preferred_fold": "Fold 1",
+                "random_fold_enabled": False,
+            },
+        }
+
+        plan = build_run_plan(payload, cli_scenes=["mode1+mode2->mode5"])
+
+        self.assertEqual(len(plan["scene_settings"]), 1)
+        self.assertEqual(plan["scene_settings"][0]["setting"], "multi_source")
+        self.assertEqual(plan["runs"][0]["source_domains"], ["mode1", "mode2"])
+        self.assertEqual(plan["runs"][0]["target_domain"], "mode5")
+
+    def test_ccsr_wjdot_stage_plan_keeps_wjdot_before_posthoc_fusion(self) -> None:
+        payload = _load_yaml(ROOT / "configs/experiment/tep_ot_multisource_ccsr_wjdot_stage1_fold0.yaml")
+        plan = build_run_plan(
+            payload,
+            cli_methods=["wjdot", "ccsr_wjdot_fusion"],
+            cli_scenes=["mode1+mode2->mode5"],
+        )
+
+        self.assertEqual([run["method_name"] for run in plan["runs"]], ["wjdot", "ccsr_wjdot_fusion"])
+
+    def test_result_matcher_finds_same_scene_base_wjdot_run(self) -> None:
+        payload = {
+            "seed": 42,
+            "automation": {"methods": ["wjdot"]},
+            "protocol_override": {
+                "preferred_fold": "Fold 1",
+                "random_fold_enabled": False,
+            },
+        }
+        run = build_run_plan(payload, cli_scenes=["mode1+mode2->mode5"])["runs"][0]
+        result_payload = {
+            "method_name": "wjdot",
+            "method_base_name": "wjdot",
+            "scenario_id": "mode1-mode2_to_mode5",
+            "source_domains": ["mode1", "mode2"],
+            "target_domain": "mode5",
+            "source_fold": "Fold 1",
+            "target_fold": "Fold 1",
+        }
+
+        self.assertTrue(_result_matches_run(result_payload, run, "wjdot"))
+        self.assertFalse(_result_matches_run(result_payload, run, "ccsr_wjdot_fusion"))
 
     def test_rcta_mode125_ablation_uses_three_cumulative_stages(self) -> None:
         payload = _load_yaml(ROOT / "configs/experiment/rcta_mode125_ablation_fixedfold.yaml")
