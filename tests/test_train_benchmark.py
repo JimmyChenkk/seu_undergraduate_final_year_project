@@ -117,6 +117,21 @@ class TrainBenchmarkTests(unittest.TestCase):
         self.assertEqual(merged_experiment["runtime"]["early_stopping_metric"], "target_confidence")
         self.assertEqual(method_payload["optimization"]["epochs"], 120)
 
+    def test_overnight_configs_request_fast_gpu_runtime(self) -> None:
+        config_paths = [
+            ROOT / "configs/experiment/tep_ot_single_source_8methods_stage1_fold0_overnight_20260505.yaml",
+            ROOT / "configs/experiment/tep_ot_multisource_ca_ccsr_wjdot_stage1_probe_fold0.yaml",
+            ROOT / "configs/experiment/tep_ot_multisource_5source_prior20_overnight_20260505.yaml",
+        ]
+
+        for config_path in config_paths:
+            runtime = load_yaml(config_path)["runtime"]
+            self.assertFalse(runtime.get("deterministic", False), config_path)
+            self.assertTrue(runtime["cudnn_benchmark"], config_path)
+            self.assertTrue(runtime["allow_tf32"], config_path)
+            self.assertEqual(runtime["matmul_precision"], "high", config_path)
+            self.assertTrue(runtime["amp"], config_path)
+
     def test_single_source_tuned_config_keeps_codats_capacity_matched_and_cbtpu_stronger(self) -> None:
         experiment_payload = load_yaml(ROOT / "configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml")
 

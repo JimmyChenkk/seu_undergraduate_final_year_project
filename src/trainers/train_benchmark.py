@@ -9,6 +9,7 @@ from copy import deepcopy
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
 import random
 import sys
@@ -294,20 +295,35 @@ def set_seed(seed: int) -> None:
 def configure_torch_runtime(runtime: dict[str, Any], device_name: str) -> None:
     """Apply conservative torch backend defaults for the selected device."""
 
-    if not device_name.startswith("cuda"):
-        return
+    deterministic = bool(runtime.get("deterministic", False))
+    if deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", str(runtime.get("cublas_workspace_config", ":4096:8")))
 
     import torch
+
+    if deterministic:
+        torch.use_deterministic_algorithms(
+            True,
+            warn_only=bool(runtime.get("deterministic_warn_only", False)),
+        )
+    else:
+        torch.use_deterministic_algorithms(False)
+
+    if not device_name.startswith("cuda"):
+        return
 
     if bool(runtime.get("disable_cudnn", False)):
         torch.backends.cudnn.enabled = False
         torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = deterministic
+        torch.backends.cuda.matmul.allow_tf32 = bool(runtime.get("allow_tf32", not deterministic))
         return
 
     torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = bool(runtime.get("cudnn_benchmark", True))
-    torch.backends.cuda.matmul.allow_tf32 = bool(runtime.get("allow_tf32", True))
-    torch.set_float32_matmul_precision(str(runtime.get("matmul_precision", "high")))
+    torch.backends.cudnn.benchmark = False if deterministic else bool(runtime.get("cudnn_benchmark", True))
+    torch.backends.cudnn.deterministic = deterministic
+    torch.backends.cuda.matmul.allow_tf32 = bool(runtime.get("allow_tf32", not deterministic))
+    torch.set_float32_matmul_precision(str(runtime.get("matmul_precision", "highest" if deterministic else "high")))
 
 
 def _should_show_progress(runtime: dict[str, Any]) -> bool:
