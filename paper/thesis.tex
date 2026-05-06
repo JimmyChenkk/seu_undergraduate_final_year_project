@@ -7,6 +7,11 @@
 \major{自动化}
 \supervisor{王永健、童国道}
 \period{2026年3月 \textasciitilde 2026年6月}
+\SetKwInput{KwIn}{输入}
+\SetKwInput{KwOut}{输出}
+\SetKwFor{For}{循环}{执行}{结束循环}
+\SetKwFor{ForEach}{遍历}{执行}{结束遍历}
+\DontPrintSemicolon
 
 \begin{document}
 \hypersetup{
@@ -18,9 +23,17 @@
 
 \frontmatter
 \begin{abstract}[zh]
+工业过程故障诊断对保障生产安全、提高系统可靠性具有重要意义。实际工业系统中常存在生产模式切换、工况变化、传感器漂移和故障样本稀缺等问题，使源工况训练得到的诊断模型难以直接泛化到目标工况。针对目标工况缺少标签条件下的跨工况诊断问题，本文以田纳西伊斯曼过程领域自适应数据集为研究对象，围绕单源域到单目标域和多源域到单目标域两类场景，研究基于领域自适应的工业过程故障诊断方法。
+
+在单源场景中，本文以深度联合分布最优传输为基础，提出基于时序原型非平衡联合分布对齐的方法，通过非平衡传输缓解小批量样本错误强制匹配，并结合源域类别原型、时间序列统计代价和监督对比学习增强故障类别结构保持能力。进一步地，针对目标域伪标签不可靠问题，提出多证据置信均衡伪标签方法，融合传输语义、教师预测语义和源域原型语义三类证据筛选目标样本，并利用动态阈值、类别均衡和强弱增强一致性约束提高无标签样本利用的可靠性。在多源场景中，本文提出类条件源域可靠性加权方法，从原型距离、类条件传输代价、目标预测熵和源域类别性能等角度构建源域--故障类别可靠性矩阵，实现更加细粒度的多源选择性迁移。实验结果表明，本文方法能够在跨工况故障诊断任务中提升目标域诊断性能，并为分析不同源域和故障类别的迁移贡献提供一定解释依据。
+\keywords{工业过程故障诊断,领域自适应,最优传输,伪标签学习,多源迁移}
 \end{abstract}
 
 \begin{abstract}[en]
+Industrial process fault diagnosis is essential for production safety and system reliability. In practical industrial systems, changes in operating modes, working conditions, sensor characteristics, and the scarcity of labeled fault samples often lead to distribution shifts between training and testing data. As a result, a diagnostic model trained under one operating condition may not generalize well to another. To address cross-condition diagnosis with limited or unavailable target labels, this thesis studies domain adaptation methods for industrial process fault diagnosis on the Tennessee Eastman process domain adaptation benchmark, considering both single-source to single-target and multi-source to single-target settings.
+
+For the single-source setting, this thesis develops a temporal-prototype unbalanced joint distribution alignment method based on deep joint distribution optimal transport. Unbalanced transport is introduced to reduce unreliable forced matching in mini-batch alignment, while source-class prototypes, temporal statistical costs, and supervised contrastive learning are used to preserve fault-category structures. To further improve the use of unlabeled target samples, a confidence-balanced pseudo-labeling method is proposed. It combines transport semantics, teacher prediction semantics, and source-prototype semantics, and selects target samples using multi-evidence consistency, dynamic thresholds, class balancing, and weak-strong augmentation consistency. For the multi-source setting, this thesis proposes a class-conditional source reliability weighting method. A source-fault reliability matrix is constructed from prototype distance, class-conditional transport cost, target prediction entropy, and source-class performance, enabling fine-grained selective transfer across sources and fault categories. Experimental results show that the proposed methods improve target-domain diagnosis performance under cross-condition shifts and provide useful evidence for interpreting the contribution of different source domains and fault classes.
+\keywords{industrial process fault diagnosis,domain adaptation,optimal transport,pseudo-label learning,multi-source transfer}
 \end{abstract}
 
 \tableofcontents
@@ -627,15 +640,24 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 \end{equation}
 其中 $\lambda_c(t)$ 为监督对比损失权重，$\lambda_{\mathrm{ot}}(t)$ 为非平衡联合传输对齐权重。$\lambda_{\mathrm{ot}}(t)$ 采用逐步启用日程，并在源域预热阶段保持为零；$\mathcal{L}_{\mathrm{align}}$ 内部还包含逐步启动的原型代价和时序统计代价。
 
-本章方法的训练流程如下。
-\begin{enumerate}
-    \item 初始化特征提取器、分类器和源域类别原型，原型初始状态标记为未激活。
-    \item 在每次迭代中采样源域有标签小批量和目标域无标签小批量，计算源域和目标域深度特征及分类输出。
-    \item 根据当前源域小批量更新源域类别原型，并计算源域分类损失和源域监督对比损失。
-    \item 构造源目标样本间的深度特征代价、标签预测代价、原型相对代价和时间序列统计代价。
-    \item 使用非平衡 Sinkhorn 求解小批量传输计划，计算非平衡联合传输损失。
-    \item 按当前训练步的权重日程组合源域分类、监督对比和传输对齐损失，并更新网络参数。
-\end{enumerate}
+本章方法的训练流程如算法 \ref{alg:tpu-deepjdot} 所示。
+\begin{algorithm}[htbp]
+    \caption{时序原型非平衡联合分布对齐训练流程}
+    \label{alg:tpu-deepjdot}
+    \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $T$}
+    \KwOut{特征提取器 $F_\theta$ 与分类器 $G_\phi$}
+    初始化特征提取器、分类器和源域类别原型，原型初始状态标记为未激活\;
+    \For{$t=1,2,\cdots,T$}{
+        从源域采样有标签小批量 $\mathcal{B}_s$，从目标域采样无标签小批量 $\mathcal{B}_t$\;
+        计算源域和目标域深度特征及分类输出\;
+        根据当前源域小批量更新源域类别原型\;
+        计算源域分类损失 $\mathcal{L}_{\mathrm{src}}$ 和源域监督对比损失 $\mathcal{L}_{\mathrm{supcon}}$\;
+        构造深度特征代价、标签预测代价、原型相对代价和时间序列统计代价\;
+        采用非平衡 Sinkhorn 形式求解小批量传输计划 $\gamma^\ast$\;
+        计算非平衡联合传输损失 $\mathcal{L}_{\mathrm{align}}$\;
+        按当前训练步的权重日程组合源域分类、监督对比和传输对齐损失，并更新模型参数\;
+    }
+\end{algorithm}
 
 相较于普通 DeepJDOT，本文方法在不使用目标标签的前提下，为传输计划增加了“可放弃不可靠质量”的非平衡机制、“类别中心相对接近性”的源域原型机制，以及“原始时间窗口动态统计”的时序代价机制，从而更适合 TEP 跨工况故障诊断场景。
 
@@ -897,17 +919,26 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 \end{equation}
 其中前三项与第三章一致，$\mathcal{L}_{\mathrm{pl}}$ 为多证据伪标签损失，$\mathcal{L}_{\mathrm{cons}}$ 为强弱增强一致性损失。$\mathcal{L}_{\mathrm{im}}$ 为可选的信息最大化正则项，用于鼓励目标预测个体低熵且批次类别分布不过度坍缩；其权重较小，仅作为辅助稳定项。
 
-本章方法训练流程如下。
-\begin{enumerate}
-    \item 初始化学生网络、EMA 教师网络和源域类别原型。
-    \item 每次迭代采样源域有标签小批量和目标域无标签小批量，对目标样本生成弱增强和强增强视图。
-    \item 使用学生网络计算源域分类输出、目标弱增强输出和目标强增强输出；使用教师网络计算目标弱增强语义分布。
-    \item 更新源域类别原型，并计算源域分类损失、监督对比损失和非平衡联合传输损失。
-    \item 由传输计划得到 $q^{\mathrm{ot}}$，由教师预测得到 $q^{\mathrm{cls}}$，由源域原型距离得到 $q^{\mathrm{proto}}$。
-    \item 对三类语义分布进行幂加权融合，依据一致性、JS 差异、融合置信度和传输熵筛选目标样本。
-    \item 对接受样本计算类别均衡软伪标签损失，对接受样本和中等置信样本计算强弱增强一致性损失。
-    \item 组合各项损失更新学生网络，并在优化器更新后用学生参数滑动更新教师网络。
-\end{enumerate}
+本章方法训练流程如算法 \ref{alg:cbtpu-deepjdot} 所示。
+\begin{algorithm}[htbp]
+    \caption{多证据置信均衡伪标签训练流程}
+    \label{alg:cbtpu-deepjdot}
+    \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $T$}
+    \KwOut{学生模型参数 $\theta$ 与 EMA 教师模型参数 $\bar{\theta}$}
+    初始化学生模型、EMA 教师模型和源域类别原型\;
+    \For{$t=1,2,\cdots,T$}{
+        采样源域有标签小批量和目标域无标签小批量\;
+        对目标样本生成弱增强视图和强增强视图\;
+        使用学生模型计算源域分类输出、目标弱增强输出和目标强增强输出\;
+        使用教师模型计算目标弱增强语义分布 $q^{\mathrm{cls}}$\;
+        更新源域类别原型，计算源域分类损失、监督对比损失和非平衡联合传输损失\;
+        由传输计划得到 $q^{\mathrm{ot}}$，由源域原型距离得到 $q^{\mathrm{proto}}$\;
+        对 $q^{\mathrm{ot}}$、$q^{\mathrm{cls}}$ 和 $q^{\mathrm{proto}}$ 进行幂加权融合，得到 $q^{\mathrm{mix}}$\;
+        依据语义一致性、JS 差异、融合置信度和传输熵筛选目标样本\;
+        对接受样本计算类别均衡软伪标签损失，对接受样本和中等置信样本计算强弱增强一致性损失\;
+        组合各项损失更新学生模型参数，并用学生参数滑动更新教师模型参数\;
+    }
+\end{algorithm}
 
 该流程保证目标域样本的利用始终建立在多证据一致性之上。与单一高置信伪标签方法相比，它能同时利用传输计划的跨域匹配信息、教师模型的时间平均预测和源域原型的类别结构信息，从而降低错误伪标签传播风险。
 
@@ -960,7 +991,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 其中 $\alpha_{kc}$ 越大，表示第 $k$ 个源域对第 $c$ 类故障更可靠。
 
-本文的类条件源域可靠性矩阵是本文提出的自设计机制，应理解为受源域重加权、多源专家融合和负迁移抑制思想启发，而不是某一篇文献中已有机制的直接照搬。该矩阵不仅参与训练中的类条件传输损失聚合，也可用于解释性分析，以考察不同源模式对不同故障类别的贡献。
+该类条件源域可靠性矩阵由本文提出，应理解为受源域重加权、多源专家融合和负迁移抑制思想启发，而不是某一篇文献中已有机制的直接照搬。该矩阵不仅参与训练中的类条件传输损失聚合，也可用于解释性分析，以考察不同源模式对不同故障类别的贡献。
 
 \section{基于类条件源域可靠性加权的多源对齐策略}
 \subsection{多源跨工况诊断问题建模}
@@ -1097,7 +1128,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \exp(-R_{k'c}/T_c)
     }.
 \end{equation}
-为避免权重过度集中，本文在权重分配中引入最小权重约束、可选的 top-$m$ 源域保留策略以及逐步启用机制。逐步启用机制用于在训练早期保持接近均匀权重，待源域传输和目标预测更稳定后再逐渐启用类条件权重：
+为避免权重过度集中，本文在权重分配中引入最小权重约束、高可靠源域保留策略以及逐步启用机制。逐步启用机制用于在训练早期保持接近均匀权重，待源域传输和目标预测更稳定后再逐渐启用类条件权重：
 \begin{equation}
     \alpha_{kc}(t)
     =
@@ -1199,17 +1230,29 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 其中 $\mathcal{L}_{\mathrm{WJDOT}}$ 为逐源传输损失的源域级聚合，$\mathcal{L}_{\mathrm{CCSR}}$ 为类条件可靠性加权传输损失，$\mathcal{L}_{\mathrm{adv}}$ 为领域对抗损失，$\mathcal{L}_{\mathrm{tea}}$ 为教师先验约束。各权重均采用逐步启用日程控制。
 
-本章方法训练流程如下。
-\begin{enumerate}
-    \item 初始化共享一维全卷积特征提取器、CoDATS 分类头、领域判别器和固定教师模型。
-    \item 每次迭代从多个源域分别采样有标签小批量，并从目标域采样无标签小批量。
-    \item 对每个源域分别计算源域分类损失、源域类别原型、源域类别召回误差以及该源域到目标域的联合传输计划。
-    \item 根据逐源传输结果得到源域级传输损失、类条件传输质量和类条件传输代价。
-    \item 根据目标预测构建目标类别原型，并融合原型距离、传输代价、预测熵和源域召回误差，得到类条件源域可靠性矩阵。
-    \item 将可靠性矩阵转化为类条件源域权重，计算类条件传输损失。
-    \item 计算 CoDATS 风格领域对抗损失和教师先验约束，组合总损失并更新学生模型参数。
-    \item 训练完成后，固定学生和教师输出，根据教师先验保护融合规则生成最终目标域预测；目标域标签只在预测确定后用于评价指标计算。
-\end{enumerate}
+本章方法训练流程如算法 \ref{alg:ca-ccsr-wjdot} 所示。
+\begin{algorithm}[htbp]
+    \caption{类条件源域可靠性加权多源训练流程}
+    \label{alg:ca-ccsr-wjdot}
+    \KwIn{多源有标签数据 $\{\mathcal{D}_{s_k}\}_{k=1}^{K}$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $T$}
+    \KwOut{多源领域自适应诊断模型及目标域预测结果}
+    初始化共享一维全卷积特征提取器、CoDATS 分类头、领域判别器和固定教师模型\;
+    \For{$t=1,2,\cdots,T$}{
+        从多个源域分别采样有标签小批量，并从目标域采样无标签小批量\;
+        \ForEach{源域 $s_k$}{
+            计算源域分类损失、源域类别原型和源域类别召回误差\;
+            构造该源域到目标域的联合传输代价并求解传输计划 $\gamma_k^\ast$\;
+            计算源域级传输损失、类条件传输质量和类条件传输代价\;
+        }
+        根据目标预测构建目标类别原型\;
+        融合原型距离、传输代价、预测熵和源域召回误差，得到类条件源域可靠性矩阵\;
+        将可靠性矩阵转化为类条件源域权重，计算类条件传输损失 $\mathcal{L}_{\mathrm{CCSR}}$\;
+        计算 CoDATS 风格领域对抗损失和教师先验约束\;
+        组合总损失并更新学生模型参数\;
+    }
+    固定学生和教师输出，根据教师先验保护融合规则生成最终目标域预测\;
+    目标域标签只在预测确定后用于评价指标计算\;
+\end{algorithm}
 
 通过上述流程，模型能够在多源跨工况诊断中同时利用多个源域的互补信息，并对不同源域在不同故障类别上的可靠性进行细粒度建模。
 
