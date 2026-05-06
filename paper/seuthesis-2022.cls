@@ -461,7 +461,7 @@
     \hangindent 4\ccwd
     \noindent \seut@const@str@declare@authorsign\seutplaceholder[8\ccwd]{}\seut@space{1.5}%
     \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[2.5\ccwd]{6}月%
-      \seutplaceholder[2.5\ccwd]{}日\par
+      \seutplaceholder[2.5\ccwd]{1}日\par
     \vspace{155pt}\par
     {\centering
     \heiti\zihao{-2}
@@ -474,9 +474,9 @@
     \seut@const@str@declare@authorsign\seutplaceholder[9.5\ccwd]{}\seut@space{2}%
       \seut@const@str@declare@supervisorsign\seutplaceholder[11.5\ccwd]{}\par
     \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[3\ccwd]{6}月%
-      \seutplaceholder[3\ccwd]{}日\seut@space{3}%
+      \seutplaceholder[3\ccwd]{1}日\seut@space{3}%
     \seut@const@str@declare@date\seutplaceholder[3.5\ccwd]{2026}年\seutplaceholder[3\ccwd]{6}月%
-      \seutplaceholder[3\ccwd]{}日\par
+      \seutplaceholder[3\ccwd]{1}日\par
   \end{titlepage}
 }
 
