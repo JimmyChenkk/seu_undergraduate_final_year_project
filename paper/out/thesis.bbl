@@ -1,4 +1,4 @@
-\begin{thebibliography}{30}
+\begin{thebibliography}{33}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -259,6 +259,28 @@ HINTON G, VINYALS O, DEAN J.
 \newblock Distilling the knowledge in a neural network\allowbreak[A].
 \newblock 2015.
 \newblock arXiv: \eprint{https://arxiv.org/abs/1503.02531}{1503.02531}.
+
+\bibitem[Montesuma et~al.(2024)Montesuma, Mulas, Ngol{\`e}~Mboula, Corona, and
+  Souloumiac]{eddardd2024tepda}
+MONTESUMA E~F, MULAS M, NGOL{\`E}~MBOULA F, et~al.
+\newblock Tennessee eastman process domain adaptation\allowbreak[EB/OL].
+\newblock 2024.
+\newblock
+  \url{https://www.kaggle.com/datasets/eddardd/tennessee-eastman-process-domain-adaptation}.
+
+\bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
+DOWNS J~J, VOGEL E~F.
+\newblock A plant-wide industrial process control problem\allowbreak[J/OL].
+\newblock Computers \& Chemical Engineering, 1993, 17\allowbreak (3): 245-255.
+\newblock DOI: \doi{10.1016/0098-1354(93)80018-I}.
+
+\bibitem[Reinartz et~al.(2021)Reinartz, Kulahci, and
+  Ravn]{reinartz2021extended}
+REINARTZ C, KULAHCI M, RAVN O.
+\newblock An extended tennessee eastman simulation dataset for fault-detection
+  and decision support systems\allowbreak[J/OL].
+\newblock Computers \& Chemical Engineering, 2021, 149: 107281.
+\newblock DOI: \doi{10.1016/j.compchemeng.2021.107281}.
 
 \bibitem[Wang et~al.(2022)Wang, Fink, Van~Gool, and Dai]{wang2022cotta}
 WANG Q, FINK O, VAN~GOOL L, et~al.
