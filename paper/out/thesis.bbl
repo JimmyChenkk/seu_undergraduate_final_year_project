@@ -1,4 +1,4 @@
-\begin{thebibliography}{33}
+\begin{thebibliography}{32}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -38,10 +38,9 @@ PAN S~J, YANG Q.
   Souloumiac]{montesuma2024benchmark}
 MONTESUMA E~F, MULAS M, MBOULA F~N, et~al.
 \newblock Benchmarking domain adaptation for chemical processes on the
-  {Tennessee Eastman Process}\allowbreak[A/OL].
+  {Tennessee Eastman Process}\allowbreak[A].
 \newblock 2024.
 \newblock arXiv: \eprint{https://arxiv.org/abs/2308.11247}{2308.11247}.
-\newblock \url{https://arxiv.org/abs/2308.11247}.
 
 \bibitem[Li et~al.(2022)Li, Huang, Li, Liao, Chen, He, Yan, and
   Gryllias]{li2022perspective}
@@ -59,8 +58,6 @@ DAMODARAN B~B, KELLENBERGER B, FLAMARY R, et~al.
 Lecture Notes in Computer Science: volume 11208\quad Computer Vision -- {ECCV}
   2018.
 \newblock Cham: Springer International Publishing, 2018: 467-483.
-\newblock
-  \url{https://openaccess.thecvf.com/content_ECCV_2018/html/Bharath_Bhushan_Damodaran_DeepJDOT_Deep_Joint_ECCV_2018_paper.html}.
 \newblock DOI: \doi{10.1007/978-3-030-01225-0_28}.
 
 \bibitem[Wilson et~al.(2020)Wilson, Doppa, and Cook]{wilson2020codats}
@@ -76,11 +73,10 @@ Proceedings of the 26th ACM SIGKDD International Conference on Knowledge
   Pontil]{turrisi2022wjdot}
 TURRISI R, FLAMARY R, RAKOTOMAMONJY A, et~al.
 \newblock Multi-source domain adaptation via weighted joint distributions
-  optimal transport\allowbreak[C/OL]//\allowbreak
+  optimal transport\allowbreak[C]//\allowbreak
 Proceedings of Machine Learning Research: volume 180\quad Proceedings of the
   Thirty-Eighth Conference on Uncertainty in Artificial Intelligence.
 \newblock PMLR, 2022: 1970-1980.
-\newblock \url{https://proceedings.mlr.press/v180/turrisi22a.html}.
 
 \bibitem[Courty et~al.(2017)Courty, Flamary, Tuia, and
   Rakotomamonjy]{courty2017otda}
@@ -110,19 +106,16 @@ ISMAIL~FAWAZ H, FORESTIER G, WEBER J, et~al.
 \bibitem[Ganin et~al.(2016)Ganin, Ustinova, Ajakan, Germain, Larochelle,
   Laviolette, Marchand, and Lempitsky]{ganin2016dann}
 GANIN Y, USTINOVA E, AJAKAN H, et~al.
-\newblock Domain-adversarial training of neural networks\allowbreak[J/OL].
+\newblock Domain-adversarial training of neural networks\allowbreak[J].
 \newblock Journal of Machine Learning Research, 2016, 17\allowbreak (59): 1-35.
-\newblock \url{https://jmlr.org/papers/v17/15-239.html}.
 
 \bibitem[Courty et~al.(2017)Courty, Flamary, Habrard, and
   Rakotomamonjy]{courty2017jdot}
 COURTY N, FLAMARY R, HABRARD A, et~al.
 \newblock Joint distribution optimal transportation for domain
-  adaptation\allowbreak[C/OL]//\allowbreak
+  adaptation\allowbreak[C]//\allowbreak
 Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
 \newblock Curran Associates, Inc., 2017.
-\newblock
-  \url{https://proceedings.neurips.cc/paper/2017/hash/0070d23b06b1486a538c0eaa45dd167a-Abstract.html}.
 
 \bibitem[Peyr{\'e} et~al.(2019)Peyr{\'e} and Cuturi]{peyre2019computational}
 PEYR{\'E} G, CUTURI M.
@@ -168,21 +161,17 @@ Advances in Neural Information Processing Systems: volume~33.
 \bibitem[Lee(2013)]{lee2013pseudolabel}
 LEE D~H.
 \newblock {Pseudo-Label}: The simple and efficient semi-supervised learning
-  method for deep neural networks\allowbreak[C/OL]//\allowbreak
+  method for deep neural networks\allowbreak[C]//\allowbreak
 {ICML} 2013 Workshop: Challenges in Representation Learning ({WREPL}).
 \newblock Atlanta, Georgia, USA, 2013.
-\newblock
-  \url{https://storage.googleapis.com/kaggle-forum-message-attachments/8924/pseudo_label_final.pdf}.
 
 \bibitem[Tarvainen et~al.(2017)Tarvainen and Valpola]{tarvainen2017meanteacher}
 TARVAINEN A, VALPOLA H.
 \newblock Mean teachers are better role models: Weight-averaged consistency
   targets improve semi-supervised deep learning
-  results\allowbreak[C/OL]//\allowbreak
+  results\allowbreak[C]//\allowbreak
 Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
 \newblock Curran Associates, Inc., 2017: 1195-1204.
-\newblock
-  \url{https://proceedings.neurips.cc/paper/2017/hash/68053af2923e00204c3ca7c6a3150cf7-Abstract.html}.
 
 \bibitem[Cui et~al.(2019)Cui, Jia, Lin, Song, and
   Belongie]{cui2019classbalanced}
@@ -250,8 +239,6 @@ PENG X, BAI Q, XIA X, et~al.
 Proceedings of the IEEE/CVF International Conference on Computer Vision
   ({ICCV}).
 \newblock 2019: 1406-1415.
-\newblock
-  \url{https://openaccess.thecvf.com/content_ICCV_2019/html/Peng_Moment_Matching_for_Multi-Source_Domain_Adaptation_ICCV_2019_paper.html}.
 \newblock DOI: \doi{10.1109/ICCV.2019.00149}.
 
 \bibitem[Hinton et~al.(2015)Hinton, Vinyals, and Dean]{hinton2015distilling}
@@ -259,14 +246,6 @@ HINTON G, VINYALS O, DEAN J.
 \newblock Distilling the knowledge in a neural network\allowbreak[A].
 \newblock 2015.
 \newblock arXiv: \eprint{https://arxiv.org/abs/1503.02531}{1503.02531}.
-
-\bibitem[Montesuma et~al.(2024)Montesuma, Mulas, Ngol{\`e}~Mboula, Corona, and
-  Souloumiac]{eddardd2024tepda}
-MONTESUMA E~F, MULAS M, NGOL{\`E}~MBOULA F, et~al.
-\newblock Tennessee eastman process domain adaptation\allowbreak[EB/OL].
-\newblock 2024.
-\newblock
-  \url{https://www.kaggle.com/datasets/eddardd/tennessee-eastman-process-domain-adaptation}.
 
 \bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
 DOWNS J~J, VOGEL E~F.
