@@ -1,0 +1,174 @@
+{
+  "data_config": "configs/data/te_da.yaml",
+  "manifest_path": "data/benchmark/manifest.json",
+  "dataset_name": "te_domain_adaptation",
+  "domain_count": 6,
+  "channels_contract": "34 continuous variables interpreted as XME(1)-XME(22) + XMV(1)-XMV(12)",
+  "window_contract": "600 time steps per sample; loader transposes to 34 x 600 when channels_first=true",
+  "normalization": "standardization",
+  "normalization_scope": "domain",
+  "channels_first": true,
+  "default_use_target_labels": false,
+  "domains": [
+    {
+      "domain_id": "mode1",
+      "signals_shape": [
+        2900,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2900
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        580,
+        580,
+        580,
+        580,
+        580
+      ],
+      "status": "ok"
+    },
+    {
+      "domain_id": "mode2",
+      "signals_shape": [
+        2845,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2845
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        567,
+        567,
+        567,
+        567,
+        567
+      ],
+      "status": "ok"
+    },
+    {
+      "domain_id": "mode3",
+      "signals_shape": [
+        2899,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2899
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        579,
+        579,
+        579,
+        579,
+        579
+      ],
+      "status": "ok"
+    },
+    {
+      "domain_id": "mode4",
+      "signals_shape": [
+        2865,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2865
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        571,
+        571,
+        571,
+        571,
+        571
+      ],
+      "status": "ok"
+    },
+    {
+      "domain_id": "mode5",
+      "signals_shape": [
+        2883,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2883
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        576,
+        576,
+        576,
+        576,
+        576
+      ],
+      "status": "ok"
+    },
+    {
+      "domain_id": "mode6",
+      "signals_shape": [
+        2897,
+        600,
+        34
+      ],
+      "labels_shape": [
+        2897
+      ],
+      "label_range": {
+        "min": 0,
+        "max": 28
+      },
+      "label_unique_count": 29,
+      "fold_count": 5,
+      "fold_lengths": [
+        579,
+        579,
+        579,
+        579,
+        579
+      ],
+      "status": "ok"
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    "mode2 fold lengths sum to 2835, not the full sample count 2845; current loader treats the selected fold as eval and all remaining samples as train.",
+    "mode3 fold lengths sum to 2895, not the full sample count 2899; current loader treats the selected fold as eval and all remaining samples as train.",
+    "mode4 fold lengths sum to 2855, not the full sample count 2865; current loader treats the selected fold as eval and all remaining samples as train.",
+    "mode5 fold lengths sum to 2880, not the full sample count 2883; current loader treats the selected fold as eval and all remaining samples as train.",
+    "mode6 fold lengths sum to 2895, not the full sample count 2897; current loader treats the selected fold as eval and all remaining samples as train.",
+    "normalization_scope is domain/full-domain: this matches the local benchmark but uses full target-domain statistics, including the held-out fold."
+  ],
+  "passed": true
+}

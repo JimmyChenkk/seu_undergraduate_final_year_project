@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+  <rect width="720" height="420" fill="#ffffff"/>
+  <rect x="72" y="86" width="576" height="248" rx="8" fill="#f7f7f7" stroke="#555555" stroke-width="2"/>
+  <text x="360" y="184" text-anchor="middle" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="22" fill="#222222">
+<tspan x="360" dy="0">Progressive ablation table</tspan>
+<tspan x="360" dy="28">待实验结果替换</tspan>
+  </text>
+</svg>

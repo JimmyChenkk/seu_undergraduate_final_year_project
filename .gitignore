@@ -1,16 +1,14 @@
 # Local-only paths from WORKFLOW.md
 /.vscode/
 /data/
-/paper/
+# /paper/
 /external/
 /refs/
 /runs/
-/tutorial/
 /goal.md
 /WORKFLOW.md
 /AGENTS.md
 /assets/
-/code_audit*.md
 
 
 # Python cache
