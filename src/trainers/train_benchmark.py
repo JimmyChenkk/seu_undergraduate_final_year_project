@@ -1096,9 +1096,11 @@ def _export_checkpoint_diagnostics(
         for row in history:
             writer.writerow({key: row.get(key, "") for key in fieldnames})
 
-    curve_path = figures_dir / "checkpoint_curve.png"
+    from src.evaluation.report_figures import _build_figure_output_path, _runtime_dependencies, _save_figure
+
+    curve_path = _build_figure_output_path(figures_dir / "checkpoint_curve")
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
 
         def _series(key: str) -> list[float | None]:
             values: list[float | None] = []
@@ -1123,9 +1125,7 @@ def _export_checkpoint_diagnostics(
         ax.set_title("Checkpoint diagnostics")
         ax.grid(alpha=0.25)
         ax.legend(loc="best")
-        fig.tight_layout()
-        fig.savefig(curve_path, dpi=180)
-        plt.close(fig)
+        _save_figure(curve_path)
         curve_path_value: str | None = str(curve_path)
     except Exception:
         curve_path_value = None
@@ -1825,7 +1825,12 @@ def run_deep_experiment(
     return result
 
 
-def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any]) -> dict[str, str | None]:
+def _export_run_figures(
+    result_payload: dict[str, Any],
+    run_paths: dict[str, Any],
+    *,
+    figure_format: str | None = None,
+) -> dict[str, str | None]:
     figure_paths = {
         "tsne_domain": None,
         "tsne_class": None,
@@ -1841,35 +1846,39 @@ def _export_run_figures(result_payload: dict[str, Any], run_paths: dict[str, Any
 
     from src.evaluation.report_figures import export_run_review_figures
 
-    export_run_review_figures(analysis_path, run_paths["figures_dir"])
+    export_run_review_figures(analysis_path, run_paths["figures_dir"], figure_format=figure_format)
     for key, filename in {
         "tsne_domain": "tsne_domain.pdf",
         "tsne_class": "tsne_class.pdf",
         "confusion_matrix": "confusion_matrix.pdf",
-        "class_source_alpha_heatmap": "class_source_alpha_heatmap.png",
-        "reliability_component_heatmaps": "reliability_component_heatmaps.png",
-        "target_prediction_histogram": "target_prediction_histogram.png",
-        "source_weight_global_vs_class_conditional": "source_weight_global_vs_class_conditional.png",
-        "global_source_alpha_vs_class_alpha": "global_source_alpha_vs_class_alpha.png",
-        "target_entropy_rho_distribution": "target_entropy_rho_distribution.png",
-        "wjdot_vs_ccsr_confusion_matrix": "wjdot_vs_ccsr_confusion_matrix.png",
+        "class_source_alpha_heatmap": "class_source_alpha_heatmap.pdf",
+        "reliability_component_heatmaps": "reliability_component_heatmaps.pdf",
+        "target_prediction_histogram": "target_prediction_histogram.pdf",
+        "source_weight_global_vs_class_conditional": "source_weight_global_vs_class_conditional.pdf",
+        "global_source_alpha_vs_class_alpha": "global_source_alpha_vs_class_alpha.pdf",
+        "target_entropy_rho_distribution": "target_entropy_rho_distribution.pdf",
+        "wjdot_vs_ccsr_confusion_matrix": "wjdot_vs_ccsr_confusion_matrix.pdf",
     }.items():
         figure_path = run_paths["figures_dir"] / filename
         figure_paths[key] = str(figure_path) if figure_path.exists() else None
     return figure_paths
 
 
-def _refresh_batch_outputs(batch_root: Path) -> None:
+def _refresh_batch_outputs(batch_root: Path, *, save_figures: bool = True, figure_format: str | None = None) -> None:
     from src.evaluation.evaluate import export_comparison_summary
     from src.evaluation.report_figures import export_summary_figures
 
     summary_dir = export_comparison_summary(batch_root)
-    if summary_dir is None:
+    if summary_dir is None or not save_figures:
         return
+    figure_kwargs = {}
+    if figure_format is not None:
+        figure_kwargs["figure_format"] = figure_format
     export_summary_figures(
         batch_root,
         summary_dir.parent / "figures",
         include_all_methods=True,
+        **figure_kwargs,
     )
 
 
@@ -2033,7 +2042,18 @@ def main() -> None:
         "run_root": str(run_paths["run_root"]),
         "result": method_result,
     }
-    figure_paths = _export_run_figures(result_payload, run_paths)
+    runtime_payload = experiment_payload.get("runtime", {})
+    save_figures = bool(runtime_payload.get("save_figures", True))
+    figure_format = str(runtime_payload.get("figure_format", "pdf"))
+    figure_paths = (
+        _export_run_figures(result_payload, run_paths, figure_format=figure_format)
+        if save_figures
+        else {
+            "tsne_domain": None,
+            "tsne_class": None,
+            "confusion_matrix": None,
+        }
+    )
     review_payload = build_run_review(result_payload, figure_paths=figure_paths)
     result_payload["figure_paths"] = figure_paths
     result_payload["metrics_path"] = str(run_paths["metrics_path"])
@@ -2041,9 +2061,13 @@ def main() -> None:
     save_json(run_paths["metrics_path"], result_payload)
     save_review(run_paths["review_path"], review_payload)
     if run_paths["batch_root"] is not None and bool(
-        experiment_payload.get("runtime", {}).get("refresh_batch_outputs", True)
+        runtime_payload.get("refresh_batch_outputs", True)
     ):
-        _refresh_batch_outputs(run_paths["batch_root"])
+        _refresh_batch_outputs(
+            run_paths["batch_root"],
+            save_figures=save_figures,
+            figure_format=figure_format,
+        )
     print(json.dumps(build_terminal_summary(result_payload), indent=2, ensure_ascii=False))
 
 

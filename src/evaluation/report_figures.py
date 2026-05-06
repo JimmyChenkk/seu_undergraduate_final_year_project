@@ -202,10 +202,7 @@ def _ensure_dir(path: Path) -> None:
 
 
 def _resolve_primary_figure_format(figure_format: str | None, *, fallback_path: Path | None = None) -> str:
-    if figure_format:
-        return str(figure_format).lower()
-    if fallback_path is not None and fallback_path.suffix:
-        return fallback_path.suffix.lstrip(".").lower()
+    del figure_format, fallback_path
     return DEFAULT_PRIMARY_FIGURE_FORMAT
 
 
@@ -219,13 +216,7 @@ def _save_figure(path: Path, *, figure_format: str | None = None) -> None:
     _ensure_dir(path.parent)
     plt.tight_layout()
     primary_format = _resolve_primary_figure_format(figure_format, fallback_path=path)
-    export_formats: list[str] = []
-    for save_format in (primary_format, *REQUIRED_FIGURE_FORMATS):
-        normalized = str(save_format).lower()
-        if normalized not in export_formats:
-            export_formats.append(normalized)
-    for save_format in export_formats:
-        plt.savefig(path.with_suffix(f".{save_format}"), format=save_format, bbox_inches="tight")
+    plt.savefig(path.with_suffix(f".{primary_format}"), format=primary_format, bbox_inches="tight")
     plt.close()
 
 

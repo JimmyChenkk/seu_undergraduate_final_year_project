@@ -8,6 +8,8 @@ import math
 from pathlib import Path
 from typing import Any
 
+from src.evaluation.report_figures import _build_figure_output_path, _runtime_dependencies, _save_figure
+
 
 EPS = 1e-8
 
@@ -294,9 +296,10 @@ def _save_heatmap(
     vmax: float | None = None,
 ) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         width = max(8.0, matrix.shape[1] * 0.32)
         height = max(3.2, matrix.shape[0] * 0.55)
         fig, ax = plt.subplots(figsize=(width, height))
@@ -309,18 +312,17 @@ def _save_heatmap(
         ax.set_xticklabels([str(item) for item in range(matrix.shape[1])], rotation=90, fontsize=7)
         ax.set_yticks(range(matrix.shape[0]))
         ax.set_yticklabels(source_domains)
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
 
 def _save_component_heatmaps(path: Path, components: dict[str, Any], *, source_domains: list[str]) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
 
+        output_path = _build_figure_output_path(path)
         names = [
             "D_proto_norm",
             "D_ot_norm",
@@ -329,7 +331,7 @@ def _save_component_heatmaps(path: Path, components: dict[str, Any], *, source_d
             "R",
             "alpha",
         ]
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         fig, axes = plt.subplots(2, 3, figsize=(14, max(5.5, len(source_domains) * 0.9)))
         for axis, name in zip(axes.ravel(), names):
             matrix = components[name]
@@ -342,20 +344,19 @@ def _save_component_heatmaps(path: Path, components: dict[str, Any], *, source_d
             axis.set_xticks(range(matrix.shape[1]))
             axis.set_xticklabels([str(item) for item in range(matrix.shape[1])], rotation=90, fontsize=6)
             fig.colorbar(image, ax=axis, fraction=0.046, pad=0.04)
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
 
 def _save_prediction_histogram(path: Path, predictions, *, num_classes: int, title: str) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
         np = _import_numpy()
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         counts = np.bincount(predictions.astype(np.int64, copy=False), minlength=num_classes)
         fig, ax = plt.subplots(figsize=(9, 3.8))
         ax.bar(np.arange(num_classes), counts, color="#4C78A8")
@@ -364,20 +365,19 @@ def _save_prediction_histogram(path: Path, predictions, *, num_classes: int, tit
         ax.set_ylabel("count")
         ax.set_xticks(np.arange(num_classes))
         ax.set_xticklabels([str(item) for item in range(num_classes)], rotation=90, fontsize=7)
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
 
 def _save_global_vs_class_alpha(path: Path, global_alpha, class_alpha, *, source_domains: list[str]) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
         np = _import_numpy()
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         mean_class_alpha = class_alpha.mean(axis=1)
         x_values = np.arange(len(source_domains))
         width = 0.36
@@ -390,19 +390,18 @@ def _save_global_vs_class_alpha(path: Path, global_alpha, class_alpha, *, source
         ax.set_ylabel("weight")
         ax.set_title("Global vs class-conditional source weights")
         ax.legend(loc="best")
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
 
 def _save_entropy_rho_distribution(path: Path, entropy_values, rho_values) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         fig, axes = plt.subplots(1, 2, figsize=(9, 3.8))
         axes[0].hist(entropy_values, bins=30, color="#59A14F", alpha=0.85)
         axes[0].set_title("CCSR entropy")
@@ -411,19 +410,18 @@ def _save_entropy_rho_distribution(path: Path, entropy_values, rho_values) -> st
         axes[1].hist(rho_values, bins=30, color="#E15759", alpha=0.85)
         axes[1].set_title("Safety rho")
         axes[1].set_xlabel("rho")
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
 
 def _save_confusion_comparison(path: Path, wjdot_matrix, raw_ccsr_matrix, final_matrix) -> str | None:
     try:
-        import matplotlib.pyplot as plt
+        _, plt, _ = _runtime_dependencies()
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         fig, axes = plt.subplots(1, 3, figsize=(18, 5.8))
         for axis, matrix, title in [
             (axes[0], wjdot_matrix, "WJDOT confusion"),
@@ -435,10 +433,8 @@ def _save_confusion_comparison(path: Path, wjdot_matrix, raw_ccsr_matrix, final_
             axis.set_xlabel("predicted class")
             axis.set_ylabel("true class")
             fig.colorbar(image, ax=axis, fraction=0.046, pad=0.04)
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
-        return str(path)
+        _save_figure(output_path)
+        return str(output_path)
     except Exception:
         return None
 
@@ -1382,7 +1378,7 @@ def export_ccsr_wjdot_fusion_artifacts(
     )
 
     alpha_heatmap_path = _save_heatmap(
-        figures_dir / "class_source_alpha_heatmap.png",
+        figures_dir / "class_source_alpha_heatmap.pdf",
         alpha,
         title="CCSR class-source alpha",
         source_domains=source_domains,
@@ -1391,7 +1387,7 @@ def export_ccsr_wjdot_fusion_artifacts(
         vmax=1.0,
     )
     component_heatmaps_path = _save_component_heatmaps(
-        figures_dir / "reliability_component_heatmaps.png",
+        figures_dir / "reliability_component_heatmaps.pdf",
         {
             "D_proto_norm": d_proto_norm,
             "D_ot_norm": d_ot_norm,
@@ -1403,29 +1399,29 @@ def export_ccsr_wjdot_fusion_artifacts(
         source_domains=source_domains,
     )
     prediction_histogram_figure_path = _save_prediction_histogram(
-        figures_dir / "target_prediction_histogram.png",
+        figures_dir / "target_prediction_histogram.pdf",
         final_predictions,
         num_classes=num_classes,
         title="CCSR-WJDOT target prediction histogram",
     )
     global_vs_class_figure_path = _save_global_vs_class_alpha(
-        figures_dir / "source_weight_global_vs_class_conditional.png",
+        figures_dir / "source_weight_global_vs_class_conditional.pdf",
         global_alpha,
         alpha,
         source_domains=source_domains,
     )
     global_vs_class_alias_figure_path = None
     if global_vs_class_figure_path is not None:
-        alias_path = figures_dir / "global_source_alpha_vs_class_alpha.png"
+        alias_path = figures_dir / "global_source_alpha_vs_class_alpha.pdf"
         alias_path.write_bytes(Path(global_vs_class_figure_path).read_bytes())
         global_vs_class_alias_figure_path = str(alias_path)
     entropy_rho_figure_path = _save_entropy_rho_distribution(
-        figures_dir / "target_entropy_rho_distribution.png",
+        figures_dir / "target_entropy_rho_distribution.pdf",
         ccsr_entropy,
         rho,
     )
     confusion_comparison_figure_path = _save_confusion_comparison(
-        figures_dir / "wjdot_vs_ccsr_confusion_matrix.png",
+        figures_dir / "wjdot_vs_ccsr_confusion_matrix.pdf",
         wjdot_confusion,
         raw_ccsr_confusion,
         final_confusion,

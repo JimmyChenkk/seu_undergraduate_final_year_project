@@ -10,6 +10,8 @@ runtime:
   dry_run: false
   save_checkpoint: true
   save_analysis: true
+  save_figures: true
+  figure_format: pdf
   disable_cudnn: false
   cudnn_benchmark: true
   allow_tf32: true

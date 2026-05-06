@@ -628,17 +628,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _refresh_batch_outputs(batch_root: Path) -> None:
+def _refresh_batch_outputs(batch_root: Path, *, save_figures: bool = True, figure_format: str | None = None) -> None:
     from src.evaluation.evaluate import export_comparison_summary
     from src.evaluation.report_figures import export_summary_figures
 
     summary_dir = export_comparison_summary(batch_root)
-    if summary_dir is None:
+    if summary_dir is None or not save_figures:
         return
+    figure_kwargs = {}
+    if figure_format is not None:
+        figure_kwargs["figure_format"] = figure_format
     export_summary_figures(
         batch_root,
         summary_dir.parent / "figures",
         include_all_methods=True,
+        **figure_kwargs,
     )
 
 
@@ -685,9 +689,10 @@ def main() -> None:
         return
 
     batch_root_name = args.batch_root_name or f"{build_timestamp()}_{experiment_name}"
-    should_refresh_batch_outputs = bool(
-        base_experiment.get("runtime", {}).get("refresh_batch_outputs", True)
-    )
+    runtime_payload = base_experiment.get("runtime", {})
+    should_refresh_batch_outputs = bool(runtime_payload.get("refresh_batch_outputs", True))
+    should_save_figures = bool(runtime_payload.get("save_figures", True))
+    figure_format = str(runtime_payload.get("figure_format", "pdf"))
     batch_root = Path(str(base_experiment.get("output_dir", "runs"))) / batch_root_name
     completed_results: dict[tuple[str, str, str, str, tuple[tuple[str, str], ...]], Path] = {}
     experiment_paths: dict[tuple[str, str, str, str, tuple[tuple[str, str], ...]], Path] = {}
@@ -812,7 +817,11 @@ def main() -> None:
                 completed_results[run_key] = result_path
 
     if should_refresh_batch_outputs:
-        _refresh_batch_outputs(batch_root)
+        _refresh_batch_outputs(
+            batch_root,
+            save_figures=should_save_figures,
+            figure_format=figure_format,
+        )
     print(f"Batch results written under {batch_root}")
     print(f"Comparison summary expected at {batch_root / 'comparison_summary'}/")
 

@@ -268,7 +268,7 @@ class ReportFiguresTests(unittest.TestCase):
             ],
         )
 
-    def test_save_figure_keeps_requested_primary_format_and_pdf_companion(self) -> None:
+    def test_save_figure_ignores_requested_non_pdf_format(self) -> None:
         fake_plt = mock.Mock()
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "chart.svg"
@@ -281,7 +281,6 @@ class ReportFiguresTests(unittest.TestCase):
         self.assertEqual(
             fake_plt.savefig.call_args_list,
             [
-                mock.call(output_path.with_suffix(".svg"), format="svg", bbox_inches="tight"),
                 mock.call(output_path.with_suffix(".pdf"), format="pdf", bbox_inches="tight"),
             ],
         )

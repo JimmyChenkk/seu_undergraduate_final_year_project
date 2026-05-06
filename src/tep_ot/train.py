@@ -139,9 +139,11 @@ def save_per_class_recall(path: Path, confusion: np.ndarray) -> None:
 
 def save_confusion_plot(path: Path, confusion: np.ndarray) -> None:
     try:
-        import matplotlib.pyplot as plt
+        from src.evaluation.report_figures import _build_figure_output_path, _runtime_dependencies, _save_figure
 
-        path.parent.mkdir(parents=True, exist_ok=True)
+        _, plt, _ = _runtime_dependencies()
+        output_path = _build_figure_output_path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         fig, ax = plt.subplots(figsize=(8, 7))
         image = ax.imshow(confusion, cmap="Blues")
         ax.set_xlabel("Predicted")
@@ -150,9 +152,7 @@ def save_confusion_plot(path: Path, confusion: np.ndarray) -> None:
         ax.set_xticks(range(0, confusion.shape[1], 4))
         ax.set_yticks(range(0, confusion.shape[0], 4))
         fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
-        fig.tight_layout()
-        fig.savefig(path, dpi=180)
-        plt.close(fig)
+        _save_figure(output_path)
     except Exception:
         return
 
@@ -435,7 +435,7 @@ def run_experiment(
     np.savetxt(confusion_csv_path, confusion, delimiter=",", fmt="%d")
     per_class_recall_path = tables_dir / "per_class_recall.csv"
     save_per_class_recall(per_class_recall_path, confusion)
-    save_confusion_plot(figures_dir / "confusion_matrix.png", confusion)
+    save_confusion_plot(figures_dir / "confusion_matrix.pdf", confusion)
     analysis_path = save_analysis(
         run_root=run_root,
         model=method,
