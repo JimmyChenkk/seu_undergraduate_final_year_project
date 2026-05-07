@@ -21,8 +21,7 @@
     redcard/.style={card, draw=red!45!black, fill=red!5},
     panel/.style={draw=black!15, rounded corners=5pt, line width=0.35pt, fill=gray!1},
     arrow/.style={->, line width=0.55pt, draw=black!70},
-    note/.style={font=\scriptsize\fontspec{Times New Roman}\songti, align=center},
-    cell/.style={draw=black!35, line width=0.25pt, minimum width=0.36cm, minimum height=0.27cm, inner sep=0pt}
+    note/.style={font=\scriptsize\fontspec{Times New Roman}\songti, align=center}
 ]
 
 \draw[panel] (-0.25,0.00) rectangle (21.25,9.00);
@@ -31,7 +30,7 @@
 
 % 多源输入
 \draw[bluecard] (0.45,2.15) rectangle (3.05,7.75);
-\node[anchor=north west] at (0.72,7.43) {多源输入};
+\node at (1.75,7.43) {多源输入};
 \node[chip, minimum width=1.95cm] at (1.75,6.35) {源域 $s_1$};
 \node[chip, minimum width=1.95cm] at (1.75,5.35) {源域 $s_2$};
 \node[chip, minimum width=1.95cm] at (1.75,4.35) {源域 $s_K$};
@@ -41,7 +40,7 @@
 
 % CoDATS 表征与教师
 \draw[cyancard] (3.75,2.15) rectangle (7.35,7.75);
-\node[anchor=north west] at (4.02,7.43) {CoDATS 表征};
+\node at (5.55,7.43) {CoDATS 表征};
 \node[chip, minimum width=2.80cm] at (5.55,6.20)
     {共享 FCN + 分类头\\[-1pt]$F_\theta,\ G_\phi$};
 \node[chip, minimum width=2.80cm] at (5.55,4.95)
@@ -53,7 +52,7 @@
 
 % 逐源传输
 \draw[greencard] (8.05,2.15) rectangle (11.65,7.75);
-\node[anchor=north west] at (8.32,7.43) {逐源联合传输};
+\node at (9.85,7.43) {逐源联合传输};
 \node[chip, minimum width=2.80cm] at (9.85,6.20)
     {$s_k\rightarrow t$ 独立传输\\[-1pt]$\gamma_k^\ast$};
 \node[chip, minimum width=2.80cm] at (9.85,4.95)
@@ -65,7 +64,7 @@
 
 % 可靠性矩阵
 \draw[orangecard] (12.35,2.15) rectangle (15.95,7.75);
-\node[anchor=north west] at (12.62,7.43) {可靠性证据};
+\node at (14.15,7.43) {可靠性证据};
 \node[chip, minimum width=2.80cm] at (14.15,6.20)
     {原型距离\\[-1pt]$D_{kc}^{proto}$};
 \node[chip, minimum width=2.80cm] at (14.15,4.95)
@@ -77,29 +76,50 @@
 
 % 类条件权重与融合
 \draw[purplecard] (16.65,2.15) rectangle (20.85,7.75);
-\node[anchor=north west] at (16.92,7.43) {类条件权重与融合};
+\node at (18.75,7.43) {类条件权重与融合};
 \node[chip, minimum width=3.20cm] at (18.75,6.35)
     {可靠性到权重\\[-1pt]$R_{kc}\rightarrow\alpha_{kc}$};
 \node[chip, minimum width=3.20cm] at (18.75,5.20)
     {类条件传输损失\\[-1pt]$\mathcal{L}_{CCSR}$};
 \node[chip, minimum width=3.20cm] at (18.75,4.05)
-    {教师安全融合\\[-1pt]$p^{final}$};
-\begin{scope}[shift={(18.10,3.05)}]
-    \node[cell, fill=green!22] at (0.0,0.45) {};
-    \node[cell, fill=yellow!18] at (0.36,0.45) {};
-    \node[cell, fill=green!12] at (0.72,0.45) {};
-    \node[cell, fill=yellow!24] at (1.08,0.45) {};
-    \node[cell, fill=orange!18] at (0.0,0.18) {};
-    \node[cell, fill=green!24] at (0.36,0.18) {};
-    \node[cell, fill=green!12] at (0.72,0.18) {};
-    \node[cell, fill=yellow!22] at (1.08,0.18) {};
-    \node[cell, fill=yellow!24] at (0.0,-0.09) {};
-    \node[cell, fill=yellow!14] at (0.36,-0.09) {};
-    \node[cell, fill=green!22] at (0.72,-0.09) {};
-    \node[cell, fill=green!10] at (1.08,-0.09) {};
+    {教师先验融合\\[-1pt]$p^{final}$};
+\begin{scope}[shift={(17.72,2.50)}]
+    \node[font=\tiny\fontspec{Times New Roman}\songti] at (-0.34,0.56)
+        {源域};
+    \node[font=\tiny\fontspec{Times New Roman}\songti] at (0.84,0.74)
+        {故障类别};
+    \node[font=\tiny\fontspec{Times New Roman}\songti] at (2.33,0.74)
+        {迁移可靠性};
+    \node[font=\tiny\fontspec{Times New Roman}] at (0.14,0.56) {$c_1$};
+    \node[font=\tiny\fontspec{Times New Roman}] at (0.42,0.56) {$c_2$};
+    \node[font=\tiny\fontspec{Times New Roman}] at (0.98,0.56) {$\cdots$};
+    \node[font=\tiny\fontspec{Times New Roman}] at (1.54,0.56) {$c_{N_c}$};
+    \node[font=\tiny\fontspec{Times New Roman}, anchor=east] at (-0.12,0.40) {$s_1$};
+    \node[font=\tiny\fontspec{Times New Roman}, anchor=east] at (-0.12,0.24) {$s_2$};
+    \node[font=\tiny\fontspec{Times New Roman}, anchor=east] at (-0.12,0.08) {$s_K$};
+    \draw[draw=black!35, line width=0.20pt, fill=green!35] (0.00,0.32) rectangle (0.28,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=green!15] (0.28,0.32) rectangle (0.56,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!18] (0.56,0.32) rectangle (0.84,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=green!25] (0.84,0.32) rectangle (1.12,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!22] (1.12,0.32) rectangle (1.40,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=green!45] (1.40,0.32) rectangle (1.68,0.48);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!28] (0.00,0.16) rectangle (0.28,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=green!42] (0.28,0.16) rectangle (0.56,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=green!18] (0.56,0.16) rectangle (0.84,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!16] (0.84,0.16) rectangle (1.12,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=green!30] (1.12,0.16) rectangle (1.40,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!26] (1.40,0.16) rectangle (1.68,0.32);
+    \draw[draw=black!35, line width=0.20pt, fill=green!18] (0.00,0.00) rectangle (0.28,0.16);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!24] (0.28,0.00) rectangle (0.56,0.16);
+    \draw[draw=black!35, line width=0.20pt, fill=green!38] (0.56,0.00) rectangle (0.84,0.16);
+    \draw[draw=black!35, line width=0.20pt, fill=green!12] (0.84,0.00) rectangle (1.12,0.16);
+    \draw[draw=black!35, line width=0.20pt, fill=green!46] (1.12,0.00) rectangle (1.40,0.16);
+    \draw[draw=black!35, line width=0.20pt, fill=yellow!18] (1.40,0.00) rectangle (1.68,0.16);
+    \shade[bottom color=yellow!12, top color=green!55, draw=black!35, line width=0.20pt]
+        (2.05,0.00) rectangle (2.19,0.48);
+    \node[font=\tiny\fontspec{Times New Roman}\songti, anchor=west] at (2.27,0.48) {高};
+    \node[font=\tiny\fontspec{Times New Roman}\songti, anchor=west] at (2.27,0.00) {低};
 \end{scope}
-\node[note, text width=3.45cm] at (18.75,2.45)
-    {按故障类别选择源域，预测阶段保守校正};
 
 % 总目标
 \draw[redcard] (3.75,0.50) rectangle (20.85,1.35);

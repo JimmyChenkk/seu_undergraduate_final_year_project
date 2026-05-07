@@ -29,7 +29,7 @@
 
 % 基础输入
 \draw[bluecard] (0.45,2.15) rectangle (3.25,7.75);
-\node[anchor=north west] at (0.72,7.43) {基础信息};
+\node at (1.85,7.43) {基础信息};
 \node[chip, minimum width=2.20cm] at (1.85,6.05)
     {TPU-DeepJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
 \node[chip, minimum width=2.20cm] at (1.85,4.60)
@@ -39,7 +39,7 @@
 
 % 教师-学生增强
 \draw[cyancard] (3.95,2.15) rectangle (7.35,7.75);
-\node[anchor=north west] at (4.22,7.43) {教师--学生增强};
+\node at (5.65,7.43) {教师--学生增强};
 \node[chip, minimum width=2.65cm] at (5.65,6.15)
     {弱增强 + EMA 教师\\[-1pt]$a_w(x_j^t),\bar{\Theta}$};
 \node[chip, minimum width=2.65cm] at (5.65,4.60)
@@ -49,7 +49,7 @@
 
 % 三路证据
 \draw[orangecard] (8.05,2.15) rectangle (11.15,7.75);
-\node[anchor=north west] at (8.32,7.43) {三路语义证据};
+\node at (9.60,7.43) {三路语义证据};
 \node[chip, minimum width=2.35cm] at (9.60,6.20)
     {传输语义\\[-1pt]$q^{ot}$};
 \node[chip, minimum width=2.35cm] at (9.60,4.95)
@@ -59,7 +59,7 @@
 
 % 接收门控
 \draw[purplecard] (11.85,2.15) rectangle (15.45,7.75);
-\node[anchor=north west] at (12.12,7.43) {可靠接收门控};
+\node at (13.65,7.43) {可靠接收门控};
 \node[chip, minimum width=2.75cm] at (13.65,6.20)
     {多证据融合\\[-1pt]$q^{mix}$};
 \node[chip, minimum width=2.75cm, text width=2.65cm] at (13.65,4.90)
@@ -71,7 +71,7 @@
 
 % 均衡目标学习
 \draw[redcard] (16.15,2.15) rectangle (20.85,7.75);
-\node[anchor=north west] at (16.42,7.43) {均衡目标学习};
+\node at (18.50,7.43) {均衡目标学习};
 \node[chip, minimum width=3.65cm] at (18.50,6.20)
     {类别均衡伪监督\\[-1pt]$\mathcal{L}_{pl},\ \hat{\pi}_c$};
 \node[chip, minimum width=3.65cm] at (18.50,4.95)
