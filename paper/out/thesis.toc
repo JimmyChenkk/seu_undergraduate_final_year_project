@@ -61,7 +61,7 @@
 \contentsline {subsection}{\numberline {5.3.4}领域对抗特征约束与教师先验约束}{34}{subsection.5.3.4}%
 \contentsline {subsection}{\numberline {5.3.5}教师先验保护的诊断结果融合}{34}{subsection.5.3.5}%
 \contentsline {subsection}{\numberline {5.3.6}总体目标函数与算法流程}{35}{subsection.5.3.6}%
-\contentsline {section}{\numberline {5.4}本章小结}{36}{section.5.4}%
+\contentsline {section}{\numberline {5.4}本章小结}{35}{section.5.4}%
 \contentsline {chapter}{\numberline {第六章\hspace {.3em}}实验设计与结果分析}{37}{chapter.6}%
 \contentsline {section}{\numberline {6.1}引言}{37}{section.6.1}%
 \contentsline {section}{\numberline {6.2}数据集与实验场景}{37}{section.6.2}%
