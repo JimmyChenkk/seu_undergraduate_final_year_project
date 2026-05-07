@@ -1505,42 +1505,6 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 表 \ref{tab:single_scene_accuracy} 给出了核心单源方法在各迁移任务上的准确率。源域直接迁移方法在 $m_5\rightarrow m_1$ 和 $m_2\rightarrow m_1$ 等任务上性能较低，说明目标域为 $m_1$ 时直接迁移存在较强工况偏移。DeepJDOT 在所有单源任务上均高于源域直接迁移方法，说明联合分布最优传输能够缓解源目标分布差异。TPU-\allowbreak{}Deep\allowbreak{}JDOT 在多数任务中进一步提高准确率，但在 $m_1\rightarrow m_2$ 场景中低于 DeepJDOT，表明当目标域为分布差异较大的 $m_2$ 时，非平衡传输和原型约束仍可能受到目标域类别结构不稳定的影响。
 
-\medskip
-\noindent\textbf{诊断准确率对比分析}
-
-从单源整体结果看，源域直接迁移方法平均准确率仅为 55.88\%，说明不同生产模式之间存在明显分布偏移。DeepJDOT 将平均准确率提高到 74.29\%，表明联合分布最优传输能够缓解直接迁移退化。TPU-\allowbreak{}Deep\allowbreak{}JDOT 在此基础上进一步达到 77.49\%，相较 DeepJDOT 提升约 3.20 个百分点，宏平均 F1 和平衡准确率也同步提高，说明第三章引入的非平衡传输、源域类别原型、时序统计代价和源域监督对比约束能够改善单源跨工况对齐质量。
-
-逐场景结果进一步表明，TPU-\allowbreak{}Deep\allowbreak{}JDOT 的收益在 $m_1\rightarrow m_5$、$m_2\rightarrow m_1$、$m_5\rightarrow m_1$ 和 $m_5\rightarrow m_2$ 等任务中较为明显。这些场景中，源域直接迁移性能偏低或 DeepJDOT 对齐仍不充分，时序原型非平衡对齐能够提供更稳定的类别结构约束。但在 $m_1\rightarrow m_2$ 场景中，TPU-\allowbreak{}Deep\allowbreak{}JDOT 低于 DeepJDOT，说明目标域为分布差异较大的 $m_2$ 时，目标域类别结构不稳定仍可能削弱原型约束的效果。
-
-\medskip
-\noindent\textbf{故障类别混淆矩阵分析}
-
-仅从平均准确率难以判断第三章方法对各故障类别的具体影响，因此需要结合类别级混淆矩阵观察错误模式。对于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，重点应关注其是否减少 DeepJDOT 中由错误样本匹配引起的类别混淆，尤其是正常状态以及动态响应相近的故障类别。如果混淆矩阵中多数故障类别的对角线响应增强，而少数类别仍被预测为相邻高响应故障，则说明时序原型约束主要改善了整体类别边界，但对目标域中响应相近或源目标偏移较大的类别仍存在不足。
-
-\begin{figure}[htbp]
-    \centering
-    \figureplaceholder{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵占位}
-    \caption{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵}
-    \label{fig:tpu_confusion_matrix}
-\end{figure}
-
-\medskip
-\noindent\textbf{跨域特征分布可视化分析}
-
-跨域特征分布可视化用于观察源域和目标域样本在特征空间中的对齐情况。对于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，理想结果是源域和目标域同类样本逐渐靠近，同时不同故障类别之间保持清晰间隔。与普通 DeepJDOT 相比，第三章方法不只依赖样本级传输匹配，还通过源域类别原型和时序统计代价保留类别结构，因此特征可视化中应表现为目标域样本更贴近对应源域类别簇，且类别簇之间的重叠有所减少。
-
-\begin{figure}[htbp]
-    \centering
-    \figureplaceholder{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布可视化占位}
-    \caption{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布 t-SNE 可视化}
-    \label{fig:tpu_tsne}
-\end{figure}
-
-\medskip
-\noindent\textbf{综合诊断性能分析}
-
-综合来看，TPU-\allowbreak{}Deep\allowbreak{}JDOT 是本文单源方法中的基础改进模块。该方法在不依赖目标域伪标签的情况下提高了平均准确率、宏平均 F1 和平衡准确率，说明时序原型非平衡联合分布对齐能够较稳定地缓解普通联合分布对齐中的错误匹配问题。其局限在于，当目标域分布差异较大且类别结构较难估计时，仅依靠源域原型和传输代价仍不足以完全修正目标域决策边界，这也为第四章进一步引入多证据伪标签机制提供了实验动机。
-
 \subsection{单源置信均衡伪标签实验结果}
 
 第四章方法 CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 在 TPU-\allowbreak{}Deep\allowbreak{}JDOT 的基础上进一步引入 EMA 教师模型、多证据伪标签筛选、类别均衡和强弱增强一致性约束。其目标是更可靠地利用目标域无标签样本，使目标域类别边界从“对齐驱动”进一步转向“高可靠目标样本驱动”。
@@ -1548,51 +1512,6 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 根据表 \ref{tab:single_average_results} 和表 \ref{tab:single_scene_accuracy}，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的平均准确率为 78.03\%，相比 TPU-\allowbreak{}Deep\allowbreak{}JDOT 继续提高约 0.53 个百分点，宏平均 F1 和平衡准确率也有小幅提升。该结果说明，多证据置信均衡伪标签机制整体上能够进一步改善目标域诊断性能，尤其在 $m_1\rightarrow m_5$、$m_2\rightarrow m_5$、$m_5\rightarrow m_1$ 和 $m_5\rightarrow m_2$ 等任务上优于 TPU-\allowbreak{}Deep\allowbreak{}JDOT。
 
 与此同时，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的提升并非在所有场景中单调成立。例如在 $m_2\rightarrow m_1$ 场景中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 平均准确率低于 TPU-\allowbreak{}Deep\allowbreak{}JDOT；在 $m_1\rightarrow m_2$ 场景中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 虽略高于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，但仍低于 DeepJDOT。这说明目标域伪标签机制对初始模型质量较敏感：当目标域预测置信度与真实类别结构之间存在偏差时，伪标签筛选虽然能够过滤部分噪声，但仍可能受到早期错误预测影响。因此，第四章方法更适合理解为提高无标签目标样本利用率和整体稳定性的机制，而不是在所有迁移场景中都严格优于第三章方法的增强模块。
-
-\begin{figure}[htbp]
-    \centering
-    \figureplaceholder{单源核心方法逐场景准确率热力图占位}
-    \caption{单源核心方法逐场景准确率热力图}
-    \label{fig:single_source_heatmap}
-\end{figure}
-
-图 \ref{fig:single_source_heatmap} 展示了不同迁移方向上的性能差异。目标域为 $m_2$ 的任务整体更困难，而以 $m_1$ 和 $m_5$ 互迁为代表的场景更容易从时序原型约束和伪标签机制中获得收益。
-
-\medskip
-\noindent\textbf{诊断准确率对比分析}
-
-在第三章方法已经改善单源对齐的基础上，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的平均准确率进一步达到 78.03\%，相较 TPU-\allowbreak{}Deep\allowbreak{}JDOT 提升约 0.53 个百分点。虽然提升幅度小于 TPU-\allowbreak{}Deep\allowbreak{}JDOT 相对 DeepJDOT 的提升，但宏平均 F1 和平衡准确率也保持同步增长，说明多证据置信均衡伪标签机制能够在整体上提高目标域无标签样本的利用质量。
-
-从逐场景结果看，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 在 $m_1\rightarrow m_5$、$m_2\rightarrow m_5$、$m_5\rightarrow m_1$ 和 $m_5\rightarrow m_2$ 等任务中优于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，说明当初始对齐结果能够提供较可靠的目标域预测时，教师预测、传输语义和源域原型语义的联合筛选可以进一步稳定目标域类别边界。但在 $m_2\rightarrow m_1$ 中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 低于 TPU-\allowbreak{}Deep\allowbreak{}JDOT；在 $m_1\rightarrow m_2$ 中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 仍低于 DeepJDOT。这表明伪标签机制对初始预测质量较敏感，困难目标域中的早期错误预测仍可能影响后续训练。
-
-\medskip
-\noindent\textbf{故障类别混淆矩阵分析}
-
-CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的混淆矩阵主要用于观察多证据伪标签机制是否改善类别级召回率。若多数故障类别在对角线上保持较高响应，同时正常状态和少数响应相近故障仍出现混淆，则说明该方法能够利用高置信目标样本强化多数类别边界，但对低置信类别和早期预测偏差较大的类别仍不够充分。尤其在目标域为 $m_2$ 的任务中，需重点检查类别 0、3、9、15 和 21 等容易混淆类别的召回率变化，以判断伪标签筛选是否引入类别偏置。
-
-\begin{figure}[htbp]
-    \centering
-    \figureplaceholder{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵占位}
-    \caption{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵}
-    \label{fig:cbtpu_confusion_matrix}
-\end{figure}
-
-\medskip
-\noindent\textbf{跨域特征分布可视化分析}
-
-特征可视化可以进一步说明伪标签机制对目标域类别簇的影响。对于 CBTPU-\allowbreak{}Deep\allowbreak{}JDOT，理想情况是目标域高置信样本逐渐向对应类别簇聚集，并带动同类低置信样本靠近决策边界内侧。若可视化结果中目标域样本比 TPU-\allowbreak{}Deep\allowbreak{}JDOT 更集中，但部分困难类别仍与其他类别交叠，则说明多证据伪标签主要提升了可识别类别的聚类紧凑性，而对本身响应相近或目标域偏移较大的故障类别仍存在限制。
-
-\begin{figure}[htbp]
-    \centering
-    \figureplaceholder{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布可视化占位}
-    \caption{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布 t-SNE 可视化}
-    \label{fig:cbtpu_tsne}
-\end{figure}
-
-\medskip
-\noindent\textbf{综合诊断性能分析}
-
-综合来看，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 更适合作为对 TPU-\allowbreak{}Deep\allowbreak{}JDOT 的目标域样本利用增强模块。该方法通过 EMA 教师模型、多证据一致性筛选、动态置信阈值、类别均衡和强弱增强一致性约束，在平均性能上进一步缩小了无监督领域自适应方法与目标域监督参考方法之间的差距。但其实验收益具有场景依赖性，说明伪标签质量仍是单源困难迁移任务中的关键风险。后续若要进一步提高稳定性，需要在目标域置信校准、类别先验估计和训练阶段控制方面继续改进。
 
 \subsection{多源类条件源域可靠性实验结果}
 
@@ -1679,6 +1598,30 @@ CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的混淆矩阵主要用于观察多证
 
 表 \ref{tab:five_source_scene_accuracy} 反映出五源任务具有明显的目标域差异。以 $m_4$ 为目标域时，源域直接迁移方法仅为 45.36\%，说明直接合并五个源域仍难以覆盖该目标域特征分布；CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 将准确率提高到 71.69\%，与 CoDATS 接近，并明显高于 WJDOT。以 $m_1$ 为目标域时，CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 达到 87.47\%，接近 CoDATS 的 88.68\%，且高于 WJDOT。以 $m_5$ 为目标域时，源域直接迁移方法已经达到 78.99\%，而 CoDATS、WJDOT 和 CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 均未超过源域直接迁移方法，说明在该场景中源域直接迁移模型本身较强，额外对齐反而可能引入负迁移。
 
+\section{实验结果分析}
+\subsection{诊断准确率对比分析}
+
+从单源整体结果看，源域直接迁移方法平均准确率仅为 55.88\%，说明不同生产模式之间存在明显分布偏移。DeepJDOT 将平均准确率提高到 74.29\%，表明联合分布最优传输能够缓解直接迁移退化。TPU-\allowbreak{}Deep\allowbreak{}JDOT 在此基础上进一步达到 77.49\%，相较 DeepJDOT 提升约 3.20 个百分点，宏平均 F1 和平衡准确率也同步提高，说明第三章引入的非平衡传输、源域类别原型、时序统计代价和源域监督对比约束能够改善单源跨工况对齐质量。
+
+逐场景结果进一步表明，TPU-\allowbreak{}Deep\allowbreak{}JDOT 的收益在 $m_1\rightarrow m_5$、$m_2\rightarrow m_1$、$m_5\rightarrow m_1$ 和 $m_5\rightarrow m_2$ 等任务中较为明显。这些场景中，源域直接迁移性能偏低或 DeepJDOT 对齐仍不充分，时序原型非平衡对齐能够提供更稳定的类别结构约束。但在 $m_1\rightarrow m_2$ 场景中，TPU-\allowbreak{}Deep\allowbreak{}JDOT 低于 DeepJDOT，说明目标域为分布差异较大的 $m_2$ 时，目标域类别结构不稳定仍可能削弱原型约束的效果。
+
+在第三章方法已经改善单源对齐的基础上，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的平均准确率进一步达到 78.03\%，相较 TPU-\allowbreak{}Deep\allowbreak{}JDOT 提升约 0.53 个百分点。虽然提升幅度小于 TPU-\allowbreak{}Deep\allowbreak{}JDOT 相对 DeepJDOT 的提升，但宏平均 F1 和平衡准确率也保持同步增长，说明多证据置信均衡伪标签机制能够在整体上提高目标域无标签样本的利用质量。
+
+从逐场景结果看，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 在 $m_1\rightarrow m_5$、$m_2\rightarrow m_5$、$m_5\rightarrow m_1$ 和 $m_5\rightarrow m_2$ 等任务中优于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，说明当初始对齐结果能够提供较可靠的目标域预测时，教师预测、传输语义和源域原型语义的联合筛选可以进一步稳定目标域类别边界。但在 $m_2\rightarrow m_1$ 中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 低于 TPU-\allowbreak{}Deep\allowbreak{}JDOT；在 $m_1\rightarrow m_2$ 中，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 仍低于 DeepJDOT。这表明伪标签机制对初始预测质量较敏感，困难目标域中的早期错误预测仍可能影响后续训练。
+
+\begin{figure}[htbp]
+    \centering
+    \figureplaceholder{单源核心方法逐场景准确率热力图占位}
+    \caption{单源核心方法逐场景准确率热力图}
+    \label{fig:single_source_heatmap}
+\end{figure}
+
+图 \ref{fig:single_source_heatmap} 展示了不同迁移方向上的性能差异。目标域为 $m_2$ 的任务整体更困难，而以 $m_1$ 和 $m_5$ 互迁为代表的场景更容易从时序原型约束和伪标签机制中获得收益。
+
+多源实验中，源域数量增加能够提升直接迁移的平均覆盖能力，但也会引入更明显的目标域差异。两源设置下，源域直接迁移平均准确率为 64.83\%，高于单源直接迁移；五源设置下进一步提高到 71.33\%，但标准差也明显增大，说明多源合并并不能自动消除跨工况偏移。
+
+CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在两源任务中取得 79.87\% 的平均准确率，高于 CoDATS 和 WJDOT；在五源任务中取得 80.00\%，明显高于 WJDOT，但略低于 CoDATS。该结果说明，将全局源域权重扩展为源域--类别级可靠性权重能够有效缓解 WJDOT 在多源场景中的负迁移问题，但当源域数量较多时，稳定的领域对抗表征仍具有较强竞争力。
+
 \begin{figure}[htbp]
     \centering
     \figureplaceholder{多源核心方法逐场景准确率热力图占位}
@@ -1695,15 +1638,25 @@ CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的混淆矩阵主要用于观察多证
 
 图 \ref{fig:multi_source_heatmap} 和图 \ref{fig:class_source_reliability} 展示了多源任务中不同目标域的性能差异，以及 CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 为不同故障类别分配源域可靠性权重的结果。总体来看，本文多源方法相对 WJDOT 的优势更加稳定，而相对 CoDATS 的优势主要出现在两源任务和部分五源目标域中。
 
-\medskip
-\noindent\textbf{诊断准确率对比分析}
+\subsection{故障类别混淆矩阵分析}
 
-多源实验中，源域数量增加能够提升直接迁移的平均覆盖能力，但也会引入更明显的目标域差异。两源设置下，源域直接迁移平均准确率为 64.83\%，高于单源直接迁移；五源设置下进一步提高到 71.33\%，但标准差也明显增大，说明多源合并并不能自动消除跨工况偏移。
+仅从平均准确率难以判断第三章方法对各故障类别的具体影响，因此需要结合类别级混淆矩阵观察错误模式。对于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，重点应关注其是否减少 DeepJDOT 中由错误样本匹配引起的类别混淆，尤其是正常状态以及动态响应相近的故障类别。如果混淆矩阵中多数故障类别的对角线响应增强，而少数类别仍被预测为相邻高响应故障，则说明时序原型约束主要改善了整体类别边界，但对目标域中响应相近或源目标偏移较大的类别仍存在不足。
 
-CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在两源任务中取得 79.87\% 的平均准确率，高于 CoDATS 和 WJDOT；在五源任务中取得 80.00\%，明显高于 WJDOT，但略低于 CoDATS。该结果说明，将全局源域权重扩展为源域--类别级可靠性权重能够有效缓解 WJDOT 在多源场景中的负迁移问题，但当源域数量较多时，稳定的领域对抗表征仍具有较强竞争力。
+\begin{figure}[htbp]
+    \centering
+    \figureplaceholder{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵占位}
+    \caption{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵}
+    \label{fig:tpu_confusion_matrix}
+\end{figure}
 
-\medskip
-\noindent\textbf{故障类别混淆矩阵分析}
+CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的混淆矩阵主要用于观察多证据伪标签机制是否改善类别级召回率。若多数故障类别在对角线上保持较高响应，同时正常状态和少数响应相近故障仍出现混淆，则说明该方法能够利用高置信目标样本强化多数类别边界，但对低置信类别和早期预测偏差较大的类别仍不够充分。尤其在目标域为 $m_2$ 的任务中，需重点检查类别 0、3、9、15 和 21 等容易混淆类别的召回率变化，以判断伪标签筛选是否引入类别偏置。
+
+\begin{figure}[htbp]
+    \centering
+    \figureplaceholder{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵占位}
+    \caption{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源故障类别混淆矩阵}
+    \label{fig:cbtpu_confusion_matrix}
+\end{figure}
 
 多源方法的混淆矩阵应重点观察类条件源域可靠性加权是否改善类别级错误模式。若 CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在多数故障类别上保持较高召回率，并减少 WJDOT 中由不可靠源域引起的跨类别误判，则说明源域--类别可靠性矩阵发挥了作用。对于五源目标域 $m_1$ 或 $m_4$ 等代表性场景，仍需关注正常状态和少数动态响应相近故障类别的混淆情况，因为这些类别往往不是简单增加源域数量即可解决。
 
@@ -1714,8 +1667,25 @@ CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在两源任务中取得 79.87\% 的平�
     \label{fig:ccsr_confusion_matrix}
 \end{figure}
 
-\medskip
-\noindent\textbf{跨域特征分布可视化分析}
+\subsection{跨域特征分布可视化分析}
+
+跨域特征分布可视化用于观察源域和目标域样本在特征空间中的对齐情况。对于 TPU-\allowbreak{}Deep\allowbreak{}JDOT，理想结果是源域和目标域同类样本逐渐靠近，同时不同故障类别之间保持清晰间隔。与普通 DeepJDOT 相比，第三章方法不只依赖样本级传输匹配，还通过源域类别原型和时序统计代价保留类别结构，因此特征可视化中应表现为目标域样本更贴近对应源域类别簇，且类别簇之间的重叠有所减少。
+
+\begin{figure}[htbp]
+    \centering
+    \figureplaceholder{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布可视化占位}
+    \caption{TPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布 t-SNE 可视化}
+    \label{fig:tpu_tsne}
+\end{figure}
+
+特征可视化可以进一步说明伪标签机制对目标域类别簇的影响。对于 CBTPU-\allowbreak{}Deep\allowbreak{}JDOT，理想情况是目标域高置信样本逐渐向对应类别簇聚集，并带动同类低置信样本靠近决策边界内侧。若可视化结果中目标域样本比 TPU-\allowbreak{}Deep\allowbreak{}JDOT 更集中，但部分困难类别仍与其他类别交叠，则说明多证据伪标签主要提升了可识别类别的聚类紧凑性，而对本身响应相近或目标域偏移较大的故障类别仍存在限制。
+
+\begin{figure}[htbp]
+    \centering
+    \figureplaceholder{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布可视化占位}
+    \caption{CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 单源跨域特征分布 t-SNE 可视化}
+    \label{fig:cbtpu_tsne}
+\end{figure}
 
 多源特征可视化不能只追求所有源域与目标域完全混合。对于 CA-\allowbreak{}CCSR-\allowbreak{}WJDOT，更合理的现象是不同源域在特征空间中保留一定差异，但对目标类别有贡献的源域样本与目标域同类样本更加接近。若可视化结果显示类别簇整体分离度较好，同时目标域样本在可靠源域附近形成稳定聚集，则说明类条件源域选择比全局源域加权更适合处理多源跨工况故障诊断。
 
@@ -1726,8 +1696,11 @@ CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在两源任务中取得 79.87\% 的平�
     \label{fig:ccsr_tsne}
 \end{figure}
 
-\medskip
-\noindent\textbf{综合诊断性能分析}
+\subsection{综合诊断性能分析}
+
+综合来看，TPU-\allowbreak{}Deep\allowbreak{}JDOT 是本文单源方法中的基础改进模块。该方法在不依赖目标域伪标签的情况下提高了平均准确率、宏平均 F1 和平衡准确率，说明时序原型非平衡联合分布对齐能够较稳定地缓解普通联合分布对齐中的错误匹配问题。其局限在于，当目标域分布差异较大且类别结构较难估计时，仅依靠源域原型和传输代价仍不足以完全修正目标域决策边界，这也为第四章进一步引入多证据伪标签机制提供了实验动机。
+
+综合来看，CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 更适合作为对 TPU-\allowbreak{}Deep\allowbreak{}JDOT 的目标域样本利用增强模块。该方法通过 EMA 教师模型、多证据一致性筛选、动态置信阈值、类别均衡和强弱增强一致性约束，在平均性能上进一步缩小了无监督领域自适应方法与目标域监督参考方法之间的差距。但其实验收益具有场景依赖性，说明伪标签质量仍是单源困难迁移任务中的关键风险。后续若要进一步提高稳定性，需要在目标域置信校准、类别先验估计和训练阶段控制方面继续改进。
 
 综合来看，CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 对 WJDOT 的改进较为明确。两源和五源结果均表明，类别级源域可靠性能够比全局源域权重更细致地刻画不同源域对不同故障类别的贡献，尤其在目标域为 $m_1$、$m_3$、$m_4$ 和 $m_6$ 等场景中具有较强竞争力。不过，在 $m_5$ 等源域直接迁移方法已经较高的目标域上，额外对齐可能削弱原本有效的源域判别边界。因此，多源方法后续仍需要结合更稳健的源域筛选、目标域校准和负迁移抑制策略。
 
