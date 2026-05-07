@@ -1,0 +1,99 @@
+\begin{tikzpicture}[
+    x=1cm,
+    y=1.35cm,
+    >=stealth,
+    font=\small\fontspec{Times New Roman}\songti,
+    card/.style={draw, rounded corners=4pt, line width=0.45pt, fill=white},
+    chip/.style={
+        draw,
+        rounded corners=2pt,
+        line width=0.35pt,
+        fill=white,
+        align=center,
+        inner xsep=5pt,
+        inner ysep=5pt
+    },
+    bluecard/.style={card, draw=blue!45!black, fill=blue!4},
+    cyancard/.style={card, draw=cyan!50!black, fill=cyan!5},
+    orangecard/.style={card, draw=orange!65!black, fill=orange!6},
+    purplecard/.style={card, draw=purple!45!black, fill=purple!5},
+    redcard/.style={card, draw=red!45!black, fill=red!5},
+    panel/.style={draw=black!15, rounded corners=5pt, line width=0.35pt, fill=gray!1},
+    arrow/.style={->, line width=0.55pt, draw=black!70},
+    note/.style={font=\scriptsize\fontspec{Times New Roman}\songti, align=center}
+]
+
+\draw[panel] (-0.25,0.00) rectangle (21.25,9.00);
+\node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
+    {CBTPU-DeepJDOT 多证据置信均衡伪标签控制机制};
+
+% 基础输入
+\draw[bluecard] (0.45,2.15) rectangle (3.25,7.75);
+\node[anchor=north west] at (0.72,7.43) {基础信息};
+\node[chip, minimum width=2.20cm] at (1.85,6.05)
+    {TPU-DeepJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
+\node[chip, minimum width=2.20cm] at (1.85,4.60)
+    {目标域样本\\[-1pt]$x_j^t$};
+\node[note, text width=2.30cm] at (1.85,3.25)
+    {继承第三章传输与原型结构};
+
+% 教师-学生增强
+\draw[cyancard] (3.95,2.15) rectangle (7.35,7.75);
+\node[anchor=north west] at (4.22,7.43) {教师--学生增强};
+\node[chip, minimum width=2.65cm] at (5.65,6.15)
+    {弱增强 + EMA 教师\\[-1pt]$a_w(x_j^t),\bar{\Theta}$};
+\node[chip, minimum width=2.65cm] at (5.65,4.60)
+    {强增强 + 学生\\[-1pt]$a_s(x_j^t),\Theta$};
+\node[note, text width=2.70cm] at (5.65,3.25)
+    {$\bar{\Theta}\leftarrow$ 学生参数滑动平均};
+
+% 三路证据
+\draw[orangecard] (8.05,2.15) rectangle (11.15,7.75);
+\node[anchor=north west] at (8.32,7.43) {三路语义证据};
+\node[chip, minimum width=2.35cm] at (9.60,6.20)
+    {传输语义\\[-1pt]$q^{ot}$};
+\node[chip, minimum width=2.35cm] at (9.60,4.95)
+    {教师语义\\[-1pt]$q^{cls}$};
+\node[chip, minimum width=2.35cm] at (9.60,3.70)
+    {原型语义\\[-1pt]$q^{proto}$};
+
+% 接收门控
+\draw[purplecard] (11.85,2.15) rectangle (15.45,7.75);
+\node[anchor=north west] at (12.12,7.43) {可靠接收门控};
+\node[chip, minimum width=2.75cm] at (13.65,6.20)
+    {多证据融合\\[-1pt]$q^{mix}$};
+\node[chip, minimum width=2.75cm, text width=2.65cm] at (13.65,4.90)
+    {接收集合 $\mathcal{A}$\\[-1pt]一致 / JS / $\vartheta(\nu)$ / 熵};
+\node[chip, minimum width=2.75cm] at (13.65,3.55)
+    {接收比例上限\\[-1pt]$\kappa,\,H(q^{ot})$};
+\node[note, text width=2.90cm] at (13.65,2.60)
+    {只让高可靠目标样本进入伪监督};
+
+% 均衡目标学习
+\draw[redcard] (16.15,2.15) rectangle (20.85,7.75);
+\node[anchor=north west] at (16.42,7.43) {均衡目标学习};
+\node[chip, minimum width=3.65cm] at (18.50,6.20)
+    {类别均衡伪监督\\[-1pt]$\mathcal{L}_{pl},\ \hat{\pi}_c$};
+\node[chip, minimum width=3.65cm] at (18.50,4.95)
+    {强弱增强一致性\\[-1pt]$\mathcal{L}_{cons}$};
+\node[chip, minimum width=3.65cm] at (18.50,3.70)
+    {信息最大化辅助\\[-1pt]$\mathcal{L}_{im}$};
+\node[note, text width=3.75cm] at (18.50,2.60)
+    {降低伪标签噪声与类别坍缩};
+
+% 目标域学习
+\draw[redcard] (3.95,0.50) rectangle (20.85,1.35);
+\node at (12.40,0.92)
+    {$\mathcal{L}_{CBTPU}
+    =\mathcal{L}_{TPU}
+    +\lambda_{pl}\mathcal{L}_{pl}
+    +\lambda_{cons}\mathcal{L}_{cons}
+    +\lambda_{im}\mathcal{L}_{im}$};
+
+\draw[arrow] (3.25,4.95) -- (3.95,4.95);
+\draw[arrow] (7.35,4.95) -- (8.05,4.95);
+\draw[arrow] (11.15,4.95) -- (11.85,4.95);
+\draw[arrow] (15.45,4.95) -- (16.15,4.95);
+\draw[arrow] (18.50,2.15) -- (18.50,1.35);
+
+\end{tikzpicture}

@@ -1,0 +1,40 @@
+\documentclass[UTF8]{ctexart}
+\usepackage[a4paper,margin=1.0cm]{geometry}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fontspec}
+
+\setmainfont{Times New Roman}
+\setCJKmainfont{SimSun}
+
+\captionsetup{font=small}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{\input{figs/ch3_tpu_architecture.tikz.tex}}
+    \caption{时序原型非平衡联合分布对齐方法架构示意}
+\end{figure}
+
+\newpage
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{\input{figs/ch4_cbtpu_pseudolabel.tikz.tex}}
+    \caption{多证据置信均衡伪标签方法架构示意}
+\end{figure}
+
+\newpage
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{\input{figs/ch5_ca_ccsr_wjdot.tikz.tex}}
+    \caption{类条件源域可靠性加权多源方法架构示意}
+\end{figure}
+
+\end{document}

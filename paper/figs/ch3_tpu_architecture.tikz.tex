@@ -1,0 +1,92 @@
+\begin{tikzpicture}[
+    x=1cm,
+    y=1.35cm,
+    >=stealth,
+    font=\small\fontspec{Times New Roman}\songti,
+    card/.style={
+        draw,
+        rounded corners=4pt,
+        line width=0.45pt,
+        fill=white
+    },
+    chip/.style={
+        draw,
+        rounded corners=2pt,
+        line width=0.35pt,
+        fill=white,
+        align=center,
+        inner xsep=5pt,
+        inner ysep=5pt
+    },
+    bluecard/.style={card, draw=blue!45!black, fill=blue!4},
+    cyancard/.style={card, draw=cyan!50!black, fill=cyan!5},
+    orangecard/.style={card, draw=orange!65!black, fill=orange!6},
+    greencard/.style={card, draw=green!45!black, fill=green!6},
+    redcard/.style={card, draw=red!45!black, fill=red!5},
+    panel/.style={draw=black!15, rounded corners=5pt, line width=0.35pt, fill=gray!1},
+    arrow/.style={->, line width=0.55pt, draw=black!70},
+    note/.style={font=\scriptsize\fontspec{Times New Roman}\songti, align=center}
+]
+
+\draw[panel] (-0.25,0.00) rectangle (17.95,9.00);
+\node[font=\large\fontspec{Times New Roman}\songti] at (8.85,8.55)
+    {TPU-DeepJDOT 时序原型非平衡联合分布对齐机制};
+
+% 输入批次
+\draw[bluecard] (0.55,2.15) rectangle (3.25,7.75);
+\node[anchor=north west] at (0.82,7.43) {输入批次};
+\node[chip, minimum width=2.05cm] at (1.90,6.05)
+    {源域有标签\\[-1pt]$\mathcal{B}_s$};
+\node[chip, minimum width=2.05cm] at (1.90,4.60)
+    {目标域无标签\\[-1pt]$\mathcal{B}_t$};
+\node[note, text width=2.20cm] at (1.90,3.25)
+    {训练阶段不使用目标标签};
+
+% 时序诊断网络
+\draw[cyancard] (4.05,2.15) rectangle (7.55,7.75);
+\node[anchor=north west] at (4.32,7.43) {时序诊断网络};
+\node[chip, minimum width=2.60cm] at (5.80,6.05)
+    {共享 FCN 表征\\[-1pt]$z=F_\theta(x)$};
+\node[chip, minimum width=2.60cm] at (5.80,4.60)
+    {诊断分类器\\[-1pt]$p=G_\phi(z)$};
+\node[note, text width=2.75cm] at (5.80,3.25)
+    {源域监督形成基础判别边界};
+
+% 结构增强约束
+\draw[orangecard] (8.35,2.15) rectangle (11.95,7.75);
+\node[anchor=north west] at (8.62,7.43) {结构增强约束};
+\node[chip, minimum width=2.75cm] at (10.15,6.25)
+    {源域类别原型\\[-1pt]$\mu_c,\ r_{ij}^{proto}$};
+\node[chip, minimum width=2.75cm] at (10.15,4.95)
+    {时序统计描述符\\[-1pt]$\psi(x),\ c_{ij}^{temp}$};
+\node[chip, minimum width=2.75cm] at (10.15,3.65)
+    {源域监督对比\\[-1pt]$\mathcal{L}_{supcon}$};
+\node[note, text width=2.90cm] at (10.15,2.60)
+    {修正传输代价，预热源类结构};
+
+% 非平衡联合传输
+\draw[greencard] (12.75,2.15) rectangle (17.25,7.75);
+\node[anchor=north west] at (13.02,7.43) {非平衡联合传输};
+\node[chip, minimum width=3.35cm] at (15.00,6.25)
+    {联合代价矩阵\\[-1pt]$C_{ij}$};
+\node[chip, minimum width=3.35cm] at (15.00,4.95)
+    {非平衡 Sinkhorn\\[-1pt]$\gamma^\ast,\tau_s,\tau_t$};
+\node[chip, minimum width=3.35cm] at (15.00,3.65)
+    {对齐损失\\[-1pt]$\mathcal{L}_{align}$};
+\node[note, text width=3.35cm] at (15.00,2.60)
+    {边际质量可削减，缓解错误强制匹配};
+
+% 优化目标
+\draw[redcard] (4.05,0.50) rectangle (17.25,1.35);
+\node at (10.65,0.92)
+    {$\mathcal{L}_{TPU}
+    =\mathcal{L}_{src}
+    +\lambda_{supcon}\mathcal{L}_{supcon}
+    +\lambda_{ot}\mathcal{L}_{align}$};
+
+\draw[arrow] (3.25,4.95) -- (4.05,4.95);
+\draw[arrow] (7.55,4.95) -- (8.35,4.95);
+\draw[arrow] (11.95,4.95) -- (12.75,4.95);
+\draw[arrow] (15.00,2.15) -- (15.00,1.35);
+
+\end{tikzpicture}
