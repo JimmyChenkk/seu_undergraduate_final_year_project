@@ -32,7 +32,7 @@
 \contentsline {subsection}{\numberline {3.3.3}源域原型与时序统计约束融合}{21}{subsection.3.3.3}%
 \contentsline {subsection}{\numberline {3.3.4}源域监督对比特征学习}{22}{subsection.3.3.4}%
 \contentsline {subsection}{\numberline {3.3.5}总体目标函数与算法流程}{22}{subsection.3.3.5}%
-\contentsline {section}{\numberline {3.4}本章小结}{23}{section.3.4}%
+\contentsline {section}{\numberline {3.4}本章小结}{22}{section.3.4}%
 \contentsline {chapter}{\numberline {第四章\hspace {.3em}}基于多证据置信均衡伪标签的单源领域自适应故障诊断方法}{24}{chapter.4}%
 \contentsline {section}{\numberline {4.1}引言}{24}{section.4.1}%
 \contentsline {section}{\numberline {4.2}多证据置信均衡伪标签学习基本原理}{24}{section.4.2}%
@@ -81,5 +81,6 @@
 \contentsline {subsection}{\numberline {7.1.2}本文主要创新点}{52}{subsection.7.1.2}%
 \contentsline {subsection}{\numberline {7.1.3}存在不足}{53}{subsection.7.1.3}%
 \contentsline {section}{\numberline {7.2}未来展望}{54}{section.7.2}%
-\contentsline {chapter}{参考文献}{56}{chapter*.22}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{59}{chapter*.23}%
+\contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{56}{appendix.A}%
+\contentsline {chapter}{参考文献}{62}{appendix*.22}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{65}{appendix*.23}%

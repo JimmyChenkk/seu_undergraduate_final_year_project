@@ -125,7 +125,7 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 围绕多源场景，本文提出类条件源域可靠性加权方法。该方法利用卷积式时间序列表征和领域对抗学习获得可迁移特征空间，再分别计算每个源域与目标域之间的联合分布最优传输代价，构建源域-故障类别可靠性矩阵。借助该矩阵，模型能够区分不同源域对不同故障类别的贡献，并结合教师先验保护机制完成多源诊断结果融合。
 
-实验部分通过单源和多源跨工况任务验证所提方法。单源实验比较源域直接迁移、典型领域自适应方法、DeepJDOT 及本文单源改进方法；多源实验比较源域直接迁移、CoDATS、WJDOT 及本文多源改进方法。评价指标包括诊断准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化结果，并结合性能对比、消融实验和可解释性分析评价方法的有效性与适用范围。
+实验部分通过单源和多源跨工况任务验证所提方法。单源实验比较源域直接迁移、典型领域自适应方法、DeepJDOT 及本文单源改进方法；多源实验比较源域直接迁移、CoDATS、WJDOT 及本文多源改进方法。评价指标包括诊断准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化结果，并结合性能对比、典型场景分析和可解释性分析评价方法的有效性与适用范围。
 
 \section{论文结构安排}
 
@@ -133,7 +133,7 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 第一章为绪论。首先介绍工业过程故障诊断的研究背景与意义，分析跨工况故障诊断中分布偏移、目标域标签不足和多源负迁移等问题；然后综述工业过程故障诊断、迁移学习和领域自适应的研究现状；最后给出本文面临的核心挑战、主要创新点、研究技术路线和论文整体结构。
 
-第二章为跨工况领域自适应故障诊断基本方法。该章介绍本文后续方法所依赖的基础理论和基底模型，包括基于联合分布最优传输的领域自适应方法、深度联合分布最优传输方法、多源加权联合分布最优传输方法，以及基于卷积式时间序列领域自适应的迁移诊断方法，为后续章节的方法设计提供理论基础。
+第二章为跨工况领域自适应故障诊断基本方法。该章介绍本文后续方法所依赖的基础理论和基础模型，包括基于联合分布最优传输的领域自适应方法、深度联合分布最优传输方法、多源加权联合分布最优传输方法，以及基于卷积式时间序列领域自适应的迁移诊断方法，为后续章节的方法设计提供理论基础。
 
 第三章为基于时序原型非平衡联合分布对齐的单源领域自适应故障诊断方法。该章针对单源跨工况诊断中平衡最优传输可能导致错误匹配、故障类别结构表达不足等问题，提出结合非平衡最优传输、源域类别原型、时间序列统计代价和监督对比学习的单源领域自适应诊断模型。
 
@@ -141,7 +141,7 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 第五章为基于类条件源域可靠性加权的多源领域自适应故障诊断方法。该章面向多源跨工况诊断任务，提出结合卷积式时间序列表征、逐源联合分布最优传输和类条件源域可靠性矩阵的多源适配方法，以实现对可靠源域和可靠故障类别的选择性迁移。
 
-第六章为实验设计与结果分析。该章介绍田纳西伊斯曼过程领域自适应数据集、单源和多源实验场景、数据预处理方式、评价指标和对比方法，并通过准确率对比、混淆矩阵、特征可视化和消融实验分析本文方法的有效性。
+第六章为实验设计与结果分析。该章介绍田纳西伊斯曼过程领域自适应数据集、单源和多源实验场景、数据预处理方式、评价指标和对比方法，并通过准确率对比、混淆矩阵、特征可视化和源域可靠性分析本文方法的有效性。
 
 第七章为总结与展望。该章总结全文主要研究内容和创新点，分析当前工作存在的不足，并对未来在弱监督目标域校准、在线测试时自适应、多源可解释迁移和轻量化建模等方向的研究进行展望。
 
@@ -342,7 +342,7 @@ CoDATS 是一种面向时间序列传感器数据的卷积式深度领域自适�
 
 设特征提取器为 $F_\theta(\cdot)$，故障分类器为 $G_\phi(\cdot)$，领域判别器为 $D_\omega(\cdot)$。对于源域样本，分类器根据特征输出故障类别预测；对于源域和目标域样本，领域判别器输出其所属领域。源域分类损失为
 \begin{equation}
-    \mathcal{L}_{\mathrm{cls}}
+    \mathcal{L}_{\mathrm{src}}
     =
     -\frac{1}{n_s}
     \sum_{i=1}^{n_s}
@@ -368,7 +368,7 @@ CoDATS 是一种面向时间序列传感器数据的卷积式深度领域自适�
 \begin{equation}
     \min_{F_\theta,G_\phi}
     \max_{D_\omega}
-    \mathcal{L}_{\mathrm{cls}}
+    \mathcal{L}_{\mathrm{src}}
     -
     \lambda_d \mathcal{L}_{\mathrm{dom}},
 \end{equation}
@@ -487,26 +487,26 @@ CoDATS 将卷积式时间序列特征提取结构与领域对抗学习相结合�
 
 TEP 跨工况诊断数据具有明显的多变量时序特征。相关基准研究指出，不同生产模式之间存在显著分布差异，尤其是不同模式下变量相关结构和 Wasserstein 距离会发生变化\cite{montesuma2024benchmark}。因此，本文在深度特征和标签预测代价之外，额外构造时间序列统计代价，用于补充原始过程窗口层面的动态信息。
 
-本文的时间序列统计代价面向 TEP 跨工况数据特点提出，并非直接复现某篇已有方法。其设计受到时间序列深度表征与全卷积分类结构的启发\cite{wang2017time,fawaz2019deep}，但具体统计描述符及其与非平衡联合传输的结合方式均属于本文方法设计。
+本文的时间序列统计代价面向 TEP 跨工况数据特点提出，其设计受到时间序列深度表征与全卷积分类结构的启发\cite{wang2017time,fawaz2019deep}，具体统计描述符及其与非平衡联合传输的结合方式则根据跨工况过程数据的特点进行设计。
 
 对于样本 $x\in\mathbb{R}^{V\times L}$，先沿时间维度计算每个变量的均值和标准差：
 \begin{equation}
     \bar{x}_{\mathrm{seq}}(x)=\frac{1}{L}\sum_{t=1}^{L}x_{:,t},\quad
-    s_{\mathrm{seq}}(x)=\sqrt{\frac{1}{L}\sum_{t=1}^{L}(x_{:,t}-\bar{x}_{\mathrm{seq}}(x))^2}.
+    \sigma_{\mathrm{seq}}(x)=\sqrt{\frac{1}{L}\sum_{t=1}^{L}(x_{:,t}-\bar{x}_{\mathrm{seq}}(x))^2}.
 \end{equation}
 同时计算一阶差分 $\Delta x_{:,t}=x_{:,t}-x_{:,t-1}$ 的均值和标准差：
 \begin{equation}
     \bar{\Delta}_{\mathrm{seq}}(x)=\frac{1}{L-1}\sum_{t=2}^{L}\Delta x_{:,t},\quad
-    s_{\Delta}(x)=\sqrt{\frac{1}{L-1}\sum_{t=2}^{L}(\Delta x_{:,t}-\bar{\Delta}_{\mathrm{seq}}(x))^2}.
+    \sigma_{\Delta}(x)=\sqrt{\frac{1}{L-1}\sum_{t=2}^{L}(\Delta x_{:,t}-\bar{\Delta}_{\mathrm{seq}}(x))^2}.
 \end{equation}
 然后将四类统计量拼接并归一化，得到时序描述符：
 \begin{equation}
     \psi(x)
     =
     \frac{
-    [\bar{x}_{\mathrm{seq}}(x),s_{\mathrm{seq}}(x),\bar{\Delta}_{\mathrm{seq}}(x),s_{\Delta}(x)]
+    [\bar{x}_{\mathrm{seq}}(x),\sigma_{\mathrm{seq}}(x),\bar{\Delta}_{\mathrm{seq}}(x),\sigma_{\Delta}(x)]
     }{
-    \|[\bar{x}_{\mathrm{seq}}(x),s_{\mathrm{seq}}(x),\bar{\Delta}_{\mathrm{seq}}(x),s_{\Delta}(x)]\|_2+\epsilon
+    \|[\bar{x}_{\mathrm{seq}}(x),\sigma_{\mathrm{seq}}(x),\bar{\Delta}_{\mathrm{seq}}(x),\sigma_{\Delta}(x)]\|_2+\epsilon
     }.
 \end{equation}
 源样本与目标样本之间的时序统计代价为
@@ -533,7 +533,7 @@ TEP 跨工况诊断数据具有明显的多变量时序特征。相关基准研�
 \end{equation}
 其中 $p_{\theta,\phi}(\cdot|x)$ 表示由 $G_\phi(F_\theta(x))$ 得到的 softmax 概率。该损失用于保证模型在源工况上具备基本的故障类别识别能力。
 
-在训练日程上，本文设置源域预热阶段和对齐阶段。预热阶段主要优化源域分类损失和监督对比损失，使特征空间先形成相对稳定的类别结构；随后逐步启用最优传输对齐项、原型代价项和时间序列统计代价项，以避免训练初期目标预测不稳定时过早施加强对齐约束。
+在训练调度上，本文设置源域预热阶段和对齐阶段。预热阶段主要优化源域分类损失和监督对比损失，使特征空间先形成相对稳定的类别结构；随后逐步启用最优传输对齐项、原型代价项和时间序列统计代价项，以避免训练初期目标预测不稳定时过早施加强对齐约束。
 
 \subsection{非平衡联合传输代价构建}
 
@@ -545,9 +545,9 @@ TEP 跨工况诊断数据具有明显的多变量时序特征。相关基准研�
     +
     \lambda_y c_{ij}^{y}
     +
-    \lambda_p(t) r_{ij}^{\mathrm{proto}}
+    \lambda_p(\nu) r_{ij}^{\mathrm{proto}}
     +
-    \lambda_{\mathrm{temp}}(t)c_{ij}^{\mathrm{temp}}.
+    \lambda_{\mathrm{temp}}(\nu)c_{ij}^{\mathrm{temp}}.
 \end{equation}
 其中，深度特征代价为
 \begin{equation}
@@ -562,7 +562,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     =
     -\log p_{\theta,\phi}(y_i^s|x_j^t).
 \end{equation}
-其中 $\lambda_f$ 和 $\lambda_y$ 分别控制特征代价与标签预测代价的相对贡献，原型代价权重和时序统计代价权重采用逐步增大的预热日程。
+其中 $\lambda_f$ 和 $\lambda_y$ 分别控制特征代价与标签预测代价的相对贡献，原型代价权重和时序统计代价权重采用逐步增大的预热调度。
 
 基于联合代价矩阵 $C$，本文求解非平衡传输计划 $\gamma^\ast$，并将其代入训练损失：
 \begin{equation}
@@ -582,18 +582,18 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 源域原型和时序统计代价并非独立训练分支，而是直接进入非平衡联合传输代价。其作用主要体现在传输计划求解阶段：当目标样本与某个源类原型相对接近，且原始时序统计特征与某个源样本更相似时，对应传输代价会降低；反之则提高匹配代价。
 
-为了保证训练稳定，本文采用延迟启动和线性预热策略。设原型代价基础权重为 $\lambda_p^0$，启动步数为 $t_p$，预热步数为 $S_p$，则当前原型权重为
+为了保证训练稳定，本文采用延迟启动和线性预热策略。设原型代价基础权重为 $\lambda_p^0$，启动步数为 $\nu_p$，预热步数为 $S_p$，则第 $\nu$ 个训练步的原型权重为
 \begin{equation}
-    \lambda_p(t)
+    \lambda_p(\nu)
     =
     \lambda_p^0
     \min
     \left(
-    \frac{\max(t-t_p,0)}{S_p},
+    \frac{\max(\nu-\nu_p,0)}{S_p},
     1
     \right).
 \end{equation}
-时序统计代价权重 $\lambda_{\mathrm{temp}}(t)$ 采用相同形式。
+时序统计代价权重 $\lambda_{\mathrm{temp}}(\nu)$ 采用相同形式。
 
 原型代价和时序统计代价均由启动时刻和预热长度控制：训练早期保持较弱约束，随后线性增大至预设权重。
 
@@ -633,11 +633,11 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     =
     \mathcal{L}_{\mathrm{src}}
     +
-    \lambda_c(t)\mathcal{L}_{\mathrm{supcon}}
+    \lambda_{\mathrm{supcon}}(\nu)\mathcal{L}_{\mathrm{supcon}}
     +
-    \lambda_{\mathrm{ot}}(t)\mathcal{L}_{\mathrm{align}},
+    \lambda_{\mathrm{ot}}(\nu)\mathcal{L}_{\mathrm{align}},
 \end{equation}
-其中 $\lambda_c(t)$ 为监督对比损失权重，$\lambda_{\mathrm{ot}}(t)$ 为非平衡联合传输对齐权重。$\lambda_{\mathrm{ot}}(t)$ 采用逐步启用日程，并在源域预热阶段保持为零；$\mathcal{L}_{\mathrm{align}}$ 内部还包含逐步启动的原型代价和时序统计代价。
+其中 $\lambda_{\mathrm{supcon}}(\nu)$ 为监督对比损失权重，$\lambda_{\mathrm{ot}}(\nu)$ 为非平衡联合传输对齐权重。$\lambda_{\mathrm{ot}}(\nu)$ 采用逐步启用调度，并在源域预热阶段保持为零；$\mathcal{L}_{\mathrm{align}}$ 内部还包含逐步启动的原型代价和时序统计代价。
 
 本章方法的训练流程如算法 \ref{alg:tpu-deepjdot} 所示。
 \begin{algorithm}[htbp]
@@ -646,7 +646,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
     \KwOut{特征提取器 $F_\theta$ 与分类器 $G_\phi$}
     初始化特征提取器、分类器和源域类别原型，原型初始状态标记为未激活\;
-    \For{$t=1,2,\cdots,N_{\mathrm{iter}}$}{
+    \For{$\nu=1,2,\cdots,N_{\mathrm{iter}}$}{
         从源域采样有标签小批量 $\mathcal{B}_s$，从目标域采样无标签小批量 $\mathcal{B}_t$\;
         计算源域和目标域深度特征及分类输出\;
         根据当前源域小批量更新源域类别原型\;
@@ -654,7 +654,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
         构造深度特征代价、标签预测代价、原型相对代价和时间序列统计代价\;
         采用非平衡 Sinkhorn 形式求解小批量传输计划 $\gamma^\ast$\;
         计算非平衡联合传输损失 $\mathcal{L}_{\mathrm{align}}$\;
-        按当前训练步的权重日程组合源域分类、监督对比和传输对齐损失，并更新模型参数\;
+        按当前训练步的权重调度组合源域分类、监督对比和传输对齐损失，并更新模型参数\;
     }
 \end{algorithm}
 
@@ -839,25 +839,25 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     \right]
     \land
     \left[
-    \max_c q_{jc}^{\mathrm{mix}}\geq \vartheta(t)
+    \max_c q_{jc}^{\mathrm{mix}}\geq \vartheta(\nu)
     \right]
     \land
     \left[
     H(q_j^{\mathrm{ot}})\leq h_{\mathrm{ot}}
     \right].
 \end{equation}
-其中 $\delta_{\mathrm{JS}}$ 为分布差异阈值，$h_{\mathrm{ot}}$ 为传输语义熵阈值。该机制属于本文提出的多证据筛选策略，并非对已有文献方法的直接复现。
+其中 $\delta_{\mathrm{JS}}$ 为分布差异阈值，$h_{\mathrm{ot}}$ 为传输语义熵阈值。该机制在传输、教师和原型三类证据融合的基础上形成目标样本筛选规则，用于降低单一预测来源带来的伪标签偏差。
 
 \subsection{动态置信阈值与类别均衡机制}
 
-伪标签阈值采用动态下降策略。设伪标签启动步数为 $t_0$，阈值从 $\vartheta_{\mathrm{start}}$ 逐步下降到 $\vartheta_{\mathrm{end}}$：
+伪标签阈值采用动态下降策略。设伪标签启动步数为 $\nu_0$，阈值从 $\vartheta_{\mathrm{start}}$ 逐步下降到 $\vartheta_{\mathrm{end}}$：
 \begin{equation}
-    \vartheta(t)
+    \vartheta(\nu)
     =
     \vartheta_{\mathrm{start}}
     +
     \min\left(
-    \frac{\max(t-t_0,0)}{S_{\vartheta}},
+    \frac{\max(\nu-\nu_0,0)}{S_{\vartheta}},
     1
     \right)
     (\vartheta_{\mathrm{end}}-\vartheta_{\mathrm{start}}).
@@ -877,7 +877,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     \log
     \mathrm{softmax}_c(\tilde{u}_j),
 \end{equation}
-其中 $\tilde{u}_j$ 为经过类别频率对数调整后的强增强预测得分。该损失只对通过多证据筛选的目标样本生效，因此比直接对全部目标样本施加伪标签约束更保守。
+其中 $\tilde{u}_j$ 为经过类别频率对数调整后的强增强预测得分。若当前小批量中没有目标样本通过筛选，则令 $\mathcal{L}_{\mathrm{pl}}=0$。该损失只对通过多证据筛选的目标样本生效，因此比直接对全部目标样本施加伪标签约束更保守。
 
 \subsection{强弱增强一致性约束}
 
@@ -906,15 +906,15 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     =
     \mathcal{L}_{\mathrm{src}}
     +
-    \lambda_c(t)\mathcal{L}_{\mathrm{supcon}}
+    \lambda_{\mathrm{supcon}}(\nu)\mathcal{L}_{\mathrm{supcon}}
     +
-    \lambda_{\mathrm{ot}}(t)\mathcal{L}_{\mathrm{align}}
+    \lambda_{\mathrm{ot}}(\nu)\mathcal{L}_{\mathrm{align}}
     +
-    \lambda_{\mathrm{pl}}(t)\mathcal{L}_{\mathrm{pl}}
+    \lambda_{\mathrm{pl}}(\nu)\mathcal{L}_{\mathrm{pl}}
     +
-    \lambda_{\mathrm{cons}}(t)\mathcal{L}_{\mathrm{cons}}
+    \lambda_{\mathrm{cons}}(\nu)\mathcal{L}_{\mathrm{cons}}
     +
-    \lambda_{\mathrm{im}}(t)\mathcal{L}_{\mathrm{im}}.
+    \lambda_{\mathrm{im}}(\nu)\mathcal{L}_{\mathrm{im}}.
 \end{equation}
 其中前三项与第三章一致，$\mathcal{L}_{\mathrm{pl}}$ 为多证据伪标签损失，$\mathcal{L}_{\mathrm{cons}}$ 为强弱增强一致性损失。$\mathcal{L}_{\mathrm{im}}$ 为可选的信息最大化正则项，用于鼓励目标预测个体低熵且批次类别分布不过度坍缩；其权重较小，仅作为辅助稳定项。
 
@@ -925,7 +925,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
     \KwOut{学生模型参数 $\Theta$ 与 EMA 教师模型参数 $\bar{\Theta}$}
     初始化学生模型、EMA 教师模型和源域类别原型\;
-    \For{$t=1,2,\cdots,N_{\mathrm{iter}}$}{
+    \For{$\nu=1,2,\cdots,N_{\mathrm{iter}}$}{
         采样源域有标签小批量和目标域无标签小批量\;
         对目标样本生成弱增强视图和强增强视图\;
         使用学生模型计算源域分类输出、目标弱增强输出和目标强增强输出\;
@@ -990,7 +990,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 其中 $\alpha_{kc}$ 越大，表示第 $k$ 个源域对第 $c$ 类故障更可靠。
 
-该类条件源域可靠性矩阵由本文提出，应理解为受源域重加权、多源专家融合和负迁移抑制思想启发，而不是对某一篇文献中已有机制的直接沿用。该矩阵不仅参与训练中的类条件传输损失聚合，也可用于解释性分析，以考察不同源模式对不同故障类别的贡献。
+该类条件源域可靠性矩阵受源域重加权、多源专家融合和负迁移抑制思想启发，重点在于将源域可靠性从整体域级别细化到故障类别级别。该矩阵不仅参与训练中的类条件传输损失聚合，也可用于解释性分析，以考察不同源模式对不同故障类别的贡献。
 
 \section{基于类条件源域可靠性加权的多源对齐策略}
 \subsection{多源跨工况诊断问题建模}
@@ -1094,7 +1094,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     p_{kjr}^t\log(p_{kjr}^t+\epsilon)
     \right).
 \end{equation}
-熵越低，说明该源域对目标样本的预测越确定。
+熵越低，说明该源域对目标样本的预测越确定。若当前小批量中 $\mathcal{T}_c$ 为空，则该类别的预测熵项在本次可靠性更新中暂不计入，并在归一化时按有效类别集合处理。
 
 第四，源域类别召回误差。对第 $k$ 个源域当前小批量或评估批次，计算第 $c$ 类源域样本召回率 $\mathrm{Recall}_{kc}^{s}$，并定义
 \begin{equation}
@@ -1129,13 +1129,13 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 为避免权重过度集中，本文在权重分配中引入最小权重约束、高可靠源域保留策略以及逐步启用机制。逐步启用机制用于在训练早期保持接近均匀权重，待源域传输和目标预测更稳定后再逐渐启用类条件权重：
 \begin{equation}
-    \alpha_{kc}(t)
+    \alpha_{kc}(\nu)
     =
-    (1-r_{\mathrm{rel}}(t))\frac{1}{K}
+    (1-r_{\mathrm{rel}}(\nu))\frac{1}{K}
     +
-    r_{\mathrm{rel}}(t)\alpha_{kc},
+    r_{\mathrm{rel}}(\nu)\alpha_{kc},
 \end{equation}
-其中 $r_{\mathrm{rel}}(t)\in[0,1]$ 为可靠性启用进度，$T_{\mathrm{rel}}$ 为可靠性权重的 softmax 温度。
+其中 $r_{\mathrm{rel}}(\nu)\in[0,1]$ 为可靠性启用进度，$T_{\mathrm{rel}}$ 为可靠性权重的 softmax 温度。
 
 基于类条件源域权重，类条件传输损失为
 \begin{equation}
@@ -1155,7 +1155,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 设领域判别器为 $D_\omega$，源域特征集合为 $Z_s$，目标域特征集合为 $Z_t$。领域对抗损失为
 \begin{equation}
-    \mathcal{L}_{\mathrm{adv}}
+    \mathcal{L}_{\mathrm{dom}}
     =
     -
     \frac{1}{|Z_s|}
@@ -1166,15 +1166,16 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \sum_{z\in Z_t}
     \log(1-D_\omega(z)).
 \end{equation}
-通过梯度反转层，判别器最小化该损失，而特征提取器接收反向梯度，从而学习更难区分源目标领域的表示。领域对抗权重采用逐步启用日程，避免训练初期对抗信号过强。
+通过梯度反转层，判别器最小化该损失，而特征提取器接收反向梯度，从而学习更难区分源目标领域的表示。领域对抗权重采用逐步启用调度，避免训练初期对抗信号过强。
 
-此外，本章引入教师先验约束，用于防止多源传输和类条件加权造成目标预测漂移。教师模型由前一阶段较稳定的诊断模型给出，并在本阶段保持固定。知识蒸馏研究表明，教师模型的软概率可以携带比硬标签更丰富的类别相似性信息\cite{hinton2015distilling}；Mean Teacher 思想也说明稳定教师有助于无标签训练\cite{tarvainen2017meanteacher}。本文将教师输出作为目标域先验保护项，而不是目标标签监督。
+此外，本章引入教师先验约束，用于防止多源传输和类条件加权造成目标预测漂移。教师模型由同一多源任务中的 CoDATS 风格基础诊断模型给出，该模型只使用源域标签和目标域无标签数据训练，不使用目标域真实标签；在本章类条件可靠性训练阶段，教师参数保持冻结。知识蒸馏研究表明，教师模型的软概率可以携带比硬标签更丰富的类别相似性信息\cite{hinton2015distilling}；Mean Teacher 思想也说明稳定教师有助于无标签训练\cite{tarvainen2017meanteacher}。本文将教师输出作为目标域先验保护项，而不是目标标签监督。
 
 设教师模型在目标样本上的未归一化预测得分为 $u_j^{\mathrm{tea}}$，学生模型的未归一化预测得分为 $u_j^{\mathrm{stu}}$。教师先验约束可写为
 \begin{equation}
     \mathcal{L}_{\mathrm{tea}}
     =
-    T_{\mathrm{dist}}^2
+    \frac{T_{\mathrm{dist}}^2}{|\mathcal{B}_t|}
+    \sum_{x_j^t\in\mathcal{B}_t}
     \mathrm{KL}
     \left(
     \mathrm{softmax}\left(\frac{u_j^{\mathrm{tea}}}{T_{\mathrm{dist}}}\right)
@@ -1182,7 +1183,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \mathrm{softmax}\left(\frac{u_j^{\mathrm{stu}}}{T_{\mathrm{dist}}}\right)
     \right),
 \end{equation}
-其中 $T_{\mathrm{dist}}$ 为蒸馏温度。也可引入归一化特征均方误差作为辅助教师锚定项。
+其中 $T_{\mathrm{dist}}$ 为蒸馏温度，$\mathcal{B}_t$ 为当前目标域小批量。也可引入归一化特征均方误差作为辅助教师锚定项。
 
 \subsection{教师先验保护的诊断结果融合}
 
@@ -1215,19 +1216,19 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本章训练阶段的总体目标函数为
 \begin{equation}
-    \mathcal{L}_{\mathrm{CA\text{-}CCSR}}
+    \mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}
     =
     \lambda_s\mathcal{L}_{\mathrm{src}}
     +
-    \lambda_{\mathrm{adv}}(t)\mathcal{L}_{\mathrm{adv}}
+    \lambda_d(\nu)\mathcal{L}_{\mathrm{dom}}
     +
-    \lambda_{\mathrm{ot}} r_{\mathrm{ot}}(t)\mathcal{L}_{\mathrm{WJDOT}}
+    \lambda_{\mathrm{ot}} r_{\mathrm{ot}}(\nu)\mathcal{L}_{\mathrm{WJDOT}}
     +
-    \lambda_{\mathrm{ccsr}} r_{\mathrm{ccsr}}(t)\mathcal{L}_{\mathrm{CCSR}}
+    \lambda_{\mathrm{ccsr}} r_{\mathrm{ccsr}}(\nu)\mathcal{L}_{\mathrm{CCSR}}
     +
-    \lambda_{\mathrm{tea}}(t)\mathcal{L}_{\mathrm{tea}}.
+    \lambda_{\mathrm{tea}}(\nu)\mathcal{L}_{\mathrm{tea}}.
 \end{equation}
-其中 $\mathcal{L}_{\mathrm{WJDOT}}$ 为逐源传输损失的源域级聚合，$\mathcal{L}_{\mathrm{CCSR}}$ 为类条件可靠性加权传输损失，$\mathcal{L}_{\mathrm{adv}}$ 为领域对抗损失，$\mathcal{L}_{\mathrm{tea}}$ 为教师先验约束。各权重均采用逐步启用日程控制。
+其中 $\mathcal{L}_{\mathrm{WJDOT}}$ 为逐源传输损失的源域级聚合，$\mathcal{L}_{\mathrm{CCSR}}$ 为类条件可靠性加权传输损失，$\mathcal{L}_{\mathrm{dom}}$ 为领域判别损失，$\mathcal{L}_{\mathrm{tea}}$ 为教师先验约束。各权重均采用逐步启用调度控制。
 
 本章方法训练流程如算法 \ref{alg:ca-ccsr-wjdot} 所示。
 \begin{algorithm}[htbp]
@@ -1236,7 +1237,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \KwIn{多源有标签数据 $\{\mathcal{D}_{s_k}\}_{k=1}^{K}$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
     \KwOut{多源领域自适应诊断模型及目标域预测结果}
     初始化共享一维全卷积特征提取器、CoDATS 分类头、领域判别器和固定教师模型\;
-    \For{$t=1,2,\cdots,N_{\mathrm{iter}}$}{
+    \For{$\nu=1,2,\cdots,N_{\mathrm{iter}}$}{
         从多个源域分别采样有标签小批量，并从目标域采样无标签小批量\;
         \ForEach{源域 $s_k$}{
             计算源域分类损失、源域类别原型和源域类别召回误差\;
@@ -1266,7 +1267,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 前几章围绕单源和多源跨工况故障诊断问题，提出了时序原型非平衡联合分布对齐、多证据置信均衡伪标签学习以及类条件源域可靠性加权等方法。这些方法均以目标生产模式缺少标签为前提，利用源生产模式的有标签故障样本和目标生产模式的无标签样本，提高模型在目标工况下的故障识别能力。为评价所提方法，需要在统一的数据划分、训练协议和评价指标下开展实验，并与源域直接迁移、典型领域自适应方法以及目标域监督参考方法进行比较。
 
-本章以 Tennessee Eastman Process Domain Adaptation 数据集为实验对象，围绕单源域到单目标域和多源域到单目标域两类跨工况诊断场景展开实验设计与结果分析。具体内容包括数据集来源、生产模式、样本组织形式、变量选择、数据预处理方式、官方五折划分、目标域无标签训练协议和评价指标。在实验设置上，构造 mode 1、mode 2 和 mode 5 之间的单源双向迁移任务，以及两源域和五源域条件下的多源迁移任务，分别验证第三章、第四章和第五章方法。随后，在相同实验协议下汇总不同方法的诊断性能，并结合准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化结果分析模型性能和迁移行为。
+本章以 Tennessee Eastman Process Domain Adaptation 数据集为实验对象，围绕单源域到单目标域和多源域到单目标域两类跨工况诊断场景展开实验设计与结果分析。具体内容包括数据集来源、生产模式、样本组织形式、变量选择、数据预处理方式、固定第一折评估协议、目标域无标签训练协议和评价指标。在实验设置上，构造 mode 1、mode 2 和 mode 5 之间的单源双向迁移任务，以及两源域和五源域条件下的多源迁移任务，分别验证第三章、第四章和第五章方法。随后，在相同实验协议下汇总不同方法的诊断性能，并结合准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化结果分析模型性能和迁移行为。
 
 本文实验关注无监督领域自适应场景。除目标域监督参考方法外，领域自适应方法在训练、伪标签筛选、超参数选择和模型选择过程中均不使用目标域真实标签；目标域标签仅在最终预测完成后用于计算评价指标。考虑到不同生产模式之间的分布偏移程度不同，且多源场景中不同源域对不同故障类别的贡献可能存在差异，本章结果分析不仅关注平均性能提升，也关注困难迁移场景、类别混淆现象和源域可靠性差异，以检验本文方法在跨工况工业过程故障诊断中的性能、稳定性和解释能力。
 
@@ -1314,14 +1315,14 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \begin{equation}
     \tilde{x}_{i,t,j}^{(m)}
     =
-    \frac{x_{i,t,j}^{(m)}-\bar{x}_{j}^{(m)}}{s_{j}^{(m)}+\epsilon},
+    \frac{x_{i,t,j}^{(m)}-\bar{x}_{j}^{(m)}}{\sigma_{j}^{(m)}+\epsilon},
 \end{equation}
-其中 $x_{i,t,j}^{(m)}$ 表示第 $m$ 个生产模式中第 $i$ 个样本在时间步 $t$、变量 $j$ 上的原始取值，$\bar{x}_{j}^{(m)}$ 和 $s_{j}^{(m)}$ 分别表示该生产模式下第 $j$ 个变量在所有样本和时间步上的均值与标准差，$\epsilon$ 为防止标准差为零导致数值不稳定的极小常数。该标准化过程仅使用样本统计量，不使用目标域标签信息。
+其中 $x_{i,t,j}^{(m)}$ 表示第 $m$ 个生产模式中第 $i$ 个样本在时间步 $t$、变量 $j$ 上的原始取值，$\bar{x}_{j}^{(m)}$ 和 $\sigma_{j}^{(m)}$ 分别表示该生产模式下第 $j$ 个变量在所有样本和时间步上的均值与标准差，$\epsilon$ 为防止标准差为零导致数值不稳定的极小常数。该标准化过程仅使用样本统计量，不使用目标域标签信息。
 
 \medskip
 \noindent\textbf{数据划分与训练协议}
 
-数据集提供五折样本划分。本文采用固定划分评估方式：对于第 $r$ 折，目标域中属于该折的样本作为测试集，仅在最终评价阶段使用其标签；目标域中不属于该折的样本作为无标签目标训练数据参与领域自适应训练。源域样本则使用其对应训练部分的标签参与源域监督训练。对于多源场景，所有源域均按照相同划分编号构造有标签源域训练集，目标域仍只以无标签形式参与训练。
+数据集提供五折样本划分。为控制实验规模并保证不同方法、不同迁移任务之间的可比性，本文采用固定第一折评估方式：目标域中属于第一折的样本作为测试集，仅在最终评价阶段使用其标签；目标域中不属于第一折的样本作为无标签目标训练数据参与领域自适应训练。源域样本则使用相同划分编号对应的训练部分及其标签参与源域监督训练。对于多源场景，所有源域均按照第一折对应训练部分构造有标签源域训练集，目标域仍只以无标签形式参与训练。
 
 以单源任务 $m_s \rightarrow m_t$ 为例，训练过程中可访问的数据包括源域有标签样本
 \begin{equation}
@@ -1423,7 +1424,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 单源实验主要用于验证第三章提出的时序原型非平衡联合分布对齐方法。实验在 mode 1、mode 2 和 mode 5 之间构造 6 个单源跨工况任务，并对源域直接迁移、DSAN、CDAN-TS、CoDATS、DeepJDOT、TPU-DeepJDOT、CBTPU-DeepJDOT 和目标域监督参考方法进行比较。其中，TPU-DeepJDOT 为第三章方法，CBTPU-DeepJDOT 为第四章方法，目标域监督参考方法使用目标域训练部分标签，仅作为监督条件下的参考结果，不参与无监督领域自适应方法的公平排名。
 
-本节表格中的结果来自固定第一折划分下的三轮重复实验。表中数值均为目标域测试集百分比形式，格式为“均值 $\pm$ 标准差”。
+本章后续结果表格中的数值来自固定第一折划分下的三轮重复实验，均为目标域测试集百分比形式，格式为“均值 $\pm$ 标准差”。
 
 \begin{table}[htbp]
     \centering
@@ -1550,7 +1551,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \end{tabular}
 \end{table}
 
-五源设置下，CA-CCSR-WJDOT 的平均准确率为 80.00\%，高于 WJDOT 的 74.71\%，平均提升约 5.29 个百分点，但略低于 CoDATS 的 80.93\%。这说明源域数量增加后，WJDOT 的全局源域加权更容易受到源域间差异影响，而类条件可靠性加权能够缓解这类问题。不过，五源场景下 CoDATS 的领域对抗表征仍具有较强竞争力，本文方法并未在所有五源任务上超过 CoDATS。
+表 \ref{tab:five_source_average_results} 显示，五源设置下 CA-CCSR-WJDOT 的平均准确率为 80.00\%，高于 WJDOT 的 74.71\%，平均提升约 5.29 个百分点，但略低于 CoDATS 的 80.93\%。这说明源域数量增加后，WJDOT 的全局源域加权更容易受到源域间差异影响，而类条件可靠性加权能够缓解这类问题。不过，五源场景下 CoDATS 的领域对抗表征仍具有较强竞争力，本文方法并未在所有五源任务上超过 CoDATS。
 
 \begin{table}[htbp]
     \centering
@@ -1622,7 +1623,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \label{fig:confusion_matrix}
 \end{figure}
 
-类别召回率统计表明，许多故障类别在高性能方法下能够达到较高召回率，但正常状态和少数故障类别仍容易被混淆。以单源 $m_5\rightarrow m_2$ 的 CBTPU-DeepJDOT 为例，多数故障类别召回率接近 1.0，但类别 0、3、9、15 和 21 的召回率较低，其中部分类别容易被预测为类别 16 或相邻高响应故障类别。以五源目标域 $m_1$ 的 CA-CCSR-WJDOT 为例，类别 1、2、4 至 8、10 至 14、16 至 20 以及 22 至 28 等类别识别较稳定，而类别 0、3、9、15 和 21 仍是主要错误来源。这说明本文方法能够识别多数典型故障，但对正常状态和少数动态响应相近的故障仍存在区分不足。
+结合图 \ref{fig:confusion_matrix} 可见，许多故障类别在高性能方法下能够达到较高召回率，但正常状态和少数故障类别仍容易被混淆。以单源 $m_5\rightarrow m_2$ 的 CBTPU-DeepJDOT 为例，多数故障类别召回率接近 1.0，但类别 0、3、9、15 和 21 的召回率较低，其中部分类别容易被预测为类别 16 或相邻高响应故障类别。以五源目标域 $m_1$ 的 CA-CCSR-WJDOT 为例，类别 1、2、4 至 8、10 至 14、16 至 20 以及 22 至 28 等类别识别较稳定，而类别 0、3、9、15 和 21 仍是主要错误来源。这说明本文方法能够识别多数典型故障，但对正常状态和少数动态响应相近的故障仍存在区分不足。
 
 上述现象也解释了为什么宏平均 F1 与平衡准确率仍低于目标域监督参考方法。监督参考方法能够直接利用目标域标签学习这些困难类别的目标域边界，而无监督方法只能通过源域标签、目标域无标签分布和伪标签进行间接推断。当目标域中某些故障类别的特征中心与源域差异较大，或者目标域样本在早期训练中被错误归入其他类别时，后续伪标签和对齐过程可能难以完全纠正该错误。
 
@@ -1647,7 +1648,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \label{fig:tsne}
 \end{figure}
 
-对于单源方法，源域直接迁移方法通常会保留较强的源域类别结构，但目标域样本可能偏离源域簇；DeepJDOT 通过联合传输缩小源目标差异，但在部分困难类别上可能产生错误对齐；TPU-DeepJDOT 通过源域原型和时序统计代价约束，有助于保持类别簇结构；CBTPU-DeepJDOT 进一步利用高置信目标样本，使目标域样本在部分场景中更贴近对应类别簇。对于多源方法，CA-CCSR-WJDOT 的重点不是使所有源域整体混合，而是根据不同故障类别选择更可靠源域，因此特征可视化分析应同时关注领域分布和类别分布，避免仅凭源目标混合程度判断方法优劣。
+由图 \ref{fig:tsne} 可见，对于单源方法，源域直接迁移方法通常会保留较强的源域类别结构，但目标域样本可能偏离源域簇；DeepJDOT 通过联合传输缩小源目标差异，但在部分困难类别上可能产生错误对齐；TPU-DeepJDOT 通过源域原型和时序统计代价约束，有助于保持类别簇结构；CBTPU-DeepJDOT 进一步利用高置信目标样本，使目标域样本在部分场景中更贴近对应类别簇。对于多源方法，CA-CCSR-WJDOT 的重点不是使所有源域整体混合，而是根据不同故障类别选择更可靠源域，因此特征可视化分析应同时关注领域分布和类别分布，避免仅凭源目标混合程度判断方法优劣。
 
 \subsection{综合诊断性能分析}
 
@@ -1679,7 +1680,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 在多源场景中，本文以多源加权联合分布最优传输为基础，考虑到不同源域与目标域之间存在差异，且同一源域对不同故障类别的贡献并不一致，提出类条件源域可靠性加权方法。该方法结合卷积式时间序列领域自适应表征、逐源联合分布最优传输和源域--故障类别可靠性矩阵，对不同源域在不同故障类别上的迁移贡献进行建模，从而实现更细粒度的多源选择性迁移。同时，在多源方法中引入领域对抗特征约束与教师先验保护机制，以增强时序表征能力，并降低新增迁移损失破坏已有表征的风险。
 
-实验部分围绕单源跨工况和多源跨工况两类任务展开。本文采用诊断准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化等指标，对所提方法与源域直接迁移、典型领域自适应方法、DeepJDOT、WJDOT、CoDATS 以及目标域监督参考方法进行对比分析，并通过消融实验和可解释性分析验证时序原型约束、非平衡传输、多证据伪标签筛选、类别均衡机制以及类条件源域可靠性矩阵等关键机制的作用。考虑到不同跨工况任务的分布偏移程度和源域可靠性差异并不一致，结果分析重点关注整体趋势、典型成功场景和局部失效场景，避免将单一场景结果解释为绝对优势。整体而言，本文方法在跨工况故障诊断任务中表现出一定适应能力和解释价值，可为工业过程故障诊断中的无监督领域自适应研究提供参考。
+实验部分围绕单源跨工况和多源跨工况两类任务展开。本文采用诊断准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化等指标，对所提方法与源域直接迁移、典型领域自适应方法、DeepJDOT、WJDOT、CoDATS 以及目标域监督参考方法进行对比分析，并通过关键机制对比、典型场景分析和可解释性分析讨论时序原型约束、非平衡传输、多证据伪标签筛选、类别均衡机制以及类条件源域可靠性矩阵等设计的作用。考虑到不同跨工况任务的分布偏移程度和源域可靠性差异并不一致，结果分析重点关注整体趋势、典型成功场景和局部失效场景，避免将单一场景结果解释为绝对优势。整体而言，本文方法在跨工况故障诊断任务中表现出一定适应能力和解释价值，可为工业过程故障诊断中的无监督领域自适应研究提供参考。
 
 \subsection{本文主要研究内容}
 
@@ -1737,11 +1738,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \appendix
 \chapter{论文符号表}
 
-为避免正文中同一符号表示不同含义，本文将主要数学符号统一整理如下。未列入表中的局部求和下标仅在其所在公式附近使用。
+为避免正文中同一符号表示不同含义，本文将主要数学符号统一整理如表 \ref{tab:symbols} 所示。上标 $s$、$t$ 和 $s_k$ 分别表示源域、目标域和第 $k$ 个源域；未列入表中的局部求和下标仅在其所在公式附近使用。
 
 {\footnotesize
 \renewcommand{\arraystretch}{1.15}
-\begin{longtable}{>{\centering\arraybackslash}p{0.20\textwidth}p{0.48\textwidth}p{0.23\textwidth}}
+\setlength{\emergencystretch}{3em}
+\hbadness=10000
+\hfuzz=40pt
+\vbadness=10000
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.45\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}}
     \caption{论文主要符号表}
     \label{tab:symbols}\\
     \toprule
@@ -1760,77 +1765,94 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
     \multicolumn{3}{l}{\textbf{数据、领域与类别}}\\
     \midrule
-    $\mathcal{D}_s,\mathcal{D}_t$ & 源域数据集与目标域数据集 & 单源领域自适应设定 \\
-    $\mathcal{D}_{s_k}$ & 第 $k$ 个源域数据集 & 多源领域自适应设定 \\
-    $\mathcal{D}_{s}^{\mathrm{train}},\mathcal{D}_{t}^{\mathrm{train}},\mathcal{D}_{t}^{\mathrm{test}}$ & 源域训练集、目标域无标签训练集、目标域测试集 & 目标域测试标签仅用于最终评价 \\
-    $\mathcal{B}_s,\mathcal{B}_t$ & 源域小批量与目标域小批量 & 训练迭代中采样得到 \\
-    $x_i^s,x_j^t$ & 源域第 $i$ 个样本与目标域第 $j$ 个样本 & 多变量时间序列窗口 \\
-    $y_i^s,y_u^t$ & 源域标签与目标域测试标签 & $y_u^t$ 不参与训练 \\
-    $V,L$ & 过程变量数量与时间窗口长度 & 避免与代价矩阵 $C$ 和温度 $T_{\cdot}$ 混用 \\
-    $n_s,n_t,n_k$ & 源域样本数、目标域样本数、第 $k$ 个源域样本数 & 数据集规模 \\
+    $\mathcal{D}_s,\mathcal{D}_t,\mathcal{D}_{s_k}$ & 源域、目标域、第 $k$ 个源域数据集 & 单源或多源领域自适应设定 \\
+    $\mathcal{D}_{s}^{\mathrm{train}}$、$\mathcal{D}_{t}^{\mathrm{train}}$、$\mathcal{D}_{t}^{\mathrm{test}}$ & 源域训练集、目标域无标签训练集、目标域测试集 & 目标域测试标签仅用于最终评价 \\
+    $\mathcal{B}_s,\mathcal{B}_t,\mathcal{B}_{s_k}$ & 源域小批量、目标域小批量、第 $k$ 个源域小批量 & 训练迭代中采样得到 \\
+    $\mathcal{B}_s^c$ & 源域小批量中第 $c$ 类样本集合 & 用于源域原型更新 \\
+    $x,x_i^s,x_j^t,x_i^{s_k},x_u^t$ & 通用样本、源域样本、目标域样本、第 $k$ 源域样本、目标测试样本 & 均表示多变量时间序列窗口 \\
+    $y_i^s,y_i^{s_k},y_u^t$ & 源域标签、第 $k$ 源域标签、目标域测试标签 & $y_u^t$ 不参与训练 \\
+    $h$ & 目标域诊断函数 & 由训练后的模型实现 \\
+    $P_s(X)$、$P_t(X)$、$P_{s_k}(X)$、$P_{s_l}(X)$ & 源域、目标域及不同源域的数据分布 & 用于描述分布偏移 \\
+    $\mathbf{X}^{(m)}$ & 第 $m$ 个生产模式的数据张量 & 维度为 $N_m\times600\times34$ \\
+    $V,L,L'$ & 过程变量数量、输入时间窗口长度、卷积输出时间长度 & $L'$ 仅用于全局平均池化 \\
+    $n_s,n_t,n_k,N_m$ & 源域样本数、目标域样本数、第 $k$ 源域样本数、第 $m$ 模式样本数 & 数据集规模 \\
     $n_s^{\mathrm{bat}},n_t^{\mathrm{bat}}$ & 源域小批量大小与目标域小批量大小 & 非平衡传输公式中的批量维度 \\
-    $K$ & 源域数量 & 多源场景中使用 \\
-    $N_c$ & 故障类别数量 & TEP 数据集中为 29 类 \\
+    $K,N_c$ & 源域数量、故障类别数量 & TEP 数据集中 $N_c=29$ \\
     $\mathcal{Y}$ & 标签空间 & $\{0,1,\cdots,28\}$ \\
     $m_1,\cdots,m_6$ & TEP 生产模式编号 & 实验场景中的领域标识 \\
-    $m_s,m_t$ & 源生产模式与目标生产模式 & 用于迁移任务 $m_s\rightarrow m_t$ \\
-    $\tilde{x}_{i,t,j}^{(m)}$ & 标准化后的样本取值 & 第 $m$ 个生产模式中第 $i$ 个样本、第 $t$ 个时间步、第 $j$ 个变量 \\
-    $\bar{x}_{j}^{(m)},s_{j}^{(m)}$ & 第 $m$ 个生产模式中第 $j$ 个变量的均值与标准差 & 用于模式内标准化 \\
+    $m_s,m_t,m_{s_1},\cdots,m_{s_K}$ & 源模式、目标模式、多个源模式 & 用于迁移任务表示 \\
+    $x_{i,t,j}^{(m)},\tilde{x}_{i,t,j}^{(m)}$ & 原始样本取值与标准化后取值 & 第 $m$ 模式、第 $i$ 样本、第 $t$ 时间步、第 $j$ 变量 \\
+    $\bar{x}_{j}^{(m)},\sigma_{j}^{(m)}$ & 第 $m$ 模式第 $j$ 个变量的均值与标准差 & 用于模式内标准化 \\
+    $\epsilon$ & 数值稳定常数 & 防止除零或对数为零 \\
+    $\nu,N_{\mathrm{iter}}$ & 训练步索引与总训练步数 & $\nu$ 不再表示时间序列下标 \\
 
     \midrule
     \multicolumn{3}{l}{\textbf{模型、特征与预测}}\\
     \midrule
     $F_\theta(\cdot)$ & 特征提取器 & 参数为 $\theta$ \\
     $G_\phi(\cdot)$ & 故障分类器 & 参数为 $\phi$ \\
+    $G_{\phi,c}(\cdot)$ & 分类器输出第 $c$ 类概率的分量 & 领域对抗基线公式中使用 \\
     $D_\omega(\cdot)$ & 领域判别器 & 参数为 $\omega$ \\
     $\Theta,\bar{\Theta}$ & 学生模型参数集合与 EMA 教师模型参数集合 & $\Theta=(\theta,\phi)$，$\bar{\Theta}=(\bar{\theta},\bar{\phi})$ \\
-    $z,z_i^{s_k},z_j^t$ & 深度特征表示 & 由 $F_\theta$ 输出 \\
-    $p,p_i^{s_k},p_j^t$ & 类别预测概率分布 & 由 $G_\phi$ 输出 \\
-    $p_{\theta,\phi}(\cdot|x)$ & 学生模型对样本 $x$ 的 softmax 概率 & 等价于 $G_\phi(F_\theta(x))$ 的概率输出 \\
-    $\hat{y},\hat{y}_j^t$ & 预测类别或伪标签类别 & 由概率分布的最大分量确定 \\
-    $u_{jc},u_j^{\mathrm{tea}},u_j^{\mathrm{stu}}$ & 未归一化预测得分 & 分别用于类别均衡和教师先验约束 \\
-    $a_w(\cdot),a_s(\cdot)$ & 弱增强与强增强变换 & 用于目标域一致性学习 \\
-    $U^{(l)},W^{(l)},b^{(l)}$ & 第 $l$ 层卷积输出、卷积核与偏置 & 卷积式时间序列特征提取 \\
-    $\varphi(\cdot)$ & 非线性激活函数 & 与标准差符号 $s,\sigma$ 区分 \\
+    $\xi$ & EMA 教师模型衰减系数 & 用于更新 $\bar{\Theta}$ \\
+    $z,z_i^s,z_j^t,z_i^{s_k},\tilde{z}_i$ & 深度特征、源特征、目标特征、多源特征、归一化特征 & 由 $F_\theta$ 输出或归一化得到 \\
     $d_z,d_\psi$ & 深度特征维度与时序描述符维度 & 用于代价归一化 \\
+    $p,p_i^{s_k},p_j^t,p_{kj}^t,p_{kjr}^t,p_{jc}$ & 类别预测概率分布及其分量 & $p_{kjr}^t$ 和 $p_{jc}$ 表示对应类别分量 \\
+    $p_{\theta,\phi}(\cdot|x)$ & 学生模型对样本 $x$ 的 softmax 概率 & 等价于 $G_\phi(F_\theta(x))$ 的概率输出 \\
+    $p_j^{\mathrm{stu}},p_j^{\mathrm{tea}},p_j^{\mathrm{final}}$ & 学生预测、教师预测和最终融合预测概率 & 多源教师先验融合使用 \\
+    $p_j^{\mathrm{base}}$、$p_j^{\mathrm{pb}}$、$\bar{p}^{\mathrm{base}}$ & 基础混合预测、先验均衡预测、批次平均预测 & 无标签概率校正使用 \\
+    $\hat{y},\hat{y}_j^t$ & 预测类别或伪标签类别 & 由概率分布的最大分量确定 \\
+    $u_{jc},\tilde{u}_{jc},\tilde{u}_j$ & 原始预测得分、类别均衡后得分及其向量形式 & 伪标签类别均衡使用 \\
+    $u_j^{\mathrm{tea}},u_j^{\mathrm{stu}}$ & 教师模型和学生模型的未归一化预测得分 & 教师先验约束使用 \\
+    $a_w(\cdot),a_s(\cdot)$ & 弱增强与强增强变换 & 用于目标域一致性学习 \\
+    $U^{(l-1)}$、$U^{(l)}$、$U$、$U_{r,t}$、$z_r$、$W^{(l)}$、$b^{(l)}$ & 卷积层输入/输出、最终卷积输出元素、池化后特征元素、卷积核与偏置 & 卷积式时间序列特征提取 \\
+    $\varphi(\cdot)$ & 非线性激活函数 & 与标准差 $\sigma_{\cdot}$ 区分 \\
+    $Z_s,Z_t$ & 源域特征集合与目标域特征集合 & 领域对抗损失中使用 \\
 
     \midrule
     \multicolumn{3}{l}{\textbf{最优传输与对齐}}\\
     \midrule
-    $C,C_{ij},C_{ij}^{(k)}$ & 传输代价矩阵及其元素 & $C$ 专用于代价矩阵，不表示通道数 \\
-    $\gamma,\gamma^\ast,\gamma_k^\ast$ & 传输计划、最优传输计划、第 $k$ 个源域的最优传输计划 & 表示源目标样本匹配质量 \\
-    $\Pi(a,b)$ & 满足边际分布 $a,b$ 的传输计划集合 & 平衡最优传输约束 \\
-    $a,b$ & 源域边际分布与目标域边际分布 & 传输计划的边际质量 \\
+    $C,C_{ij},C_{ij}^{(k)},C^{(k)},C^{\mathrm{loss}}$ & 传输代价矩阵、代价元素、第 $k$ 源域代价、矩阵形式、训练代价 & $C$ 专用于代价矩阵 \\
+    $\gamma$、$\gamma^\ast$、$\gamma_{ij}$、$\gamma_{ij}^{(k)}$、$\gamma_k$、$\gamma_k^\ast$、$\gamma_{k,ij}$ & 传输计划、最优传输计划及其元素、第 $k$ 源域传输计划及其元素 & 表示源目标样本匹配质量 \\
+    $\Pi(a,b),\Pi(a_k,b)$ & 满足边际分布的传输计划集合 & $a_k$ 为第 $k$ 源域边际 \\
+    $a,b,a_k$ & 源域边际、目标域边际、第 $k$ 源域边际 & 传输计划的边际质量 \\
+    $\mathbf{1}$ & 全 1 向量 & 下标表示向量长度 \\
     $\varepsilon$ & 熵正则系数 & 非平衡 Sinkhorn 求解中使用 \\
     $\tau_s,\tau_t$ & 源边际与目标边际的松弛强度 & 仅用于非平衡最优传输 \\
+    $\mathrm{KL}(\cdot\|\cdot),\langle\cdot,\cdot\rangle$ & KL 散度与矩阵内积 & 传输目标和一致性损失中使用 \\
+    $\mathcal{L}_{\mathrm{UOT}}$ & 非平衡最优传输目标 & 用于说明非平衡传输原理 \\
     $c_{ij}^{f},c_{ij}^{y},c_{ij}^{\mathrm{temp}}$ & 特征代价、标签预测代价和时序统计代价 & 组成联合传输代价 \\
     $\operatorname{dist}(\cdot,\cdot)$ & 特征空间距离函数 & 避免与维度 $d_z$ 混淆 \\
     $\ell(\cdot,\cdot)$ & 分类或标签预测损失 & 通常为交叉熵 \\
     $\lambda_f,\lambda_y$ & 特征代价与标签代价权重 & 传输代价中的权重 \\
-    $\lambda_{\mathrm{ot}},\lambda_{\mathrm{ot}}(t)$ & 最优传输对齐损失权重 & 后者表示随训练步变化的日程权重 \\
-    $\lambda_p(t),\lambda_{\mathrm{temp}}(t)$ & 原型代价与时序统计代价权重 & 延迟启动并线性预热 \\
-    $t_p,S_p$ & 原型代价启动步数与预热步数 & 时序统计代价采用相同形式 \\
+    $\lambda_{\mathrm{ot}},\lambda_{\mathrm{ot}}(\nu)$ & 最优传输对齐损失权重 & 后者表示随训练步变化的调度权重 \\
+    $\lambda_p(\nu),\lambda_{\mathrm{temp}}(\nu),\lambda_p^0$ & 原型代价权重、时序统计代价权重、原型代价基础权重 & 延迟启动并线性预热 \\
+    $\nu_p,S_p$ & 原型代价启动步数与预热步数 & 时序统计代价采用相同形式 \\
 
     \midrule
     \multicolumn{3}{l}{\textbf{原型、伪标签与一致性}}\\
     \midrule
-    $\mu_c,\mu_{kc}^s,\mu_c^t$ & 源域类别原型、第 $k$ 个源域第 $c$ 类原型、目标域第 $c$ 类原型 & 用于类别结构建模 \\
+    $\mu_c,\bar{\mu}_c,\mu_{kc}^s,\mu_c^t$ & 源域类别原型、小批量源类均值、第 $k$ 源域原型、目标域原型 & 用于类别结构建模 \\
     $\rho$ & 源域原型动量系数 & 原型指数滑动平均 \\
     $d_{cj}^{\mathrm{proto}},d_{jc}^{\mathrm{proto}}$ & 目标样本到源域类别原型的距离 & 分别服务于传输代价和原型语义分布 \\
-    $\overline{d}_{-y_i^s,j}^{\mathrm{proto}},\sigma_j^{\mathrm{proto}}$ & 目标样本到其他有效源类原型距离的均值与标准差 & 相对原型代价归一化 \\
-    $r_{ij}^{\mathrm{proto}}$ & 相对原型代价 & 衡量目标样本相对接近源类别的程度 \\
-    $\bar{x}_{\mathrm{seq}}(x),s_{\mathrm{seq}}(x)$ & 样本时间维度均值与标准差 & 时序描述符的一部分 \\
-    $\bar{\Delta}_{\mathrm{seq}}(x),s_{\Delta}(x)$ & 一阶差分均值与标准差 & 时序描述符的一部分 \\
+    $\overline{d}_{-y_i^s,j}^{\mathrm{proto}}$、$\sigma_j^{\mathrm{proto}}$ & 目标样本到其他有效源类原型距离的均值与标准差 & 相对原型代价归一化 \\
+    $r_{ij}^{\mathrm{proto}},r_{\min},r_{\max}$ & 相对原型代价及其裁剪下界和上界 & 衡量目标样本相对接近源类别的程度 \\
+    $\bar{x}_{\mathrm{seq}}(x),\sigma_{\mathrm{seq}}(x)$ & 样本时间维度均值与标准差 & 时序描述符的一部分 \\
+    $\bar{\Delta}_{\mathrm{seq}}(x),\sigma_{\Delta}(x)$ & 一阶差分均值与标准差 & 时序描述符的一部分 \\
+    $\Delta x_{:,t}$ & 样本在时间维度上的一阶差分 & 时序描述符的一部分 \\
     $\psi(x)$ & 时间序列统计描述符 & 由均值、标准差和一阶差分统计量拼接得到 \\
     $\mathcal{P}(i),\mathcal{I}$ & 样本 $i$ 的同类正样本集合、存在正样本的索引集合 & 源域监督对比学习 \\
     $T_{\mathrm{con}}$ & 监督对比学习温度 & 与可靠性和蒸馏温度区分 \\
-    $q_j^{\mathrm{ot}},q_j^{\mathrm{cls}},q_j^{\mathrm{proto}},q_j^{\mathrm{mix}}$ & 传输语义、教师预测语义、原型语义和融合语义分布 & 多证据伪标签筛选 \\
-    $\alpha_{\mathrm{ot}},\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & 三类语义证据的融合指数 & 用于幂加权几何平均 \\
-    $D_{\mathrm{JS}},\delta_{\mathrm{JS}}$ & Jensen--Shannon 差异及其阈值 & 多证据一致性筛选 \\
+    $q_j^{\mathrm{ot}}$、$q_j^{\mathrm{cls}}$、$q_j^{\mathrm{proto}}$、$q_j^{\mathrm{mix}}$ & 传输语义、教师预测语义、原型语义和融合语义分布 & 多证据伪标签筛选 \\
+    $m_{cj}^{\mathrm{ot}}$ & 第 $c$ 类源样本传向目标样本 $j$ 的传输质量 & 归一化后得到 $q_j^{\mathrm{ot}}$ \\
+    $\hat{y}_j^{\mathrm{ot}}$、$\hat{y}_j^{\mathrm{cls}}$、$\hat{y}_j^{\mathrm{proto}}$ & 三类语义证据各自的最大概率类别 & 多证据一致性判断使用 \\
+    $\kappa_j$ & 目标样本融合语义置信度 & $\kappa_j=\max_c q_{jc}^{\mathrm{mix}}$ \\
+    $\alpha_{\mathrm{ot}}$、$\alpha_{\mathrm{cls}}$、$\alpha_{\mathrm{proto}}$ & 三类语义证据的融合指数 & 用于幂加权几何平均 \\
+    $D_{\mathrm{JS}},\bar{q},\delta_{\mathrm{JS}}$ & Jensen--Shannon 差异、三证据均值分布及差异阈值 & 多证据一致性筛选 \\
     $H(q),h_{\mathrm{ot}}$ & 归一化熵及传输语义熵阈值 & 衡量语义分布确定性 \\
     $\mathcal{A}_j,\mathcal{A}$ & 目标样本接受指示与被接受样本集合 & 伪标签学习使用 \\
-    $\vartheta(t),\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}}$ & 动态伪标签置信阈值及其起止值 & 与非平衡传输松弛 $\tau_s,\tau_t$ 区分 \\
-    $S_{\vartheta}$ & 伪标签阈值下降步数 & 动态阈值日程参数 \\
+    $\vartheta(\nu)$、$\vartheta_{\mathrm{start}}$、$\vartheta_{\mathrm{end}}$ & 动态伪标签置信阈值及其起止值 & 与非平衡传输松弛 $\tau_s,\tau_t$ 区分 \\
+    $\nu_0,S_{\vartheta}$ & 伪标签启动步数与阈值下降步数 & 动态阈值调度参数 \\
     $\hat{\pi}_c$ & 被接受伪标签集合中第 $c$ 类频率 & 类别均衡调整 \\
     $\eta_{\mathrm{bal}}$ & 类别均衡调整强度 & 对强增强预测得分进行对数先验调整 \\
     $\mathcal{S}_{\mathrm{cons}}$ & 参与一致性损失的目标样本集合 & 包括高置信和部分中等置信目标样本 \\
@@ -1840,23 +1862,28 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \multicolumn{3}{l}{\textbf{多源可靠性与损失函数}}\\
     \midrule
     $R\in\mathbb{R}^{K\times N_c}$ & 源域--故障类别可靠性矩阵 & 数值越小表示越可靠 \\
-    $R_{kc},\alpha_{kc}$ & 第 $k$ 个源域第 $c$ 类可靠性分数与类条件源域权重 & $\sum_k\alpha_{kc}=1$ \\
+    $R_{kc},\alpha_{kc},\alpha_{kc}(\nu)$ & 第 $k$ 源域第 $c$ 类可靠性分数、类条件权重及其训练步调度形式 & $\sum_k\alpha_{kc}=1$ \\
     $\alpha_k$ & 第 $k$ 个源域的全局源域权重 & WJDOT 中使用 \\
     $D_{kc}^{\mathrm{proto}},D_{kc}^{\mathrm{ot}}$ & 源目标原型距离和类条件传输代价 & 构成可靠性矩阵 \\
-    $H_{kc}^{\mathrm{pred}},E_{kc}^{s}$ & 目标预测熵和源域类别召回误差 & 构成可靠性矩阵 \\
+    $H_{kc}^{\mathrm{pred}},E_{kc}^{s},\mathrm{Recall}_{kc}^{s}$ & 目标预测熵、源域类别召回误差、源域类别召回率 & 构成可靠性矩阵 \\
     $M_{kc}^{\mathrm{ot}}$ & 第 $k$ 个源域第 $c$ 类传输质量 & 计算类条件传输代价 \\
+    $\mathcal{T}_c$ & 当前暂定属于第 $c$ 类的目标样本集合 & 用于目标预测熵估计 \\
+    $\widetilde{D}_{kc}^{\mathrm{proto}}$、$\widetilde{D}_{kc}^{\mathrm{ot}}$、$\widetilde{H}_{kc}^{\mathrm{pred}}$、$\widetilde{E}_{kc}^{s}$ & 归一化后的可靠性证据 & 按类别维度 min--max 归一化 \\
     $w_p,w_o,w_h,w_e$ & 原型距离、传输代价、预测熵和源域误差的组合权重 & 可靠性分数线性组合 \\
     $T_{\mathrm{rel}}$ & 可靠性权重 softmax 温度 & 类条件源域权重分配 \\
-    $r_{\mathrm{rel}}(t)$ & 可靠性权重启用进度 & 从均匀权重过渡到类条件权重 \\
-    $\mathbb{I}_{kc},\mathcal{C}_{\mathrm{act}}$ & 源域类别存在指示、当前活跃类别集合 & 类条件传输损失中使用 \\
+    $r_{\mathrm{rel}}(\nu)$ & 可靠性权重启用进度 & 从均匀权重过渡到类条件权重 \\
+    $\mathbb{I}(\cdot)$、$\mathbb{I}_{kc}$、$\mathcal{C}_{\mathrm{act}}$ & 指示函数、源域类别存在指示、当前活跃类别集合 & 分类和类条件传输损失中使用 \\
     $T_{\mathrm{dist}}$ & 教师先验蒸馏温度 & 多源教师先验约束 \\
     $\zeta_j$ & 教师--学生预测融合系数 & 最终目标域诊断结果融合 \\
     $\beta$ & 先验均衡强度 & 无标签概率校正 \\
-    $\mathcal{L}_{\mathrm{src}},\mathcal{L}_{\mathrm{OT}},\mathcal{L}_{\mathrm{align}}$ & 源域分类损失、最优传输损失、非平衡联合传输对齐损失 & 基础训练目标 \\
-    $\mathcal{L}_{\mathrm{supcon}},\mathcal{L}_{\mathrm{pl}},\mathcal{L}_{\mathrm{cons}}$ & 源域监督对比损失、伪标签损失和一致性损失 & 单源改进方法中使用 \\
-    $\mathcal{L}_{\mathrm{adv}},\mathcal{L}_{\mathrm{tea}},\mathcal{L}_{\mathrm{WJDOT}},\mathcal{L}_{\mathrm{CCSR}}$ & 领域对抗损失、教师先验约束、逐源传输聚合损失和类条件传输损失 & 多源方法中使用 \\
-    $\lambda_{\cdot}$ & 各损失项或代价项的权重 & 具体下标与对应损失或代价一致 \\
-    $N_{\mathrm{iter}}$ & 总训练步数 & 算法流程中的循环上限 \\
+    $\mathcal{L}_{\mathrm{src}}$、$\mathcal{L}_{\mathrm{OT}}$、$\mathcal{L}_{\mathrm{align}}$、$\mathcal{L}_{\mathrm{dom}}$ & 源域分类损失、最优传输损失、非平衡联合传输对齐损失、领域判别损失 & 基础训练目标 \\
+    $\mathcal{L}_{\mathrm{supcon}}$、$\mathcal{L}_{\mathrm{pl}}$、$\mathcal{L}_{\mathrm{cons}}$、$\mathcal{L}_{\mathrm{im}}$ & 源域监督对比损失、伪标签损失、一致性损失、信息最大化正则项 & 单源改进方法中使用 \\
+    $\mathcal{L}_{\mathrm{tea}}$、$\mathcal{L}_{\mathrm{WJDOT}}$、$\mathcal{L}_{\mathrm{CCSR}}$ & 教师先验约束、逐源传输聚合损失和类条件传输损失 & 多源方法中使用 \\
+    $\mathcal{L}_{\mathrm{TPU}}$、$\mathcal{L}_{\mathrm{CBTPU}}$、$\mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}$ & 第三章、第四章和第五章方法的总体损失 & 分别对应三条方法线 \\
+    $\lambda_{\mathrm{supcon}}(\nu)$、$\lambda_{\mathrm{pl}}(\nu)$、$\lambda_{\mathrm{cons}}(\nu)$、$\lambda_{\mathrm{im}}(\nu)$ & 监督对比、伪标签、一致性和信息最大化损失权重 & 单源调度权重 \\
+    $\lambda_d$、$\lambda_d(\nu)$、$\lambda_s$、$\lambda_{\mathrm{ccsr}}$、$\lambda_{\mathrm{tea}}(\nu)$ & 领域判别、源域分类、类条件传输和教师约束权重 & 领域对抗和多源方法中使用 \\
+    $r_{\mathrm{ot}}(\nu),r_{\mathrm{ccsr}}(\nu)$ & WJDOT 与 CCSR 损失的启用进度 & 多源训练调度参数 \\
+    $\lambda_{\cdot}$ & 其他损失项或代价项的权重 & 具体下标与对应损失或代价一致 \\
 \end{longtable}
 }
 
