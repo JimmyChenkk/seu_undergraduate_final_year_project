@@ -6,6 +6,7 @@ from pathlib import Path
 from src.automation.run_small_scale_round import (
     _load_yaml,
     _result_matches_run,
+    _teacher_base_method_for,
     build_run_plan,
 )
 
@@ -242,6 +243,14 @@ class AutomationPlanTests(unittest.TestCase):
             runs_by_method["cbtpu_deepjdot"]["method_overrides"]["loss"]["pseudo_start_step"],
             2200,
         )
+
+    def test_teacher_base_method_can_be_configured_from_loss_override(self) -> None:
+        base_method = _teacher_base_method_for(
+            "cbtpu_deepjdot",
+            {"loss": {"teacher_checkpoint_base_method": "tpu_deepjdot"}},
+        )
+
+        self.assertEqual(base_method, "tpu_deepjdot")
 
 
 if __name__ == "__main__":

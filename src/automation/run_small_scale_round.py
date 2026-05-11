@@ -339,7 +339,13 @@ def _result_matches_run(payload: dict[str, Any], run: dict[str, Any], method_nam
     )
 
 
-def _teacher_base_method_for(method_name: str) -> str | None:
+def _teacher_base_method_for(method_name: str, method_override: dict[str, Any] | None = None) -> str | None:
+    if isinstance(method_override, dict):
+        loss_override = method_override.get("loss", {})
+        if isinstance(loss_override, dict):
+            configured_base = loss_override.get("teacher_checkpoint_base_method")
+            if configured_base:
+                return str(configured_base)
     method_key = str(method_name).strip().lower()
     if method_key.startswith("ca_ccsr_wjdot"):
         return "codats"
@@ -732,7 +738,10 @@ def main() -> None:
                     method_key: deepcopy(run["method_overrides"]),
                 }
 
-            teacher_base_method = _teacher_base_method_for(method_name)
+            teacher_base_method = _teacher_base_method_for(
+                method_name,
+                experiment_payload.get("method_overrides", {}).get(method_name),
+            )
             if teacher_base_method is not None:
                 base_key = _run_lookup_key(run, teacher_base_method)
                 base_result_path = completed_results.get(base_key)
@@ -757,6 +766,36 @@ def main() -> None:
                 method_override = method_overrides.setdefault(method_name, {})
                 loss_override = method_override.setdefault("loss", {})
                 loss_override["teacher_checkpoint_path"] = str(checkpoint_path)
+
+            if str(method_name).strip().lower().startswith("ca_ccsr_wjdot"):
+                method_overrides = experiment_payload.setdefault("method_overrides", {})
+                method_override = method_overrides.setdefault(method_name, {})
+                loss_override = method_override.setdefault("loss", {})
+                anchor_fusion = loss_override.get("wjdot_anchor_fusion")
+                if isinstance(anchor_fusion, dict) and bool(anchor_fusion.get("enabled", True)):
+                    base_key = _run_lookup_key(run, "wjdot")
+                    base_result_path = completed_results.get(base_key)
+                    if base_result_path is None:
+                        base_result_path = _find_latest_matching_result(batch_root, run, "wjdot")
+                    if base_result_path is None:
+                        raise SystemExit(
+                            f"{method_name} requires a completed wjdot analysis anchor "
+                            f"for {run['label']} in the same batch. Put wjdot before "
+                            f"{method_name} in automation.methods."
+                        )
+                    base_payload = json.loads(base_result_path.read_text(encoding="utf-8"))
+                    anchor_analysis_path = base_payload.get("result", {}).get("analysis_path")
+                    if not anchor_analysis_path:
+                        raise SystemExit(
+                            f"{method_name} requires wjdot analysis_path, but it was missing in "
+                            f"{base_result_path}"
+                        )
+                    if not Path(str(anchor_analysis_path)).exists():
+                        raise SystemExit(
+                            f"{method_name} requires wjdot analysis_path, but it was not found: "
+                            f"{anchor_analysis_path}"
+                        )
+                    anchor_fusion.setdefault("analysis_path", str(anchor_analysis_path))
 
             temp_experiment_path = temp_root / f"{method_name}_{run['label']}.yaml"
             _save_yaml(temp_experiment_path, experiment_payload)

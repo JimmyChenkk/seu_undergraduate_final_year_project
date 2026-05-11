@@ -29,6 +29,89 @@ def _as_config(payload: dict[str, Any] | None) -> dict[str, Any]:
     return merged
 
 
+def _nested_config(config: dict[str, Any], key: str) -> dict[str, Any]:
+    value = config.get(key)
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _weight_for_source_count(config: dict[str, Any], *, source_count: int, default: float) -> float:
+    by_count = config.get("ca_weight_by_source_count")
+    if isinstance(by_count, dict):
+        for key in (source_count, str(source_count)):
+            if key in by_count:
+                return min(max(float(by_count[key]), 0.0), 1.0)
+    return min(max(float(config.get("ca_weight", default)), 0.0), 1.0)
+
+
+def _load_anchor_probabilities(path: str | Path | None, *, expected_count: int):
+    np = _import_numpy()
+    if not path:
+        return None
+    anchor_path = Path(str(path))
+    if not anchor_path.exists():
+        raise FileNotFoundError(f"WJDOT anchor analysis not found: {anchor_path}")
+    with np.load(anchor_path, allow_pickle=False) as payload:
+        if "target_probabilities" in payload:
+            probabilities = np.asarray(payload["target_probabilities"], dtype=np.float32)
+        elif "target_logits" in payload:
+            probabilities = _softmax(np.asarray(payload["target_logits"], dtype=np.float32), axis=1)
+        else:
+            raise KeyError(f"WJDOT anchor analysis has no target_probabilities or target_logits: {anchor_path}")
+    if probabilities.ndim != 2 or int(probabilities.shape[0]) != int(expected_count):
+        raise ValueError(
+            "WJDOT anchor target count does not match CA target count: "
+            f"{probabilities.shape} vs {expected_count}"
+        )
+    probabilities = np.nan_to_num(probabilities, nan=0.0, posinf=0.0, neginf=0.0)
+    probabilities = np.maximum(probabilities, 0.0)
+    return probabilities / np.maximum(probabilities.sum(axis=1, keepdims=True), EPS)
+
+
+def _apply_wjdot_anchor_fusion(
+    ca_probabilities,
+    *,
+    config: dict[str, Any],
+    source_count: int,
+    expected_count: int,
+):
+    np = _import_numpy()
+    anchor_config = _nested_config(config, "wjdot_anchor_fusion")
+    if not anchor_config:
+        return {
+            "p_final": ca_probabilities,
+            "enabled": False,
+            "anchor_probabilities": None,
+            "ca_weight": 1.0,
+            "path": None,
+        }
+    enabled = bool(anchor_config.get("enabled", True))
+    anchor_path = anchor_config.get("analysis_path", config.get("wjdot_anchor_analysis_path"))
+    if not enabled or not anchor_path:
+        return {
+            "p_final": ca_probabilities,
+            "enabled": False,
+            "anchor_probabilities": None,
+            "ca_weight": 1.0,
+            "path": None,
+        }
+    anchor_probabilities = _load_anchor_probabilities(anchor_path, expected_count=expected_count)
+    ca_weight = _weight_for_source_count(
+        anchor_config,
+        source_count=source_count,
+        default=0.35,
+    )
+    fused = (1.0 - ca_weight) * anchor_probabilities + ca_weight * ca_probabilities
+    fused = np.maximum(np.nan_to_num(fused, nan=0.0, posinf=0.0, neginf=0.0), 0.0)
+    fused = fused / np.maximum(fused.sum(axis=1, keepdims=True), EPS)
+    return {
+        "p_final": fused.astype(np.float32, copy=False),
+        "enabled": True,
+        "anchor_probabilities": anchor_probabilities.astype(np.float32, copy=False),
+        "ca_weight": ca_weight,
+        "path": str(anchor_path),
+    }
+
+
 def _collect_teacher_outputs(
     *,
     model,
@@ -140,6 +223,9 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
     prior_balance_strength = max(float(config.get("prior_balance_strength", 0.0)), 0.0)
     prior_balance_student_mix = min(max(float(config.get("prior_balance_student_mix", 0.50)), 0.0), 1.0)
     prior_balance_min_prior = max(float(config.get("prior_balance_min_prior", 1e-4)), EPS)
+    prior_balance_student_guard = bool(config.get("prior_balance_student_guard", False))
+    student_guard_confidence_margin = max(float(config.get("student_guard_confidence_margin", 0.0)), 0.0)
+    student_guard_entropy_margin = max(float(config.get("student_guard_entropy_margin", 0.0)), 0.0)
 
     student_pred = student_probs.argmax(axis=1)
     teacher_pred = teacher_probs.argmax(axis=1)
@@ -165,7 +251,21 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
         confidence_score = np.clip((student_confidence - teacher_confidence) + 0.5, 0.0, 1.0)
         entropy_score = np.clip((teacher_entropy - student_entropy) + 0.5, 0.0, 1.0)
         override_score = (0.5 * confidence_score + 0.5 * entropy_score).astype(np.float32)
+        final_probs = final_probs / np.maximum(final_probs.sum(axis=1, keepdims=True), EPS)
+        prior_pred = final_probs.argmax(axis=1)
+        prior_confidence = final_probs.max(axis=1)
+        prior_entropy = _entropy(final_probs)
+        student_guard_gate = (
+            prior_balance_student_guard
+            & (prior_pred != student_pred)
+            & (student_confidence >= prior_confidence + student_guard_confidence_margin)
+            & (student_entropy <= prior_entropy - student_guard_entropy_margin)
+        )
+        if bool(np.any(student_guard_gate)):
+            final_probs = final_probs.copy()
+            final_probs[student_guard_gate] = student_probs[student_guard_gate]
         eta = np.full(student_confidence.shape, prior_balance_student_mix, dtype=np.float32)
+        eta = np.where(student_guard_gate, 1.0, eta).astype(np.float32)
         override_gate = final_probs.argmax(axis=1) != teacher_pred
     elif fusion_base in {"teacher", "teacher_first", "codats"}:
         student_confidence_advantage = student_confidence - teacher_confidence
@@ -182,6 +282,7 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
         eta = np.where(override_gate, lambda_override * override_score, eta).astype(np.float32)
         eta = np.clip(eta, eta_min, eta_max).astype(np.float32)
         final_probs = (1.0 - eta.reshape(-1, 1)) * teacher_probs + eta.reshape(-1, 1) * student_probs
+        student_guard_gate = np.zeros(student_confidence.shape, dtype=bool)
     else:
         confidence_score = np.clip(confidence_advantage / max(1.0 - confidence_margin, EPS), 0.0, 1.0)
         entropy_score = np.clip(entropy_advantage, 0.0, 1.0)
@@ -196,6 +297,7 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
         eta = np.where(override_gate, lambda_override * override_score, eta).astype(np.float32)
         eta = np.clip(eta, eta_min, eta_max).astype(np.float32)
         final_probs = (1.0 - eta.reshape(-1, 1)) * student_probs + eta.reshape(-1, 1) * teacher_probs
+        student_guard_gate = np.zeros(student_confidence.shape, dtype=bool)
     final_probs = final_probs / np.maximum(final_probs.sum(axis=1, keepdims=True), EPS)
 
     return {
@@ -203,6 +305,7 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
         "fusion_base": fusion_base,
         "eta": eta,
         "override_gate": override_gate.astype(bool, copy=False),
+        "student_guard_gate": student_guard_gate.astype(bool, copy=False),
         "override_score": override_score,
         "same_top1": same_top1.astype(bool, copy=False),
         "student_confidence": student_confidence.astype(np.float32, copy=False),
@@ -221,6 +324,9 @@ def _teacher_safe_fusion(student_probs, teacher_probs, config: dict[str, Any]):
         "prior_balance_strength": prior_balance_strength,
         "prior_balance_student_mix": prior_balance_student_mix,
         "prior_balance_min_prior": prior_balance_min_prior,
+        "prior_balance_student_guard": prior_balance_student_guard,
+        "student_guard_confidence_margin": student_guard_confidence_margin,
+        "student_guard_entropy_margin": student_guard_entropy_margin,
     }
 
 
@@ -317,9 +423,23 @@ def export_ca_ccsr_wjdot_artifacts(
     student_probs = _softmax(target_eval_chunk["logits"], axis=1)
     teacher_probs = _softmax(teacher_chunk["logits"], axis=1)
     fusion = _teacher_safe_fusion(student_probs, teacher_probs, config)
-    final_probabilities = fusion["p_final"]
+    ca_only_probabilities = fusion["p_final"]
+    anchor_fusion = _apply_wjdot_anchor_fusion(
+        ca_only_probabilities,
+        config=config,
+        source_count=source_count,
+        expected_count=int(target_eval_chunk["logits"].shape[0]),
+    )
+    final_probabilities = anchor_fusion["p_final"]
     student_predictions = student_probs.argmax(axis=1).astype(np.int64, copy=False)
     teacher_predictions = teacher_probs.argmax(axis=1).astype(np.int64, copy=False)
+    ca_only_predictions = ca_only_probabilities.argmax(axis=1).astype(np.int64, copy=False)
+    anchor_probabilities = anchor_fusion["anchor_probabilities"]
+    anchor_predictions = (
+        anchor_probabilities.argmax(axis=1).astype(np.int64, copy=False)
+        if anchor_probabilities is not None
+        else student_predictions
+    )
     final_predictions = final_probabilities.argmax(axis=1).astype(np.int64, copy=False)
     labels = target_eval_chunk["labels"].astype(np.int64, copy=False)
 
@@ -333,6 +453,8 @@ def export_ca_ccsr_wjdot_artifacts(
     )
     student_accuracy = float(accuracy_score(labels, student_predictions)) if labels.size else 0.0
     teacher_accuracy = float(accuracy_score(labels, teacher_predictions)) if labels.size else 0.0
+    ca_only_accuracy = float(accuracy_score(labels, ca_only_predictions)) if labels.size else 0.0
+    anchor_accuracy = float(accuracy_score(labels, anchor_predictions)) if labels.size else 0.0
     final_confusion = (
         confusion_matrix(labels, final_predictions, labels=np.arange(num_classes))
         if labels.size
@@ -389,6 +511,7 @@ def export_ca_ccsr_wjdot_artifacts(
                 "teacher_confidence_advantage",
                 "teacher_entropy_advantage",
                 "override_gate",
+                "student_guard_gate",
             ]
         )
         for sample_index in range(labels.shape[0]):
@@ -405,6 +528,7 @@ def export_ca_ccsr_wjdot_artifacts(
                     float(fusion["confidence_advantage"][sample_index]),
                     float(fusion["entropy_advantage"][sample_index]),
                     int(fusion["override_gate"][sample_index]),
+                    int(fusion["student_guard_gate"][sample_index]),
                 ]
             )
 
@@ -462,6 +586,7 @@ def export_ca_ccsr_wjdot_artifacts(
                 "eta",
                 "override_score",
                 "override_gate",
+                "student_guard_gate",
                 "student_correct",
                 "teacher_correct",
                 "final_correct",
@@ -484,6 +609,7 @@ def export_ca_ccsr_wjdot_artifacts(
                     float(fusion["eta"][sample_index]),
                     float(fusion["override_score"][sample_index]),
                     int(fusion["override_gate"][sample_index]),
+                    int(fusion["student_guard_gate"][sample_index]),
                     int(student_predictions[sample_index] == labels[sample_index]),
                     int(teacher_predictions[sample_index] == labels[sample_index]),
                     int(final_predictions[sample_index] == labels[sample_index]),
@@ -502,8 +628,8 @@ def export_ca_ccsr_wjdot_artifacts(
         tables_dir / "per_class_recall_gain_vs_wjdot.csv",
         labels=labels,
         final_predictions=final_predictions,
-        baseline_predictions=student_predictions,
-        baseline_name="student_wjdot",
+        baseline_predictions=anchor_predictions,
+        baseline_name="wjdot_anchor" if anchor_fusion["enabled"] else "student_wjdot",
         num_classes=num_classes,
     )
 
@@ -515,11 +641,24 @@ def export_ca_ccsr_wjdot_artifacts(
         "target_eval_acc": target_accuracy,
         "student_target_eval_acc": student_accuracy,
         "teacher_target_eval_acc": teacher_accuracy,
+        "ca_pre_anchor_target_eval_acc": ca_only_accuracy,
+        "wjdot_anchor_target_eval_acc": anchor_accuracy if anchor_fusion["enabled"] else None,
+        "wjdot_anchor_accuracy_gain": target_accuracy - anchor_accuracy if anchor_fusion["enabled"] else None,
+        "wjdot_anchor_fusion_enabled": int(anchor_fusion["enabled"]),
+        "wjdot_anchor_fusion_ca_weight": float(anchor_fusion["ca_weight"]),
+        "wjdot_anchor_analysis_path": anchor_fusion["path"],
         "accuracy_gain_vs_wjdot": target_accuracy - student_accuracy,
         "accuracy_gain_vs_codats": target_accuracy - teacher_accuracy,
         "teacher_student_disagreement_count": int((student_predictions != teacher_predictions).sum()),
+        "final_vs_wjdot_anchor_disagreement_count": (
+            int((final_predictions != anchor_predictions).sum()) if anchor_fusion["enabled"] else 0
+        ),
+        "ca_pre_anchor_vs_wjdot_anchor_disagreement_count": (
+            int((ca_only_predictions != anchor_predictions).sum()) if anchor_fusion["enabled"] else 0
+        ),
         "final_vs_student_disagreement_count": int((final_predictions != student_predictions).sum()),
         "override_count": int(fusion["override_gate"].sum()),
+        "student_guard_count": int(fusion["student_guard_gate"].sum()),
         "mean_eta": float(fusion["eta"].mean()) if fusion["eta"].size else 0.0,
         "mean_student_entropy": float(fusion["student_entropy"].mean()) if fusion["student_entropy"].size else 0.0,
         "mean_teacher_entropy": float(fusion["teacher_entropy"].mean()) if fusion["teacher_entropy"].size else 0.0,
@@ -531,6 +670,9 @@ def export_ca_ccsr_wjdot_artifacts(
         "fusion_base": fusion["fusion_base"],
         "prior_balance_strength": float(fusion["prior_balance_strength"]),
         "prior_balance_student_mix": float(fusion["prior_balance_student_mix"]),
+        "prior_balance_student_guard": int(fusion["prior_balance_student_guard"]),
+        "student_guard_confidence_margin": float(fusion["student_guard_confidence_margin"]),
+        "student_guard_entropy_margin": float(fusion["student_guard_entropy_margin"]),
     }
     with summary_path.open("w", encoding="utf-8", newline="") as handle:
         fieldnames = list(summary_row)
@@ -574,11 +716,20 @@ def export_ca_ccsr_wjdot_artifacts(
         target_domains=target_eval_chunk["domains"],
         target_logits=np.log(np.maximum(final_probabilities, EPS)).astype(np.float32),
         target_probabilities=final_probabilities.astype(np.float32),
+        target_probabilities_ca_pre_anchor=ca_only_probabilities.astype(np.float32),
+        target_predictions_ca_pre_anchor=ca_only_predictions.astype(np.int64),
         target_predictions_student=student_predictions.astype(np.int64),
         target_predictions_teacher=teacher_predictions.astype(np.int64),
+        target_predictions_wjdot_anchor=anchor_predictions.astype(np.int64),
         target_probabilities_student=student_probs.astype(np.float32),
         target_probabilities_teacher=teacher_probs.astype(np.float32),
+        target_probabilities_wjdot_anchor=(
+            anchor_probabilities.astype(np.float32)
+            if anchor_probabilities is not None
+            else np.empty((0, 0), dtype=np.float32)
+        ),
         teacher_safe_eta=fusion["eta"].astype(np.float32),
+        teacher_safe_student_guard=fusion["student_guard_gate"].astype(np.int8),
         ccsr_alpha=alpha.astype(np.float32),
         ccsr_alpha_entropy=alpha_entropy.astype(np.float32),
     )

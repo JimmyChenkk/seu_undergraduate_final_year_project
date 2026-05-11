@@ -773,7 +773,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-all-methods",
         action="store_true",
+        default=True,
         help="Include every method found under results-dir in summary figures instead of only thesis main methods.",
+    )
+    parser.add_argument(
+        "--main-table-only",
+        action="store_true",
+        help="Only include thesis main-table methods in summary figures.",
     )
     parser.add_argument("--artifact", action="append", default=[], help="Optional artifact .npz path for t-SNE/confusion.")
     parser.add_argument(
@@ -789,7 +795,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    rows = load_result_rows(args.results_dir, include_all_methods=args.include_all_methods)
+    include_all_methods = bool(args.include_all_methods) and not bool(args.main_table_only)
+    rows = load_result_rows(args.results_dir, include_all_methods=include_all_methods)
     if not rows and not args.artifact and not args.compare_domain_artifacts:
         print("No result JSON files found.")
         return
@@ -800,7 +807,7 @@ def main() -> None:
             args.results_dir,
             summary_output_dir,
             figure_format=args.figure_format,
-            include_all_methods=args.include_all_methods,
+            include_all_methods=include_all_methods,
         )
 
     for artifact_item in args.artifact:

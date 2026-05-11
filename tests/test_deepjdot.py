@@ -243,6 +243,171 @@ class DeepJDOTMethodTests(unittest.TestCase):
             with self.subTest(method=method_name):
                 self.assertAlmostEqual(losses[0], losses[1], places=6)
 
+    def test_cbtpu_can_load_tpu_checkpoint_as_frozen_teacher_anchor(self) -> None:
+        torch.manual_seed(123)
+        tpu_method = build_method(
+            _tpu_family_config("tpu_deepjdot"),
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_config = _tpu_family_config("cbtpu_deepjdot")
+        cbtpu_config["loss"].update(
+            {
+                "initialize_student_from_teacher_checkpoint": True,
+                "freeze_loaded_teacher": True,
+            }
+        )
+        cbtpu_method = build_method(
+            cbtpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+
+        metrics = cbtpu_method.load_teacher_checkpoint_state(tpu_method.state_dict())
+
+        self.assertEqual(metrics["teacher_checkpoint_loaded"], 1.0)
+        self.assertGreater(metrics["teacher_checkpoint_loaded_tensors"], 0.0)
+        self.assertEqual(metrics["teacher_checkpoint_initialized_student"], 1.0)
+        self.assertEqual(metrics["teacher_checkpoint_freeze_loaded_teacher"], 1.0)
+        self.assertTrue(cbtpu_method.teacher_checkpoint_loaded)
+        for left, right in zip(tpu_method.encoder.parameters(), cbtpu_method.encoder.parameters()):
+            self.assertTrue(torch.allclose(left, right))
+            break
+        for left, right in zip(tpu_method.classifier.parameters(), cbtpu_method.teacher_classifier.parameters()):
+            self.assertTrue(torch.allclose(left, right))
+            break
+
+    def test_cbtpu_teacher_safe_prediction_fusion_uses_confidence_gate(self) -> None:
+        torch.manual_seed(321)
+        tpu_config = _tpu_family_config("tpu_deepjdot")
+        tpu_config["backbone"]["classifier_hidden_dim"] = 0
+        tpu_method = build_method(
+            tpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_config = _tpu_family_config("cbtpu_deepjdot")
+        cbtpu_config["backbone"]["classifier_hidden_dim"] = 0
+        cbtpu_config["loss"].update(
+            {
+                "prediction_fusion_mode": "teacher_safe_confidence",
+                "prediction_fusion_confidence_margin": 0.10,
+            }
+        )
+        cbtpu_method = build_method(
+            cbtpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_method.load_teacher_checkpoint_state(tpu_method.state_dict())
+
+        with torch.no_grad():
+            for parameter in cbtpu_method.teacher_classifier.parameters():
+                parameter.zero_()
+            for parameter in cbtpu_method.classifier.parameters():
+                parameter.zero_()
+            cbtpu_method.teacher_classifier.main.bias[1] = 3.0
+            cbtpu_method.classifier.main.bias[2] = 5.0
+
+        x_batch = torch.randn(3, 4, 32)
+        predictions = cbtpu_method.predict_logits(x_batch).argmax(dim=1)
+
+        self.assertTrue(torch.equal(predictions, torch.full_like(predictions, 2)))
+
+    def test_cbtpu_teacher_student_mix_is_configurable(self) -> None:
+        torch.manual_seed(322)
+        tpu_config = _tpu_family_config("tpu_deepjdot")
+        tpu_config["backbone"]["classifier_hidden_dim"] = 0
+        tpu_method = build_method(
+            tpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_config = _tpu_family_config("cbtpu_deepjdot")
+        cbtpu_config["backbone"]["classifier_hidden_dim"] = 0
+        cbtpu_config["loss"].update(
+            {
+                "prediction_fusion_mode": "teacher_student_mix",
+                "prediction_fusion_student_weight": 0.75,
+            }
+        )
+        cbtpu_method = build_method(
+            cbtpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_method.load_teacher_checkpoint_state(tpu_method.state_dict())
+
+        with torch.no_grad():
+            for parameter in cbtpu_method.teacher_classifier.parameters():
+                parameter.zero_()
+            for parameter in cbtpu_method.classifier.parameters():
+                parameter.zero_()
+            cbtpu_method.teacher_classifier.main.bias[1] = 3.0
+            cbtpu_method.classifier.main.bias[2] = 5.0
+
+        x_batch = torch.randn(3, 4, 32)
+        predictions = cbtpu_method.predict_logits(x_batch).argmax(dim=1)
+
+        self.assertTrue(torch.equal(predictions, torch.full_like(predictions, 2)))
+
+    def test_cbtpu_confidence_diff_band_can_select_student(self) -> None:
+        torch.manual_seed(323)
+        tpu_config = _tpu_family_config("tpu_deepjdot")
+        tpu_config["backbone"]["classifier_hidden_dim"] = 0
+        tpu_method = build_method(
+            tpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_config = _tpu_family_config("cbtpu_deepjdot")
+        cbtpu_config["backbone"]["classifier_hidden_dim"] = 0
+        cbtpu_config["loss"].update(
+            {
+                "prediction_fusion_mode": "teacher_student_confidence_diff_band",
+                "prediction_fusion_confidence_diff_min": -0.05,
+                "prediction_fusion_confidence_diff_max": 0.05,
+            }
+        )
+        cbtpu_method = build_method(
+            cbtpu_config,
+            num_classes=5,
+            in_channels=4,
+            input_length=32,
+            num_sources=1,
+        )
+        cbtpu_method.load_teacher_checkpoint_state(tpu_method.state_dict())
+
+        with torch.no_grad():
+            for parameter in cbtpu_method.teacher_classifier.parameters():
+                parameter.zero_()
+            for parameter in cbtpu_method.classifier.parameters():
+                parameter.zero_()
+            cbtpu_method.teacher_classifier.main.bias[1] = 5.0
+            cbtpu_method.classifier.main.bias[2] = 5.0
+
+        x_batch = torch.randn(3, 4, 32)
+        predictions = cbtpu_method.predict_logits(x_batch).argmax(dim=1)
+        self.assertTrue(torch.equal(predictions, torch.full_like(predictions, 2)))
+
+        cbtpu_method.prediction_fusion_confidence_diff_max = -0.01
+        predictions = cbtpu_method.predict_logits(x_batch).argmax(dim=1)
+        self.assertTrue(torch.equal(predictions, torch.full_like(predictions, 1)))
+
     def test_cbtp_class_weights_preserve_amp_dtype(self) -> None:
         labels = torch.tensor([0, 0, 2, 4], dtype=torch.long)
         mask = torch.tensor([True, True, False, True])

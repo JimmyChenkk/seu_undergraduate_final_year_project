@@ -1,0 +1,52 @@
+method_name: ccsr_wjdot_fusion
+method_display_name: ca_ccsr_wjdot_prior20
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 0
+  batch_size: 32
+  learning_rate: 0.0
+  weight_decay: 0.0
+  max_grad_norm: 0.0
+
+runtime_defaults:
+  target_eval_during_training: false
+
+loss:
+  name: ccsr_wjdot_fusion_prior20
+  prediction_mode: ccsr_calibrated_override
+  source_meta_calibration: true
+  lambda_safe: 0.35
+  rho_min: 0.0
+  rho_max: 0.60
+  rho_mode: full
+  rho_a1: 1.0
+  rho_a2: 1.0
+  rho_a3: 0.5
+  rho_a4: 1.0
+  rho_bias: 2.0
+  T_class: 0.45
+  top_m_per_class: 3
+  floor: 0.02
+  tau_proto: 0.84
+  min_proto_samples: 3
+  w_proto: 0.34
+  w_ot: 0.36
+  w_entropy: 0.18
+  w_source_error: 0.12
+  lambda_same: 0.05
+  lambda_override: 0.35
+  override_threshold: 0.55
+  override_on_source_agreement: true
+  override_agreement_threshold: 0.60
+  override_entropy_threshold: 0.99
+  override_alpha_concentration_min: 0.0
+  override_strength: 1.0
+
+notes:
+  - Post-hoc WJDOT-safety CCSR export. It uses the existing WJDOT checkpoint and target-label-free source/meta reliability diagnostics.
+  - The display name intentionally matches ca_ccsr_wjdot_prior20 so it can be compared in the same mainline column during rescue probes.

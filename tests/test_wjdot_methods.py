@@ -8,7 +8,11 @@ from tempfile import TemporaryDirectory
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.evaluation.ca_ccsr_wjdot import _teacher_safe_fusion, export_ca_ccsr_wjdot_artifacts
+from src.evaluation.ca_ccsr_wjdot import (
+    _apply_wjdot_anchor_fusion,
+    _teacher_safe_fusion,
+    export_ca_ccsr_wjdot_artifacts,
+)
 from src.methods import build_method
 from src.trainers.train_benchmark import _export_reliability_tables
 from src.tep_ot.ot_losses import OTLossConfig, jdot_transport_loss
@@ -357,6 +361,89 @@ class WJDOTMethodTests(unittest.TestCase):
         self.assertEqual(fusion["prior_balance_student_mix"], 0.5)
         self.assertEqual(fusion["prior_balance_strength"], 1.0)
         self.assertEqual(fusion["p_final"].argmax(axis=1).tolist()[-1], 0)
+
+    def test_ca_ccsr_prior_balanced_fusion_can_guard_strong_student_predictions(self) -> None:
+        import numpy as np
+
+        student_probs = np.asarray(
+            [
+                [0.20, 0.80],
+                [0.20, 0.80],
+                [0.45, 0.55],
+            ],
+            dtype=np.float32,
+        )
+        teacher_probs = np.asarray(
+            [
+                [0.10, 0.90],
+                [0.10, 0.90],
+                [0.10, 0.90],
+            ],
+            dtype=np.float32,
+        )
+
+        unguarded = _teacher_safe_fusion(
+            student_probs,
+            teacher_probs,
+            {
+                "fusion_base": "prior_balanced",
+                "prior_balance_student_mix": 0.5,
+                "prior_balance_strength": 1.3,
+            },
+        )
+        guarded = _teacher_safe_fusion(
+            student_probs,
+            teacher_probs,
+            {
+                "fusion_base": "prior_balanced",
+                "prior_balance_student_mix": 0.5,
+                "prior_balance_strength": 1.3,
+                "prior_balance_student_guard": True,
+            },
+        )
+
+        self.assertEqual(unguarded["p_final"].argmax(axis=1).tolist(), [0, 0, 0])
+        self.assertEqual(guarded["p_final"].argmax(axis=1).tolist(), [1, 1, 0])
+        self.assertEqual(guarded["student_guard_gate"].astype(int).tolist(), [1, 1, 0])
+
+    def test_ca_ccsr_can_blend_with_wjdot_anchor_without_labels(self) -> None:
+        import numpy as np
+
+        ca_probs = np.asarray(
+            [
+                [0.20, 0.80],
+                [0.70, 0.30],
+            ],
+            dtype=np.float32,
+        )
+        anchor_probs = np.asarray(
+            [
+                [0.60, 0.40],
+                [0.10, 0.90],
+            ],
+            dtype=np.float32,
+        )
+        with TemporaryDirectory() as temp_dir:
+            anchor_path = Path(temp_dir) / "wjdot_anchor.npz"
+            np.savez_compressed(anchor_path, target_probabilities=anchor_probs)
+
+            fusion = _apply_wjdot_anchor_fusion(
+                ca_probs,
+                config={
+                    "wjdot_anchor_fusion": {
+                        "enabled": True,
+                        "analysis_path": str(anchor_path),
+                        "ca_weight_by_source_count": {"2": 0.25},
+                    }
+                },
+                source_count=2,
+                expected_count=2,
+            )
+
+        expected = 0.75 * anchor_probs + 0.25 * ca_probs
+        np.testing.assert_allclose(fusion["p_final"], expected, rtol=1e-6, atol=1e-6)
+        self.assertTrue(fusion["enabled"])
+        self.assertAlmostEqual(fusion["ca_weight"], 0.25)
 
     def test_target_label_assist_uses_visible_target_labels(self) -> None:
         losses = []

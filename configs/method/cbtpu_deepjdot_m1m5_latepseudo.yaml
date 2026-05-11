@@ -1,0 +1,17 @@
+method_name: cbtpu_deepjdot
+method_display_name: cbtpu_deepjdot_m1m5_latepseudo
+
+backbone:
+  name: fcn
+  classifier_hidden_dim: 128
+  dropout: 0.1
+
+optimization:
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.00004
+  weight_decay: 0.0
+  max_grad_norm: 5.0
+
+loss:
+  name: cbtpu_deepjdot

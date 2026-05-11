@@ -48,6 +48,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional directory to save comparison JSON/Markdown files.",
     )
+    parser.add_argument(
+        "--main-table-only",
+        action="store_true",
+        help="Only include thesis main-table methods. By default every completed method is summarized.",
+    )
     return parser.parse_args()
 
 
@@ -63,7 +68,7 @@ def _load_run_review(result_payload: dict[str, Any], result_path: Path) -> dict[
     return load_review(review_path)
 
 
-def build_rows(results_dir: Path) -> list[dict[str, Any]]:
+def build_rows(results_dir: Path, *, main_table_only: bool = False) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for path in find_result_json_paths(results_dir):
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -77,7 +82,7 @@ def build_rows(results_dir: Path) -> list[dict[str, Any]]:
         review_payload = _load_run_review(payload, path)
         figure_paths = payload.get("figure_paths", {})
         method_name = _display_method_name(payload.get("method_name"))
-        if not _is_main_table_method(method_name):
+        if main_table_only and not _is_main_table_method(method_name):
             continue
         rows.append(
             {
@@ -296,8 +301,13 @@ def _save_summary(summary_dir: Path, rows: list[dict[str, Any]], markdown_table:
             writer.writerow({key: row.get(key) for key in fieldnames})
 
 
-def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None) -> Path | None:
-    rows = sort_comparison_rows(annotate_rows_with_baseline(build_rows(results_dir)))
+def export_comparison_summary(
+    results_dir: Path,
+    summary_dir: Path | None = None,
+    *,
+    main_table_only: bool = False,
+) -> Path | None:
+    rows = sort_comparison_rows(annotate_rows_with_baseline(build_rows(results_dir, main_table_only=main_table_only)))
     if not rows:
         return None
     resolved_summary_dir = _resolve_summary_dir(results_dir, summary_dir)
@@ -309,7 +319,9 @@ def export_comparison_summary(results_dir: Path, summary_dir: Path | None = None
 
 def main() -> None:
     args = parse_args()
-    rows = sort_comparison_rows(annotate_rows_with_baseline(build_rows(args.results_dir)))
+    rows = sort_comparison_rows(
+        annotate_rows_with_baseline(build_rows(args.results_dir, main_table_only=args.main_table_only))
+    )
 
     if not rows:
         print("No result JSON files found.")
@@ -318,7 +330,11 @@ def main() -> None:
     markdown_table = render_markdown_table(rows)
     print(markdown_table)
 
-    summary_dir = export_comparison_summary(args.results_dir, args.summary_dir)
+    summary_dir = export_comparison_summary(
+        args.results_dir,
+        args.summary_dir,
+        main_table_only=args.main_table_only,
+    )
     if summary_dir is not None:
         print(f"\nSaved comparison summary to {summary_dir}")
 

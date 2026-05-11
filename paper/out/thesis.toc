@@ -35,52 +35,53 @@
 \contentsline {section}{\numberline {3.4}本章小结}{23}{section.3.4}%
 \contentsline {chapter}{\numberline {第四章\hspace {.3em}}基于多证据置信均衡伪标签的单源领域自适应故障诊断方法}{24}{chapter.4}%
 \contentsline {section}{\numberline {4.1}引言}{24}{section.4.1}%
-\contentsline {section}{\numberline {4.2}多证据置信均衡伪标签学习基本原理}{25}{section.4.2}%
-\contentsline {subsection}{\numberline {4.2.1}目标域伪标签学习原理}{25}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}教师模型一致性学习原理}{25}{subsection.4.2.2}%
+\contentsline {section}{\numberline {4.2}多证据置信均衡伪标签学习基本原理}{24}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}目标域伪标签学习原理}{24}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}教师锚点与一致性学习原理}{25}{subsection.4.2.2}%
 \contentsline {subsection}{\numberline {4.2.3}类别均衡约束原理}{26}{subsection.4.2.3}%
 \contentsline {section}{\numberline {4.3}基于多证据置信均衡伪标签的目标域样本利用策略}{26}{section.4.3}%
 \contentsline {subsection}{\numberline {4.3.1}传输语义分布估计}{26}{subsection.4.3.1}%
 \contentsline {subsection}{\numberline {4.3.2}教师预测语义分布估计}{27}{subsection.4.3.2}%
 \contentsline {subsection}{\numberline {4.3.3}源域原型语义分布估计}{27}{subsection.4.3.3}%
-\contentsline {subsection}{\numberline {4.3.4}多证据一致性筛选机制}{27}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.4}多证据一致性筛选机制}{28}{subsection.4.3.4}%
 \contentsline {subsection}{\numberline {4.3.5}动态置信阈值与类别均衡机制}{28}{subsection.4.3.5}%
-\contentsline {subsection}{\numberline {4.3.6}强弱增强一致性约束}{28}{subsection.4.3.6}%
-\contentsline {subsection}{\numberline {4.3.7}总体目标函数与算法流程}{29}{subsection.4.3.7}%
-\contentsline {section}{\numberline {4.4}本章小结}{29}{section.4.4}%
-\contentsline {chapter}{\numberline {第五章\hspace {.3em}}基于类条件源域可靠性加权的多源领域自适应故障诊断方法}{31}{chapter.5}%
-\contentsline {section}{\numberline {5.1}引言}{31}{section.5.1}%
-\contentsline {section}{\numberline {5.2}类条件源域可靠性加权基本原理}{32}{section.5.2}%
-\contentsline {subsection}{\numberline {5.2.1}多源迁移与负迁移问题}{32}{subsection.5.2.1}%
-\contentsline {subsection}{\numberline {5.2.2}源域可靠性度量原理}{32}{subsection.5.2.2}%
-\contentsline {subsection}{\numberline {5.2.3}类条件源域权重分配原理}{33}{subsection.5.2.3}%
-\contentsline {section}{\numberline {5.3}基于类条件源域可靠性加权的多源对齐策略}{33}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}多源跨工况诊断问题建模}{33}{subsection.5.3.1}%
-\contentsline {subsection}{\numberline {5.3.2}逐源联合分布最优传输对齐}{33}{subsection.5.3.2}%
-\contentsline {subsection}{\numberline {5.3.3}类条件源域可靠性矩阵构建}{34}{subsection.5.3.3}%
-\contentsline {subsection}{\numberline {5.3.4}领域对抗特征约束与教师先验约束}{35}{subsection.5.3.4}%
-\contentsline {subsection}{\numberline {5.3.5}教师先验保护的诊断结果融合}{36}{subsection.5.3.5}%
-\contentsline {subsection}{\numberline {5.3.6}总体目标函数与算法流程}{36}{subsection.5.3.6}%
-\contentsline {section}{\numberline {5.4}本章小结}{37}{section.5.4}%
-\contentsline {chapter}{\numberline {第六章\hspace {.3em}}实验设计与结果分析}{38}{chapter.6}%
-\contentsline {section}{\numberline {6.1}引言}{38}{section.6.1}%
-\contentsline {section}{\numberline {6.2}数据集与实验场景}{38}{section.6.2}%
-\contentsline {section}{\numberline {6.3}所提方法有效性验证}{43}{section.6.3}%
-\contentsline {subsection}{\numberline {6.3.1}时序原型非平衡联合分布对齐有效性}{43}{subsection.6.3.1}%
-\contentsline {subsection}{\numberline {6.3.2}多证据置信均衡伪标签有效性}{44}{subsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.3.3}类条件源域可靠性加权有效性}{44}{subsection.6.3.3}%
-\contentsline {section}{\numberline {6.4}方法间综合对比与可视化分析}{45}{section.6.4}%
-\contentsline {subsection}{\numberline {6.4.1}诊断准确率汇总热力图分析}{45}{subsection.6.4.1}%
-\contentsline {subsection}{\numberline {6.4.2}故障类别混淆矩阵集中分析}{49}{subsection.6.4.2}%
-\contentsline {subsection}{\numberline {6.4.3}域融合t-SNE可视化分析}{49}{subsection.6.4.3}%
+\contentsline {subsection}{\numberline {4.3.6}强弱增强一致性约束}{29}{subsection.4.3.6}%
+\contentsline {subsection}{\numberline {4.3.7}教师--学生预测融合策略}{29}{subsection.4.3.7}%
+\contentsline {subsection}{\numberline {4.3.8}总体目标函数与算法流程}{30}{subsection.4.3.8}%
+\contentsline {section}{\numberline {4.4}本章小结}{31}{section.4.4}%
+\contentsline {chapter}{\numberline {第五章\hspace {.3em}}基于类条件源域可靠性加权的多源领域自适应故障诊断方法}{32}{chapter.5}%
+\contentsline {section}{\numberline {5.1}引言}{32}{section.5.1}%
+\contentsline {section}{\numberline {5.2}类条件源域可靠性加权基本原理}{33}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}多源迁移与负迁移问题}{33}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}源域可靠性度量原理}{33}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}类条件源域权重分配原理}{34}{subsection.5.2.3}%
+\contentsline {section}{\numberline {5.3}基于类条件源域可靠性加权的多源对齐策略}{34}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}多源跨工况诊断问题建模}{34}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}逐源联合分布最优传输对齐}{34}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}类条件源域可靠性矩阵构建}{35}{subsection.5.3.3}%
+\contentsline {subsection}{\numberline {5.3.4}领域对抗特征约束与教师先验约束}{36}{subsection.5.3.4}%
+\contentsline {subsection}{\numberline {5.3.5}教师先验保护的诊断结果融合}{37}{subsection.5.3.5}%
+\contentsline {subsection}{\numberline {5.3.6}总体目标函数与算法流程}{37}{subsection.5.3.6}%
+\contentsline {section}{\numberline {5.4}本章小结}{38}{section.5.4}%
+\contentsline {chapter}{\numberline {第六章\hspace {.3em}}实验设计与结果分析}{39}{chapter.6}%
+\contentsline {section}{\numberline {6.1}引言}{39}{section.6.1}%
+\contentsline {section}{\numberline {6.2}数据集与实验场景}{39}{section.6.2}%
+\contentsline {section}{\numberline {6.3}所提方法有效性验证}{44}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}时序原型非平衡联合分布对齐有效性}{44}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}多证据置信均衡伪标签有效性}{45}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}类条件源域可靠性加权有效性}{46}{subsection.6.3.3}%
+\contentsline {section}{\numberline {6.4}方法间综合对比与可视化分析}{47}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}诊断准确率汇总热力图分析}{47}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}故障类别混淆矩阵集中分析}{50}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}域融合t-SNE可视化分析}{53}{subsection.6.4.3}%
 \contentsline {subsection}{\numberline {6.4.4}主线目标达成分析}{54}{subsection.6.4.4}%
-\contentsline {section}{\numberline {6.5}本章小结}{54}{section.6.5}%
-\contentsline {chapter}{\numberline {第七章\hspace {.3em}}总结与展望}{56}{chapter.7}%
-\contentsline {section}{\numberline {7.1}工作总结}{56}{section.7.1}%
-\contentsline {subsection}{\numberline {7.1.1}本文主要研究内容}{57}{subsection.7.1.1}%
-\contentsline {subsection}{\numberline {7.1.2}本文主要创新点}{57}{subsection.7.1.2}%
-\contentsline {subsection}{\numberline {7.1.3}存在不足}{58}{subsection.7.1.3}%
-\contentsline {section}{\numberline {7.2}未来展望}{59}{section.7.2}%
-\contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{61}{appendix.A}%
-\contentsline {chapter}{参考文献}{67}{appendix*.30}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{70}{appendix*.31}%
+\contentsline {section}{\numberline {6.5}本章小结}{55}{section.6.5}%
+\contentsline {chapter}{\numberline {第七章\hspace {.3em}}总结与展望}{57}{chapter.7}%
+\contentsline {section}{\numberline {7.1}工作总结}{57}{section.7.1}%
+\contentsline {subsection}{\numberline {7.1.1}本文主要研究内容}{58}{subsection.7.1.1}%
+\contentsline {subsection}{\numberline {7.1.2}本文主要创新点}{58}{subsection.7.1.2}%
+\contentsline {subsection}{\numberline {7.1.3}存在不足}{59}{subsection.7.1.3}%
+\contentsline {section}{\numberline {7.2}未来展望}{60}{section.7.2}%
+\contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{62}{appendix.A}%
+\contentsline {chapter}{参考文献}{68}{appendix*.32}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{71}{appendix*.33}%

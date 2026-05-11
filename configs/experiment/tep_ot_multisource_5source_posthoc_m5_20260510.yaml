@@ -1,0 +1,59 @@
+experiment_name: tep_ot_multisource_5source_posthoc_m5_20260510
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: false
+  save_analysis: true
+  save_figures: true
+  figure_format: pdf
+  deterministic: true
+  deterministic_warn_only: true
+  disable_cudnn: false
+  cudnn_benchmark: false
+  allow_tf32: false
+  matmul_precision: highest
+  amp: false
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  refresh_batch_outputs: true
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode2
+    - mode3
+    - mode4
+    - mode6
+  target_domain: mode5
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fold 0 in legacy CLI terms is represented here as Fold 1."

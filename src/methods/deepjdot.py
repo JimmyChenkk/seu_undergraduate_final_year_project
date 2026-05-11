@@ -1260,6 +1260,15 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
         infomax_start_ratio: float = 0.70,
         infomax_start_step: int | None = None,
         infomax_warmup_steps: int = 500,
+        initialize_student_from_teacher_checkpoint: bool = False,
+        freeze_loaded_teacher: bool = False,
+        prediction_fusion_mode: str = "student",
+        prediction_fusion_confidence_margin: float = 0.0,
+        prediction_fusion_student_min_confidence: float = 0.0,
+        prediction_fusion_student_weight: float = 0.10,
+        prediction_fusion_confidence_diff_min: float = -1.0,
+        prediction_fusion_confidence_diff_max: float = 1.0,
+        prediction_fusion_requires_loaded_teacher: bool = True,
         augment_kwargs: dict[str, Any] | None = None,
         dropout: float = 0.1,
         **kwargs: Any,
@@ -1289,6 +1298,22 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
         default_infomax_start = int(round(float(infomax_start_ratio) * float(max(self.alignment_scheduler.max_steps, 1))))
         self.infomax_start_step = default_infomax_start if infomax_start_step is None else max(int(infomax_start_step), 0)
         self.infomax_warmup_steps = max(int(infomax_warmup_steps), 1)
+        self.initialize_student_from_teacher_checkpoint = bool(initialize_student_from_teacher_checkpoint)
+        self.freeze_loaded_teacher = bool(freeze_loaded_teacher)
+        self.prediction_fusion_mode = str(prediction_fusion_mode).strip().lower()
+        self.prediction_fusion_confidence_margin = float(prediction_fusion_confidence_margin)
+        self.prediction_fusion_student_min_confidence = min(
+            max(float(prediction_fusion_student_min_confidence), 0.0),
+            1.0,
+        )
+        self.prediction_fusion_student_weight = min(max(float(prediction_fusion_student_weight), 0.0), 1.0)
+        self.prediction_fusion_confidence_diff_min = max(float(prediction_fusion_confidence_diff_min), -1.0)
+        self.prediction_fusion_confidence_diff_max = min(float(prediction_fusion_confidence_diff_max), 1.0)
+        if self.prediction_fusion_confidence_diff_min > self.prediction_fusion_confidence_diff_max:
+            raise ValueError("prediction_fusion_confidence_diff_min cannot exceed max")
+        self.prediction_fusion_requires_loaded_teacher = bool(prediction_fusion_requires_loaded_teacher)
+        self.teacher_checkpoint_loaded = False
+        self.teacher_checkpoint_loaded_tensors = 0
         self.augmenter = _DeepJDOTTemporalAugmenter(**(augment_kwargs or {}))
         self.teacher_encoder = deepcopy(self.encoder)
         self.teacher_classifier = deepcopy(self.classifier)
@@ -1307,6 +1332,50 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
             for parameter in module.parameters():
                 parameter.requires_grad_(requires_grad)
 
+    def load_teacher_checkpoint_state(self, state_dict: dict[str, torch.Tensor]) -> dict[str, float]:
+        """Load a first-stage TPU checkpoint as the CBTPU teacher anchor.
+
+        The checkpoint is target-label-free provenance from the preceding TPU run.
+        When configured, the student is initialized from the same checkpoint and
+        then refined by the CBTPU objective.
+        """
+
+        def _extract_module_state(prefix: str) -> dict[str, torch.Tensor]:
+            module_state: dict[str, torch.Tensor] = {}
+            module_prefixes = (f"{prefix}.", f"module.{prefix}.")
+            for key, value in state_dict.items():
+                if key.startswith(module_prefixes[0]):
+                    module_state[key[len(module_prefixes[0]) :]] = value
+                elif key.startswith(module_prefixes[1]):
+                    module_state[key[len(module_prefixes[1]) :]] = value
+            return module_state
+
+        encoder_state = _extract_module_state("encoder")
+        classifier_state = _extract_module_state("classifier")
+        if not encoder_state or not classifier_state:
+            return {
+                "teacher_checkpoint_loaded": 0.0,
+                "teacher_checkpoint_loaded_tensors": 0.0,
+                "teacher_checkpoint_initialized_student": 0.0,
+                "teacher_checkpoint_freeze_loaded_teacher": float(self.freeze_loaded_teacher),
+            }
+
+        self.teacher_encoder.load_state_dict(encoder_state, strict=False)
+        self.teacher_classifier.load_state_dict(classifier_state, strict=False)
+        if self.initialize_student_from_teacher_checkpoint:
+            self.encoder.load_state_dict(encoder_state, strict=False)
+            self.classifier.load_state_dict(classifier_state, strict=False)
+        self.teacher_encoder.eval()
+        self.teacher_classifier.eval()
+        self.teacher_checkpoint_loaded = True
+        self.teacher_checkpoint_loaded_tensors = len(encoder_state) + len(classifier_state)
+        return {
+            "teacher_checkpoint_loaded": 1.0,
+            "teacher_checkpoint_loaded_tensors": float(self.teacher_checkpoint_loaded_tensors),
+            "teacher_checkpoint_initialized_student": float(self.initialize_student_from_teacher_checkpoint),
+            "teacher_checkpoint_freeze_loaded_teacher": float(self.freeze_loaded_teacher),
+        }
+
     def _teacher_forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             features = self.teacher_encoder(x)
@@ -1315,6 +1384,64 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
 
     def _teacher_probabilities(self, logits: torch.Tensor) -> torch.Tensor:
         return torch.softmax(logits.float() / self.teacher_temperature, dim=1)
+
+    def predict_logits(self, x: torch.Tensor) -> torch.Tensor:
+        student_logits, _ = self.forward(x)
+        mode = self.prediction_fusion_mode
+        if mode in {"", "none", "student"}:
+            return student_logits
+        if self.prediction_fusion_requires_loaded_teacher and not self.teacher_checkpoint_loaded:
+            return student_logits
+
+        teacher_logits, _ = self._teacher_forward(x)
+        teacher_probabilities = self._teacher_probabilities(teacher_logits).to(device=student_logits.device)
+        if mode in {"teacher", "teacher_anchor", "frozen_teacher"}:
+            return teacher_probabilities.clamp_min(EPS).log().to(dtype=student_logits.dtype)
+        student_probabilities = torch.softmax(student_logits.float(), dim=1)
+        if mode in {"teacher_student_mix", "probability_mix", "teacher_student_probability_mix"}:
+            student_weight = self.prediction_fusion_student_weight
+            fused_probabilities = (1.0 - student_weight) * teacher_probabilities + student_weight * student_probabilities
+            return fused_probabilities.clamp_min(EPS).log().to(dtype=student_logits.dtype)
+
+        student_confidence = student_probabilities.max(dim=1).values
+        teacher_confidence = teacher_probabilities.max(dim=1).values
+        if mode in {
+            "teacher_student_confidence_band",
+            "confidence_diff_band",
+            "teacher_student_confidence_diff_band",
+        }:
+            confidence_diff = student_confidence - teacher_confidence
+            choose_student = (
+                confidence_diff >= self.prediction_fusion_confidence_diff_min
+            ) & (
+                confidence_diff <= self.prediction_fusion_confidence_diff_max
+            )
+            if self.prediction_fusion_student_min_confidence > 0:
+                choose_student = choose_student & (
+                    student_confidence >= self.prediction_fusion_student_min_confidence
+                )
+            fused_probabilities = torch.where(
+                choose_student.view(-1, 1),
+                student_probabilities,
+                teacher_probabilities,
+            )
+            return fused_probabilities.clamp_min(EPS).log().to(dtype=student_logits.dtype)
+        if mode not in {"teacher_safe_confidence", "confidence_gate", "teacher_confidence_gate"}:
+            raise ValueError(f"Unsupported CBTPU prediction_fusion_mode: {self.prediction_fusion_mode}")
+
+        choose_student = student_confidence >= (
+            teacher_confidence + self.prediction_fusion_confidence_margin
+        )
+        if self.prediction_fusion_student_min_confidence > 0:
+            choose_student = choose_student & (
+                student_confidence >= self.prediction_fusion_student_min_confidence
+            )
+        fused_probabilities = torch.where(
+            choose_student.view(-1, 1),
+            student_probabilities,
+            teacher_probabilities,
+        )
+        return fused_probabilities.clamp_min(EPS).log().to(dtype=student_logits.dtype)
 
     def current_tau(self) -> float:
         pseudo_step = max(self.global_step - self.pseudo_start_step, 0)
@@ -1400,9 +1527,13 @@ class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
             teacher_buffer.copy_(student_buffer)
 
     def after_optimizer_step(self) -> dict[str, float]:
-        self._ema_update_teacher()
+        if not (self.teacher_checkpoint_loaded and self.freeze_loaded_teacher):
+            self._ema_update_teacher()
         return {
             "teacher_ema_decay": float(self.teacher_ema_decay),
+            "teacher_checkpoint_loaded": float(self.teacher_checkpoint_loaded),
+            "teacher_checkpoint_loaded_tensors": float(self.teacher_checkpoint_loaded_tensors),
+            "teacher_checkpoint_freeze_loaded_teacher": float(self.freeze_loaded_teacher),
             "source_prototype_active_classes": float(self.source_prototype_active.float().sum().item()),
         }
 

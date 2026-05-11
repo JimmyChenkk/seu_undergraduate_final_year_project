@@ -299,6 +299,29 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                         None if loss.get("infomax_start_step") is None else int(loss.get("infomax_start_step"))
                     ),
                     "infomax_warmup_steps": int(loss.get("infomax_warmup_steps", 500)),
+                    "initialize_student_from_teacher_checkpoint": bool(
+                        loss.get("initialize_student_from_teacher_checkpoint", False)
+                    ),
+                    "freeze_loaded_teacher": bool(loss.get("freeze_loaded_teacher", False)),
+                    "prediction_fusion_mode": str(loss.get("prediction_fusion_mode", "student")),
+                    "prediction_fusion_confidence_margin": float(
+                        loss.get("prediction_fusion_confidence_margin", 0.0)
+                    ),
+                    "prediction_fusion_student_min_confidence": float(
+                        loss.get("prediction_fusion_student_min_confidence", 0.0)
+                    ),
+                    "prediction_fusion_student_weight": float(
+                        loss.get("prediction_fusion_student_weight", 0.10)
+                    ),
+                    "prediction_fusion_confidence_diff_min": float(
+                        loss.get("prediction_fusion_confidence_diff_min", -1.0)
+                    ),
+                    "prediction_fusion_confidence_diff_max": float(
+                        loss.get("prediction_fusion_confidence_diff_max", 1.0)
+                    ),
+                    "prediction_fusion_requires_loaded_teacher": bool(
+                        loss.get("prediction_fusion_requires_loaded_teacher", True)
+                    ),
                     "augment_kwargs": {
                         "weak_jitter_std": float(augment_loss.get("weak_jitter_std", 0.006)),
                         "weak_scaling_std": float(augment_loss.get("weak_scaling_std", 0.006)),

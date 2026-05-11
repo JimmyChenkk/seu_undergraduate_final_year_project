@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 from collections import defaultdict
+from contextlib import contextmanager
 from copy import deepcopy
 import importlib.util
 import json
@@ -781,6 +782,60 @@ def _evaluate_domain_accuracies(
     return per_domain, mean_accuracy
 
 
+_PREDICTION_FUSION_CONFIG = {
+    "mode": ("prediction_fusion_mode", str),
+    "confidence_margin": ("prediction_fusion_confidence_margin", float),
+    "student_min_confidence": ("prediction_fusion_student_min_confidence", float),
+    "student_weight": ("prediction_fusion_student_weight", float),
+    "confidence_diff_min": ("prediction_fusion_confidence_diff_min", float),
+    "confidence_diff_max": ("prediction_fusion_confidence_diff_max", float),
+}
+
+
+def _prediction_fusion_overrides(method_config: dict[str, Any], *, prefix: str) -> dict[str, Any]:
+    """Return temporary prediction-fusion overrides for a train-time stage."""
+
+    loss_config = method_config.get("loss", {})
+    if not isinstance(loss_config, dict):
+        return {}
+    overrides: dict[str, Any] = {}
+    for config_suffix, (attribute_name, caster) in _PREDICTION_FUSION_CONFIG.items():
+        config_key = f"{prefix}_prediction_fusion_{config_suffix}"
+        if config_key in loss_config:
+            overrides[attribute_name] = caster(loss_config[config_key])
+    if (
+        "prediction_fusion_confidence_diff_min" in overrides
+        and "prediction_fusion_confidence_diff_max" in overrides
+        and float(overrides["prediction_fusion_confidence_diff_min"])
+        > float(overrides["prediction_fusion_confidence_diff_max"])
+    ):
+        raise ValueError(
+            f"{prefix}_prediction_fusion_confidence_diff_min cannot exceed "
+            f"{prefix}_prediction_fusion_confidence_diff_max"
+        )
+    return overrides
+
+
+@contextmanager
+def _temporary_prediction_fusion(model, overrides: dict[str, Any]):
+    """Temporarily swap target-logit fusion without touching training dynamics."""
+
+    if not overrides:
+        yield
+        return
+    original_values: dict[str, Any] = {}
+    for attribute_name, value in overrides.items():
+        if not hasattr(model, attribute_name):
+            continue
+        original_values[attribute_name] = getattr(model, attribute_name)
+        setattr(model, attribute_name, value)
+    try:
+        yield
+    finally:
+        for attribute_name, value in original_values.items():
+            setattr(model, attribute_name, value)
+
+
 def _collect_loader_outputs(
     model,
     loader,
@@ -804,7 +859,8 @@ def _collect_loader_outputs(
     with torch.inference_mode():
         for batch_index, (x_batch, y_batch) in enumerate(loader):
             x_batch = x_batch.to(device, non_blocking=non_blocking)
-            logits, features = model(x_batch)
+            logits = model.predict_logits(x_batch)
+            features = model.extract_features(x_batch)
             embeddings.append(features.detach().cpu().numpy())
             logits_list.append(logits.detach().cpu().numpy())
             labels_list.append(y_batch.numpy())
@@ -1361,6 +1417,7 @@ def run_deep_experiment(
     selection_mode = str(runtime.get("model_selection", "best_source_eval")).lower()
     selection_weights = _normalize_metric_weights(runtime.get("selection_weights", {}))
     selection_params = _normalize_metric_params(runtime.get("selection_params", {}))
+    selection_prediction_fusion = _prediction_fusion_overrides(method_config, prefix="selection")
     best_selection_score = float("-inf")
     selected_epoch = 0
     selected_state_dict: dict[str, torch.Tensor] | None = None
@@ -1457,41 +1514,42 @@ def run_deep_experiment(
         target_proxy_metrics = deepcopy(last_valid_target_proxy_metrics)
         if did_validate:
             validation_timer_start = perf_counter()
-            final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
-                model,
-                prepared_data.source_train_eval_loaders,
-                source_domain_ids,
-                device,
-                max_batches=evaluation_max_batches,
-                non_blocking=transfer_non_blocking,
-            )
-            final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
-                model,
-                prepared_data.source_eval_loaders,
-                source_domain_ids,
-                device,
-                max_batches=evaluation_max_batches,
-                non_blocking=transfer_non_blocking,
-            )
-            if target_eval_during_training or is_final_epoch:
-                target_eval_acc = _evaluate_accuracy(
+            with _temporary_prediction_fusion(model, selection_prediction_fusion):
+                final_source_train_by_domain, source_train_acc = _evaluate_domain_accuracies(
                     model,
-                    prepared_data.target_eval_loader,
+                    prepared_data.source_train_eval_loaders,
+                    source_domain_ids,
+                    device,
+                    max_batches=evaluation_max_batches,
+                    non_blocking=transfer_non_blocking,
+                )
+                final_source_eval_by_domain, source_eval_acc = _evaluate_domain_accuracies(
+                    model,
+                    prepared_data.source_eval_loaders,
+                    source_domain_ids,
+                    device,
+                    max_batches=evaluation_max_batches,
+                    non_blocking=transfer_non_blocking,
+                )
+                if target_eval_during_training or is_final_epoch:
+                    target_eval_acc = _evaluate_accuracy(
+                        model,
+                        prepared_data.target_eval_loader,
+                        device,
+                        max_batches=evaluation_max_batches,
+                        non_blocking=transfer_non_blocking,
+                        amp_enabled=amp_enabled,
+                    )
+                else:
+                    target_eval_acc = last_valid_target_eval_acc
+                target_proxy_metrics = _evaluate_unlabeled_target_proxy(
+                    model,
+                    prepared_data.target_train_loader,
                     device,
                     max_batches=evaluation_max_batches,
                     non_blocking=transfer_non_blocking,
                     amp_enabled=amp_enabled,
                 )
-            else:
-                target_eval_acc = last_valid_target_eval_acc
-            target_proxy_metrics = _evaluate_unlabeled_target_proxy(
-                model,
-                prepared_data.target_train_loader,
-                device,
-                max_batches=evaluation_max_batches,
-                non_blocking=transfer_non_blocking,
-                amp_enabled=amp_enabled,
-            )
             last_valid_source_train_acc = float(source_train_acc)
             last_valid_source_eval_acc = float(source_eval_acc)
             last_valid_target_eval_acc = None if target_eval_acc is None else float(target_eval_acc)
@@ -1537,12 +1595,16 @@ def run_deep_experiment(
                 summary=summary,
             )
 
-        selection_score = _resolve_metric_score(
-            summary,
-            selection_mode,
-            weights=selection_weights,
-            params=selection_params,
-        ) if did_validate and (should_selection_eval or should_force_final_eval) else None
+        selection_score = (
+            _resolve_metric_score(
+                summary,
+                selection_mode,
+                weights=selection_weights,
+                params=selection_params,
+            )
+            if selection_mode != "final" and did_validate and (should_selection_eval or should_force_final_eval)
+            else None
+        )
         summary["model_selection_metric"] = selection_mode
         if selection_weights:
             summary["model_selection_weights"] = deepcopy(selection_weights)

@@ -9,6 +9,8 @@ from src.evaluation.review import build_run_review
 from src.trainers.train_benchmark import (
     _resolve_run_fold_names,
     _resolve_metric_score,
+    _prediction_fusion_overrides,
+    _temporary_prediction_fusion,
     apply_method_overrides,
     apply_method_runtime_defaults,
     load_yaml,
@@ -323,6 +325,35 @@ class TrainBenchmarkTests(unittest.TestCase):
             },
         )
         self.assertEqual(merged_method["loss"]["pseudo_weight"], 0.03)
+
+    def test_selection_prediction_fusion_overrides_are_temporary(self) -> None:
+        method_payload = {
+            "loss": {
+                "selection_prediction_fusion_mode": "teacher_safe_confidence",
+                "selection_prediction_fusion_confidence_margin": 0.03,
+                "selection_prediction_fusion_confidence_diff_min": -0.2,
+                "selection_prediction_fusion_confidence_diff_max": 0.1,
+            },
+        }
+
+        overrides = _prediction_fusion_overrides(method_payload, prefix="selection")
+
+        self.assertEqual(overrides["prediction_fusion_mode"], "teacher_safe_confidence")
+        self.assertEqual(overrides["prediction_fusion_confidence_margin"], 0.03)
+        self.assertEqual(overrides["prediction_fusion_confidence_diff_min"], -0.2)
+        self.assertEqual(overrides["prediction_fusion_confidence_diff_max"], 0.1)
+
+        class DummyModel:
+            prediction_fusion_mode = "teacher_student_confidence_diff_band"
+            prediction_fusion_confidence_margin = 0.02
+
+        model = DummyModel()
+        with _temporary_prediction_fusion(model, overrides):
+            self.assertEqual(model.prediction_fusion_mode, "teacher_safe_confidence")
+            self.assertEqual(model.prediction_fusion_confidence_margin, 0.03)
+
+        self.assertEqual(model.prediction_fusion_mode, "teacher_student_confidence_diff_band")
+        self.assertEqual(model.prediction_fusion_confidence_margin, 0.02)
 
     def test_hybrid_selection_can_prefer_lower_entropy_epoch(self) -> None:
         weights = {"source_eval": 0.7, "target_entropy": 0.3}

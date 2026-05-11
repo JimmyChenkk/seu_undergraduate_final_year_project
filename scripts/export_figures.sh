@@ -18,6 +18,23 @@ POSITIONAL=("$@")
 INDEX=0
 while [[ ${INDEX} -lt ${#POSITIONAL[@]} ]]; do
   ITEM="${POSITIONAL[${INDEX}]}"
+  if [[ "${ITEM}" == "--main-table-only" || "${ITEM}" == "--include-all-methods" ]]; then
+    ARGS+=("${ITEM}")
+    INDEX=$((INDEX + 1))
+    continue
+  fi
+
+  if [[ "${ITEM}" == "--figure-format" || "${ITEM}" == "--artifact" || "${ITEM}" == "--results-dir" ]]; then
+    VALUE_INDEX=$((INDEX + 1))
+    if [[ ${VALUE_INDEX} -ge ${#POSITIONAL[@]} ]]; then
+      echo "export_figures.sh: ${ITEM} requires one value" >&2
+      exit 1
+    fi
+    ARGS+=("${ITEM}" "${POSITIONAL[${VALUE_INDEX}]}")
+    INDEX=$((INDEX + 2))
+    continue
+  fi
+
   if [[ "${ITEM}" == "--output-dir" ]]; then
     VALUE_INDEX=$((INDEX + 1))
     if [[ ${VALUE_INDEX} -ge ${#POSITIONAL[@]} ]]; then

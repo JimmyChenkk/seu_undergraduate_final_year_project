@@ -90,9 +90,12 @@ loss:
   domain_num_hidden_layers: 2
   teacher_safe_fusion:
     fusion_base: prior_balanced
-    prior_balance_student_mix: 0.65
-    prior_balance_strength: 1.30
+    prior_balance_student_mix: 0.35
+    prior_balance_strength: 0.80
     prior_balance_min_prior: 0.0001
+    prior_balance_student_guard: true
+    student_guard_confidence_margin: 0.05
+    student_guard_entropy_margin: 0.02
     lambda_same: 0.05
     lambda_override: 0.60
     override_confidence_margin: 0.04
@@ -102,4 +105,4 @@ loss:
 
 notes:
   - Short CA refinement from the matching CoDATS checkpoint.
-  - Final prediction applies target-label-free probability prior balancing to reduce class-count collapse.
+  - Final prediction applies target-label-free probability prior balancing plus a student-confidence guard to reduce class-count collapse without overriding strong CA predictions.

@@ -1,0 +1,189 @@
+experiment_name: tep_ot_multisource_ca_ccsr_fusion_rescue_20260508
+seed: 42
+device: cuda:0
+output_dir: runs
+
+tracking:
+  batch_root_name:
+
+runtime:
+  dry_run: false
+  save_checkpoint: true
+  save_analysis: true
+  save_figures: true
+  figure_format: pdf
+  disable_cudnn: false
+  cudnn_benchmark: true
+  allow_tf32: true
+  matmul_precision: high
+  amp: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  non_blocking_transfers: false
+  show_progress: false
+  evaluation_interval: 5
+  selection_interval: 5
+  early_stopping_interval: 5
+  final_epoch_evaluation: true
+  final_selection_evaluation: true
+  target_eval_during_training: false
+  refresh_batch_outputs: true
+  early_stopping_patience:
+  early_stopping_min_delta: 0.0
+  early_stopping_min_epochs: 80
+
+automation:
+  methods:
+    - source_only
+    - codats
+    - wjdot
+    - ca_ccsr_wjdot_prior20
+    - target_ref
+  multisource_scenes:
+    - mode1+mode2->mode5
+    - mode2+mode5->mode1
+    - mode1+mode5->mode2
+    - mode2+mode3+mode4+mode5+mode6->mode1
+    - mode1+mode3+mode4+mode5+mode6->mode2
+    - mode1+mode2+mode4+mode5+mode6->mode3
+    - mode1+mode2+mode3+mode5+mode6->mode4
+    - mode1+mode2+mode3+mode4+mode6->mode5
+    - mode1+mode2+mode3+mode4+mode5->mode6
+
+method_overrides:
+  ca_ccsr_wjdot_prior20:
+    optimization:
+      epochs: 28
+      batch_size: 32
+      learning_rate: 0.00004
+      weight_decay: 0.0
+      max_grad_norm: 3.0
+    loss:
+      adaptation_weight: 0.48
+      source_ce_weight: 0.75
+      feature_weight: 0.06
+      label_weight: 1.0
+      sinkhorn_reg: 0.05
+      sinkhorn_num_iter_max: 70
+      alignment_start_step: 0
+      alignment_ramp_steps: 350
+      reliability_start_ratio: 0.25
+      reliability_ramp_ratio: 0.30
+      reliability_total_steps: 1800
+      T_class: 0.45
+      top_m_per_class: 3
+      floor: 0.02
+      tau_proto: 0.84
+      min_proto_samples: 3
+      w_proto: 0.34
+      w_ot: 0.36
+      w_entropy: 0.18
+      w_source_error: 0.12
+      lambda_adv: 0.12
+      lambda_ot: 0.055
+      lambda_ccsr: 0.055
+      lambda_teacher: 0.12
+      teacher_ramp_steps: 400
+      domain_adaptation_max_steps: 700
+      grl_lambda: 0.45
+      grl_max_iters: 700
+      teacher_safe_fusion:
+        fusion_base: prior_balanced
+        prior_balance_student_mix: 0.35
+        prior_balance_strength: 1.30
+        prior_balance_min_prior: 0.0001
+        lambda_same: 0.04
+        lambda_override: 0.35
+        override_confidence_margin: 0.08
+        override_entropy_margin: 0.04
+        eta_min: 0.0
+        eta_max: 0.45
+      wjdot_anchor_fusion:
+        enabled: true
+        ca_weight_by_source_count:
+          2: 0.27
+          5: 0.39
+  m1_3_4_5_6_m2:
+    ca_ccsr_wjdot_prior20:
+      optimization:
+        epochs: 32
+        learning_rate: 0.00005
+      loss:
+        source_ce_weight: 0.70
+        lambda_adv: 0.10
+        lambda_ot: 0.070
+        lambda_ccsr: 0.070
+        lambda_teacher: 0.08
+        w_proto: 0.30
+        w_ot: 0.42
+        w_entropy: 0.18
+        w_source_error: 0.10
+  m1_2_4_5_6_m3:
+    ca_ccsr_wjdot_prior20:
+      optimization:
+        epochs: 32
+      loss:
+        source_ce_weight: 0.90
+        lambda_adv: 0.08
+        lambda_ot: 0.045
+        lambda_ccsr: 0.045
+        lambda_teacher: 0.10
+        w_proto: 0.36
+        w_ot: 0.30
+        w_entropy: 0.18
+        w_source_error: 0.16
+  m1_2_3_4_6_m5:
+    ca_ccsr_wjdot_prior20:
+      optimization:
+        epochs: 32
+      loss:
+        source_ce_weight: 0.80
+        lambda_adv: 0.10
+        lambda_ot: 0.060
+        lambda_ccsr: 0.060
+        lambda_teacher: 0.08
+  m1_2_3_4_5_m6:
+    ca_ccsr_wjdot_prior20:
+      optimization:
+        epochs: 30
+      loss:
+        source_ce_weight: 0.82
+        lambda_adv: 0.10
+        lambda_ot: 0.060
+        lambda_ccsr: 0.060
+        lambda_teacher: 0.08
+
+protocol_override:
+  setting: multi_source
+  source_domains:
+    - mode1
+    - mode5
+  target_domain: mode2
+  random_fold_enabled: false
+  preferred_fold: Fold 1
+  source_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  target_folds:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  fold_sampling:
+    enabled: false
+    strategy: fixed
+    random_per_scene: false
+    random_per_run: false
+    source_fold_choices: [1, 2, 3, 4, 5]
+    target_fold_choices: [1, 2, 3, 4, 5]
+    note: "Fold 0 in legacy CLI terms is represented here as Fold 1."
+
+notes:
+  - Target-label-free rescue probe for CA-CCSR-WJDOT.
+  - The fusion profile is a single frozen rule for all two-source and five-source scenes, not a per-scene oracle.
+  - Existing 20260506 post-hoc diagnostics suggest this profile improves mean CA-vs-CoDATS margin, but it still needs a fresh rerun before paper use.
