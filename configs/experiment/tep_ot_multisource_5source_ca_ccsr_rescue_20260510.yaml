@@ -104,8 +104,8 @@ method_overrides:
       wjdot_anchor_fusion:
         enabled: true
         ca_weight_by_source_count:
-          2: 0.27
-          5: 0.39
+          2: 0.28
+          5: 0.41
   m1_3_4_5_6_m2:
     ca_ccsr_wjdot_prior20:
       optimization:

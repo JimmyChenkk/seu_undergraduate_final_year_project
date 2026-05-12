@@ -12,11 +12,13 @@ runtime:
   save_analysis: true
   save_figures: true
   figure_format: pdf
+  deterministic: true
+  deterministic_warn_only: true
   disable_cudnn: false
-  cudnn_benchmark: true
-  allow_tf32: true
-  matmul_precision: high
-  amp: true
+  cudnn_benchmark: false
+  allow_tf32: false
+  matmul_precision: highest
+  amp: false
   num_workers: 0
   pin_memory: false
   persistent_workers: false
@@ -102,8 +104,8 @@ method_overrides:
       wjdot_anchor_fusion:
         enabled: true
         ca_weight_by_source_count:
-          2: 0.27
-          5: 0.39
+          2: 0.28
+          5: 0.41
   m1_3_4_5_6_m2:
     ca_ccsr_wjdot_prior20:
       optimization:

@@ -48,10 +48,10 @@ target-label-free WJDOT anchor fusion:
 p_final = (1 - alpha_ca) * p_wjdot_anchor + alpha_ca * p_ca_final
 ```
 
-Static source-count weights:
+Static source-count weights after the r1-r2 margin check:
 
-- 2-source scenes: `alpha_ca = 0.27`
-- 5-source scenes: `alpha_ca = 0.39`
+- 2-source scenes: `alpha_ca = 0.28`
+- 5-source scenes: `alpha_ca = 0.41`
 
 The WJDOT anchor is the same-scene `wjdot` run earlier in the batch. Automation
 injects its `artifacts/analysis.npz` path into the CA method after `wjdot`
@@ -112,10 +112,10 @@ Conceptual roles:
 Why the source-count weights differ:
 
 - 2-source scenes have limited source diversity; reliability estimates can be
-  more brittle, so CA receives a smaller correction weight: `0.27`.
+  more brittle, so CA receives a smaller correction weight: `0.28`.
 - 5-source scenes have richer source candidates; class-conditional reliability
   has more room to select useful sources, so CA receives a larger correction
-  weight: `0.39`.
+  weight: `0.41`.
 
 Important wording boundary:
 
@@ -167,6 +167,48 @@ result JSON files.
 
 The 5source30 results are deterministic across r5-r7, so the table applies to
 all three batches.
+
+## Fresh r1-r2 Margin Check
+
+Fresh 2026-05-11 r1/r2 runs were written to:
+
+- `runs/multisource_ca_ccsr_anchor_fusion_r1_20260511_seed42`
+- `runs/multisource_ca_ccsr_anchor_fusion_r2_20260511_seed42`
+- `runs/multisource_30_ca_ccsr_anchor_fusion_r1_20260511_seed42`
+- `runs/multisource_30_ca_ccsr_anchor_fusion_r2_20260511_seed42`
+
+With the earlier weights (`2-source=0.27`, `5-source=0.39`), 5source30 passed
+but had a very small margin on `1_2_3_4_5_to_6`: `+0.001727` against CoDATS.
+2source15 failed the strict contract because `1_2_to_5` tied CoDATS exactly:
+`0.828125` vs `0.828125`.
+
+The first r1 follow-up changed the weights to (`2-source=0.24`, `5-source=0.41`).
+That fixed the r1 tie and kept 5source30 passing, but r2 showed the 2-source
+weight was too conservative for `1_2_to_5`: `0.807292` vs CoDATS `0.809028`.
+
+An offline replay over the saved r1/r2 probabilities selected a source-count-only
+update, without adding per-target-domain rules:
+
+| source count | old alpha | new alpha | minimum checked margin |
+| ---: | ---: | ---: | ---: |
+| 2 | 0.24 | 0.28 | +0.001736 across r1/r2 |
+| 5 | 0.39 | 0.41 | +0.005181 on r1/r2 deterministic run |
+
+The replayed 2source r1/r2 margins with `alpha_ca=0.28` are:
+
+| batch | scene | replayed acc | best baseline | margin |
+| --- | --- | ---: | ---: | ---: |
+| r1 | 1_2_to_5 | 0.829861 | 0.828125 | +0.001736 |
+| r1 | 2_5_to_1 | 0.765517 | 0.755172 | +0.010345 |
+| r1 | 1_5_to_2 | 0.827160 | 0.784832 | +0.042328 |
+| r2 | 1_2_to_5 | 0.810764 | 0.809028 | +0.001736 |
+| r2 | 2_5_to_1 | 0.779310 | 0.737931 | +0.041379 |
+| r2 | 1_5_to_2 | 0.871252 | 0.832451 | +0.038801 |
+
+The 2source config is also switched to deterministic/AMP-off/TF32-off runtime,
+matching the more stable 5source runtime profile. These are still candidate
+weights, not a freeze. The next step is to rerun 2source fresh and require
+strict PASS again.
 
 ## Rerun Commands
 
