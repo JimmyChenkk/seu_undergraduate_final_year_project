@@ -1,13 +1,3 @@
-"""Minimal TEP OT/domain-adaptation experiment framework."""
+"""OT helpers used by the frozen TEP benchmark mainline."""
 
-from .data import ExperimentData, TEPDomainLoader
-from .model import TEClassifier, TemporalFCNEncoder
-from .train import run_experiment
-
-__all__ = [
-    "ExperimentData",
-    "TEPDomainLoader",
-    "TEClassifier",
-    "TemporalFCNEncoder",
-    "run_experiment",
-]
+__all__: list[str] = []

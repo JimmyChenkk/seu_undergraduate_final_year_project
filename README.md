@@ -1,19 +1,49 @@
 # 领域自适应流程工业故障诊断研究工作区
 
-本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前主线已经切换为 2026-05-06 overnight 三实验流程：单源 48、多源 15、多源 30。
+本工作区用于开展 Tennessee Eastman Process (TEP) 领域自适应故障诊断研究，统一管理数据、实验代码、训练结果和论文材料。当前主线冻结为 2026-05-12 seed42 三实验流程：单源 48、二源 15、五源 30。
 
 当前主线命令：
 
 ```bash
-RUN_TAG=overnight_20260506_seed42 ROUNDS=3 SEEDS="42 42 42" \
-bash scripts/run_overnight_20260505.sh
+set -euo pipefail
+
+SEED=42
+DATE_TAG=20260512
+
+SINGLE_CONFIG=configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml
+TWO_SOURCE_CONFIG=configs/experiment/tep_ot_multisource_ca_ccsr_fusion_rescue_20260508.yaml
+FIVE_SOURCE_CONFIG=configs/experiment/tep_ot_multisource_5source_ca_ccsr_rescue_20260510.yaml
+
+TWO_SOURCE_SCENES=(
+  'mode1+mode2->mode5'
+  'mode2+mode5->mode1'
+  'mode1+mode5->mode2'
+)
+
+for r in 1 2 3; do
+  bash scripts/run_small_scale_round.sh \
+    --experiment-config "$SINGLE_CONFIG" \
+    --seed "$SEED" \
+    --batch-root-name "single_source_8methods_cbtpu_anchor_freeze_r${r}_${DATE_TAG}_seed${SEED}"
+
+  bash scripts/run_small_scale_round.sh \
+    --experiment-config "$TWO_SOURCE_CONFIG" \
+    --scenes "${TWO_SOURCE_SCENES[@]}" \
+    --seed "$SEED" \
+    --batch-root-name "multisource_ca_ccsr_anchor_fusion_freeze_r${r}_${DATE_TAG}_seed${SEED}"
+
+  bash scripts/run_small_scale_round.sh \
+    --experiment-config "$FIVE_SOURCE_CONFIG" \
+    --seed "$SEED" \
+    --batch-root-name "multisource_30_ca_ccsr_anchor_fusion_freeze_r${r}_${DATE_TAG}_seed${SEED}"
+done
 ```
 
-该脚本会依次调用：
+该流程会依次调用：
 
-- `configs/experiment/tep_ot_single_source_8methods_stage1_fold0_overnight_20260505.yaml`
-- `configs/experiment/tep_ot_multisource_ca_ccsr_wjdot_stage1_probe_fold0.yaml`
-- `configs/experiment/tep_ot_multisource_5source_prior20_overnight_20260505.yaml`
+- `configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml`
+- `configs/experiment/tep_ot_multisource_ca_ccsr_fusion_rescue_20260508.yaml`
+- `configs/experiment/tep_ot_multisource_5source_ca_ccsr_rescue_20260510.yaml`
 
 ## 项目说明
 
@@ -49,22 +79,17 @@ bash scripts/run_overnight_20260505.sh
 
 | 实验 | 配置 | 规模 | 主要目的 |
 | --- | --- | ---: | --- |
-| 单源 48 | `tep_ot_single_source_8methods_stage1_fold0_overnight_20260505.yaml` | 6 场景 x 8 方法 | 验证 DeepJDOT、TPU、CBTPU 的单源递进链 |
-| 多源 15 | `tep_ot_multisource_ca_ccsr_wjdot_stage1_probe_fold0.yaml` | 3 场景 x 5 方法 | 验证二源 CA-CCSR-WJDOT 相对 CoDATS/WJDOT 的收益 |
-| 多源 30 | `tep_ot_multisource_5source_prior20_overnight_20260505.yaml` | 6 场景 x 5 方法 | 验证五源压力测试下 CA-CCSR-WJDOT 的表现边界 |
-
-`scripts/run_overnight_20260505.sh` 默认 `ROUNDS=3`。当前推荐固定 seed 重复复现：
-
-```bash
-RUN_TAG=overnight_20260506_seed42 ROUNDS=3 SEEDS="42 42 42" \
-bash scripts/run_overnight_20260505.sh
-```
+| 单源 48 | `tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml` | 6 场景 x 8 方法 | 验证 DeepJDOT、TPU、CBTPU 的单源递进链 |
+| 二源 15 | `tep_ot_multisource_ca_ccsr_fusion_rescue_20260508.yaml` | 3 场景 x 5 方法 | 验证二源 CA-CCSR-WJDOT 相对 CoDATS/WJDOT 的收益 |
+| 五源 30 | `tep_ot_multisource_5source_ca_ccsr_rescue_20260510.yaml` | 6 场景 x 5 方法 | 验证五源压力测试下 CA-CCSR-WJDOT 的表现边界 |
 
 只预览计划：
 
 ```bash
-PLAN_ONLY=1 RUN_TAG=overnight_20260506_seed42 ROUNDS=3 SEEDS="42 42 42" \
-bash scripts/run_overnight_20260505.sh
+bash scripts/run_small_scale_round.sh \
+  --experiment-config configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml \
+  --seed 42 \
+  --plan-only
 ```
 
 ## 目录概览
@@ -72,20 +97,15 @@ bash scripts/run_overnight_20260505.sh
 ```text
 workspace/
 ├─ README.md
-├─ WORKFLOW.md
-├─ goal.md
-├─ AGENTS.md
 ├─ environment.yml
 ├─ requirements-benchmark.txt
 ├─ configs/
 │  ├─ data/
 │  │  └─ te_da.yaml
 │  ├─ experiment/
-│  │  ├─ tep_ot_single_source_8methods_stage1_fold0.yaml
-│  │  ├─ tep_ot_single_source_8methods_stage1_fold0_overnight_20260505.yaml
-│  │  ├─ tep_ot_single_source_tpu_stage1_fold0.yaml
-│  │  ├─ tep_ot_multisource_ca_ccsr_wjdot_stage1_probe_fold0.yaml
-│  │  └─ tep_ot_multisource_5source_prior20_overnight_20260505.yaml
+│  │  ├─ tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml
+│  │  ├─ tep_ot_multisource_ca_ccsr_fusion_rescue_20260508.yaml
+│  │  └─ tep_ot_multisource_5source_ca_ccsr_rescue_20260510.yaml
 │  └─ method/
 │     ├─ source_only.yaml
 │     ├─ target_only.yaml
@@ -99,7 +119,6 @@ workspace/
 ├─ data/
 ├─ scripts/
 ├─ src/
-├─ tests/
 ├─ paper/
 └─ runs/
 ```
@@ -128,15 +147,10 @@ conda run -n tep_env python ...
 bash scripts/train.sh \
   configs/data/te_da.yaml \
   configs/method/tpu_deepjdot.yaml \
-  configs/experiment/tep_ot_single_source_tpu_stage1_fold0.yaml
+  configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml
 ```
 
-当前主线批量实验：
-
-```bash
-RUN_TAG=overnight_20260506_seed42 ROUNDS=3 SEEDS="42 42 42" \
-bash scripts/run_overnight_20260505.sh
-```
+当前主线批量实验请使用本文开头的 seed42 冻结三主线命令。
 
 结果汇总：
 
@@ -150,26 +164,20 @@ bash scripts/eval.sh runs
 bash scripts/export_figures.sh runs
 ```
 
-顺序诊断：
+主线 contract 验证：
 
 ```bash
-conda run -n tep_env python scripts/diagnose_experiment_ordering.py \
-  --runs-root runs \
-  --output-dir runs/order_diagnostics_20260506_seed42
-```
-
-测试：
-
-```bash
-conda run -n tep_env python -m unittest tests.test_train_benchmark -q
-conda run -n tep_env python -m unittest tests.test_deepjdot tests.test_wjdot_methods tests.test_no_target_label_leakage -q
+conda run -n tep_env python scripts/verify_mainline_contract.py \
+  --single-root runs/<single_source_batch> \
+  --multi-root runs/<multi_source_batch> \
+  --print-tables
 ```
 
 ## 当前架构流程
 
 ```mermaid
 flowchart TD
-  CLI[scripts/run_overnight_20260505.sh] --> AUTO[scripts/run_small_scale_round.sh]
+  CLI[seed42 frozen shell loop] --> AUTO[scripts/run_small_scale_round.sh]
   AUTO --> TRAIN[scripts/train.sh]
   CFG1[configs/data/te_da.yaml] --> TRAIN
   CFG2[configs/method/*.yaml] --> TRAIN
@@ -191,7 +199,7 @@ flowchart TD
 ## 判读原则
 
 - 单源 48 主要看 `deepjdot`、`tpu_deepjdot`、`cbtpu_deepjdot` 的均值趋势和逐场景链条。
-- 多源 15 和多源 30 主要看 `ca_ccsr_wjdot_prior20` 相对 `codats`、`wjdot` 的收益。
+- 二源 15 和五源 30 主要看 `ca_ccsr_wjdot_prior20` 相对 `codats`、`wjdot` 的收益。
 - `target_only` / `target_ref` 是监督参考上界，不参与 UDA 排名。
 - 不把当前真实结果改写成不真实的完美排序；失败场景保留诊断。
 - 若需要补强，优先补跑目标方法的合理配置变体，不重跑全部 baseline。
@@ -200,8 +208,8 @@ flowchart TD
 
 当前仓库默认跟踪项目源码与文档，忽略大数据、外部参考和实验输出：
 
-- 已跟踪：`README.md`、`environment.yml`、`requirements-benchmark.txt`、`configs/`、`scripts/`、`src/`、`tests/`、`paper/`
-- 默认忽略：`.vscode/`、`data/raw/`、`external/`、`refs/`、`runs/`、缓存与临时文件
+- 已跟踪：`README.md`、`environment.yml`、`requirements-benchmark.txt`、`configs/`、`scripts/`、`src/`、`paper/`
+- 默认忽略：`.vscode/`、`data/`、`external/`、`refs/`、`runs/`、`tests/`、`paper/notes/`、缓存与临时文件
 
 ## 外部来源链接
 

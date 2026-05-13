@@ -5,8 +5,6 @@ from __future__ import annotations
 from .cdan import CDANMethod
 from .cdan_ts import CDANTSMethod
 from .codats import CoDATSMethod
-from .coral import CORALMethod
-from .dan import DANMethod
 from .deepjdot import (
     CBTPDeepJDOTMethod,
     CBTPUDeepJDOTMethod,
@@ -15,9 +13,7 @@ from .deepjdot import (
     TPUDeepJDOTMethod,
     UDeepJDOTMethod,
 )
-from .dann import DANNMethod
 from .dsan import DSANMethod
-from .raincoat import RAINCOATMethod
 from .source_only import SourceOnlyMethod
 from .target_only import TargetOnlyMethod
 from .wjdot import (
@@ -97,27 +93,6 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             domain_num_hidden_layers=int(loss.get("domain_num_hidden_layers", 2)),
             **shared_kwargs,
         )
-    if method_name == "coral":
-        return CORALMethod(
-            adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
-            adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
-            adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
-            adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
-            align_mean=bool(loss.get("align_mean", False)),
-            normalize_covariance=bool(loss.get("normalize_covariance", True)),
-            **shared_kwargs,
-        )
-    if method_name == "dan":
-        kernel_scales = tuple(float(value) for value in loss.get("kernel_scales", [0.125, 0.25, 0.5, 1.0, 2.0]))
-        return DANMethod(
-            adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
-            adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
-            adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
-            adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
-            kernel_scales=kernel_scales,
-            linear_mmd=bool(loss.get("linear_mmd", True)),
-            **shared_kwargs,
-        )
     if method_name == "dsan":
         fix_sigma = loss.get("fix_sigma")
         return DSANMethod(
@@ -128,26 +103,6 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             kernel_mul=float(loss.get("kernel_mul", 2.0)),
             kernel_num=int(loss.get("kernel_num", 5)),
             fix_sigma=None if fix_sigma is None else float(fix_sigma),
-            **shared_kwargs,
-        )
-    if method_name == "raincoat":
-        raincoat_loss = loss.get("raincoat", loss)
-        return RAINCOATMethod(
-            fourier_modes=int(raincoat_loss.get("fourier_modes", backbone.get("fourier_modes", 64))),
-            mid_channels=int(raincoat_loss.get("mid_channels", backbone.get("mid_channels", 64))),
-            final_out_channels=int(
-                raincoat_loss.get("final_out_channels", backbone.get("final_out_channels", 128))
-            ),
-            kernel_size=int(raincoat_loss.get("kernel_size", backbone.get("kernel_size", 5))),
-            stride=int(raincoat_loss.get("stride", backbone.get("stride", 1))),
-            features_len=int(raincoat_loss.get("features_len", backbone.get("features_len", 1))),
-            classifier_temperature=float(raincoat_loss.get("classifier_temperature", 0.1)),
-            sinkhorn_weight=float(raincoat_loss.get("sinkhorn_weight", 0.5)),
-            reconstruction_weight=float(raincoat_loss.get("reconstruction_weight", 1e-4)),
-            sinkhorn_epsilon=float(raincoat_loss.get("sinkhorn_epsilon", 0.05)),
-            sinkhorn_max_iter=int(raincoat_loss.get("sinkhorn_max_iter", 50)),
-            sinkhorn_threshold=float(raincoat_loss.get("sinkhorn_threshold", 1e-3)),
-            reconstruction_reduction=str(raincoat_loss.get("reconstruction_reduction", "mean")),
             **shared_kwargs,
         )
     if method_name in {
@@ -545,21 +500,6 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                 }
             )
         return method_cls(**wjdot_kwargs)
-    if method_name == "dann":
-        return DANNMethod(
-            adaptation_weight=float(loss.get("adaptation_weight", 0.5)),
-            adaptation_schedule=str(loss.get("adaptation_schedule", "constant")),
-            adaptation_max_steps=int(loss.get("adaptation_max_steps", 1000)),
-            adaptation_schedule_alpha=float(loss.get("adaptation_schedule_alpha", 10.0)),
-            grl_lambda=float(loss.get("grl_lambda", 1.0)),
-            grl_warm_start=bool(loss.get("grl_warm_start", True)),
-            grl_max_iters=int(loss.get("grl_max_iters", 1000)),
-            domain_hidden_dim=(
-                None if loss.get("domain_hidden_dim") is None else int(loss.get("domain_hidden_dim"))
-            ),
-            domain_num_hidden_layers=int(loss.get("domain_num_hidden_layers", 2)),
-            **shared_kwargs,
-        )
     raise KeyError(f"Unsupported method: {method_name}")
 
 
@@ -569,12 +509,8 @@ __all__ = [
     "CBTPDeepJDOTMethod",
     "CBTPUDeepJDOTMethod",
     "CoDATSMethod",
-    "CORALMethod",
-    "DANMethod",
     "DeepJDOTMethod",
-    "DANNMethod",
     "DSANMethod",
-    "RAINCOATMethod",
     "SourceOnlyMethod",
     "TargetOnlyMethod",
     "TPDeepJDOTMethod",

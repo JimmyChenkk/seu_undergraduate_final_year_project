@@ -26,8 +26,6 @@ ALL_MODES = [
     "mode6",
 ]
 
-POSTHOC_BASE_METHODS: dict[str, str] = {}
-
 TEACHER_BASE_METHODS = {
     "ca_ccsr_wjdot": "codats",
 }
@@ -603,7 +601,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--experiment-config",
         type=Path,
-        default=Path("configs/experiment/tep_ot_single_source_8methods_stage1_fold0.yaml"),
+        default=Path("configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml"),
     )
     parser.add_argument("--methods", nargs="*", default=None)
     parser.add_argument("--scenes", nargs="*", default=None)
@@ -802,48 +800,15 @@ def main() -> None:
             run_key = _run_lookup_key(run, method_name)
             experiment_paths[run_key] = temp_experiment_path
 
-            base_method_name = POSTHOC_BASE_METHODS.get(method_name)
-            if base_method_name is None:
-                command = [
-                    "bash",
-                    "scripts/train.sh",
-                    str(args.data_config),
-                    str(method_config_path),
-                    str(temp_experiment_path),
-                    "--batch-root-name",
-                    batch_root_name,
-                ]
-            else:
-                base_key = _run_lookup_key(run, base_method_name)
-                base_result_path = completed_results.get(base_key)
-                if base_result_path is None:
-                    base_result_path = _find_latest_matching_result(batch_root, run, base_method_name)
-                if base_result_path is None:
-                    raise SystemExit(
-                        f"{method_name} is a post-hoc method and requires a completed "
-                        f"{base_method_name} run for {run['label']} in the same batch. "
-                        f"Put {base_method_name} before {method_name} in automation.methods."
-                    )
-                base_experiment_path = experiment_paths.get(base_key, temp_experiment_path)
-                base_method_config_path = Path("configs/method") / f"{base_method_name}.yaml"
-                command = [
-                    "bash",
-                    "scripts/export_ccsr_wjdot_posthoc.sh",
-                    "--data-config",
-                    str(args.data_config),
-                    "--base-method-config",
-                    str(base_method_config_path),
-                    "--ccsr-method-config",
-                    str(method_config_path),
-                    "--base-experiment-config",
-                    str(base_experiment_path),
-                    "--experiment-config",
-                    str(temp_experiment_path),
-                    "--base-run-root",
-                    str(base_result_path.parents[1]),
-                    "--batch-root-name",
-                    batch_root_name,
-                ]
+            command = [
+                "bash",
+                "scripts/train.sh",
+                str(args.data_config),
+                str(method_config_path),
+                str(temp_experiment_path),
+                "--batch-root-name",
+                batch_root_name,
+            ]
             completed = subprocess.run(command, check=False)
             if completed.returncode != 0:
                 raise SystemExit(
