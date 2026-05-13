@@ -1,15 +1,16 @@
 # Local-only paths from WORKFLOW.md
 /.vscode/
 /data/
-# /paper/
 /external/
 /refs/
 /runs/
+/tests/
 /goal.md
 /WORKFLOW.md
 /AGENTS.md
 /assets/
-
+# /paper/
+/paper/notes/
 
 # Python cache
 __pycache__/
