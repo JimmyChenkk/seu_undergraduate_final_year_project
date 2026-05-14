@@ -1989,6 +1989,228 @@ CBTPU-\allowbreak{}Deep\allowbreak{}JDOT 的平均准确率、宏平均 F1 和�
 }
 
 \cleardoublepage
+\chapter{SEED42 主线算法参数表}
+\label{app:seed42_mainline_config}
+
+本附录只列出本文三条主线创新方法在 \texttt{SEED42} 主实验中采用的主要算法参数。表中符号与正文第三章至第五章保持一致；目标域标签仅用于最终评价，不参与训练、早停、模型选择或参数确定。
+
+为避免附录冗长，表中只列出影响三条创新主线的主要数值参数。若某一参数在特定场景中有覆盖取值，则以场景覆盖表为准；未列出的基线方法参数不属于本文创新方法参数，故不在本附录展开。
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\setlength{\emergencystretch}{3em}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}}
+    \caption{SEED42 主实验公共参数}
+    \label{tab:seed42_common_algorithm_params}\\
+    \toprule
+    参数含义 & 符号 & 取值 \\
+    \midrule
+    \endfirsthead
+    \toprule
+    参数含义 & 符号 & 取值 \\
+    \midrule
+    \endhead
+    \midrule
+    \multicolumn{3}{r}{续下页}\\
+    \endfoot
+    \bottomrule
+    \endlastfoot
+
+    随机种子 & $s_{\mathrm{rand}}$ & $42$ \\
+    目标域训练标签 & $y^t$ & 训练和模型选择阶段不可见，仅最终评价使用 \\
+    故障类别数 & $N_c$ & $29$ \\
+    源域与目标域折号 & $F_s,F_t$ & $1,1$ \\
+    评估间隔 & $I_{\mathrm{eval}}$ & $5$ 个训练轮 \\
+    模型选择间隔 & $I_{\mathrm{sel}}$ & $5$ 个训练轮 \\
+    早停检查间隔 & $I_{\mathrm{es}}$ & $5$ 个训练轮 \\
+    单源最小训练轮数 & $E_{\min}^{\mathrm{single}}$ & $120$ \\
+    多源最小训练轮数 & $E_{\min}^{\mathrm{multi}}$ & $80$ \\
+\end{longtable}
+}
+
+\section{单源主线参数}
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}}
+    \caption{TPU-DeepJDOT 与 CBTPU-DeepJDOT 主参数}
+    \label{tab:seed42_single_method_params}\\
+    \toprule
+    参数含义 & 符号 & TPU-\allowbreak{}Deep\allowbreak{}JDOT & CBTPU-\allowbreak{}Deep\allowbreak{}JDOT \\
+    \midrule
+    \endfirsthead
+    \toprule
+    参数含义 & 符号 & TPU-\allowbreak{}Deep\allowbreak{}JDOT & CBTPU-\allowbreak{}Deep\allowbreak{}JDOT \\
+    \midrule
+    \endhead
+    \midrule
+    \multicolumn{4}{r}{续下页}\\
+    \endfoot
+    \bottomrule
+    \endlastfoot
+
+    训练轮数 & $E$ & $120$ & $80$ \\
+    批量大小 & $B$ & $64$ & $64$ \\
+    学习率 & $\eta_{\mathrm{lr}}$ & $1.0\times10^{-4}$ & $6.0\times10^{-5}$ \\
+    梯度裁剪阈值 & $g_{\max}$ & $5.0$ & $5.0$ \\
+    对齐损失基础权重 & $\lambda_{\mathrm{ot}}^0$ & $0.58$ & $0.52$ \\
+    对齐启动步数 & $\nu_{\mathrm{align}}$ & $450$ & $200$ \\
+    Sinkhorn 熵正则 & $\varepsilon$ & $0.05$ & $0.05$ \\
+    Sinkhorn 最大迭代 & $N_{\mathrm{Sink}}$ & $200$ & $200$ \\
+    非平衡源边际松弛 & $\tau_s$ & $1.0$ & $1.0$ \\
+    非平衡目标边际松弛 & $\tau_t$ & $1.0$ & $1.0$ \\
+    监督对比权重 & $\lambda_{\mathrm{supcon}}^0$ & $0.045$ & $0.030$ \\
+    监督对比温度 & $T_{\mathrm{con}}$ & $0.10$ & $0.10$ \\
+    源域原型动量 & $\rho$ & $0.95$ & $0.95$ \\
+    相对原型代价裁剪 & $r_{\min},r_{\max}$ & $-1.0,3.0$ & $-1.0,3.0$ \\
+    原型代价权重 & $\lambda_p^0$ & $0.020$ & $0.018$ \\
+    原型代价启动/预热 & $\nu_p,S_p$ & $450,750$ & $200,500$ \\
+    时序代价权重 & $\lambda_{\mathrm{temp}}^0$ & $0.012$ & $0.010$ \\
+    时序代价启动/预热 & $\nu_{\mathrm{temp}},S_{\mathrm{temp}}$ & $450,750$ & $200,500$ \\
+    教师温度 & $T_{\mathrm{tea}}$ & -- & $1.0$ \\
+    原型语义温度 & $T_{\mathrm{proto}}$ & -- & $0.18$ \\
+    教师 EMA 衰减 & $\xi$ & -- & $0.996$，冻结教师时不更新 \\
+    三证据融合指数 & $\alpha_{\mathrm{ot}},\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & -- & $1.0,1.0,1.0$ \\
+    伪标签权重 & $\lambda_{\mathrm{pl}}^0$ & -- & $0.012$ \\
+    伪标签启动/预热 & $\nu_{\mathrm{pl}},S_{\mathrm{pl}}$ & -- & $250,700$ \\
+    动态阈值起止 & $\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}}$ & -- & $0.92,0.84$ \\
+    阈值下降步数 & $S_{\vartheta}$ & -- & $1100$ \\
+    最大伪标签接收率 & $a_{\max}$ & -- & $0.55$ \\
+    传输语义熵阈值 & $h_{\mathrm{ot}}$ & -- & $0.76$ \\
+    JS 差异阈值 & $\delta_{\mathrm{JS}}$ & -- & $0.075$ \\
+    一致性权重 & $\lambda_{\mathrm{cons}}^0$ & -- & $0.020$ \\
+    一致性启动/预热 & $\nu_{\mathrm{cons}},S_{\mathrm{cons}}$ & -- & $250,700$ \\
+    中等置信一致性阈值 & $\tau_{\mathrm{mid}}$ & -- & $0.52$ \\
+    类别均衡强度 & $\eta_{\mathrm{bal}}$ & -- & $0.10$ \\
+    信息最大化权重 & $\lambda_{\mathrm{im}}^0$ & -- & $0.0015$ \\
+    信息最大化启动比例/预热 & $r_{\mathrm{im}},S_{\mathrm{im}}$ & -- & $0.75,500$ \\
+    弱增强抖动/缩放 & $\sigma_w^{\mathrm{jit}},\sigma_w^{\mathrm{scale}}$ & -- & $0.006,0.006$ \\
+    强增强抖动/缩放 & $\sigma_s^{\mathrm{jit}},\sigma_s^{\mathrm{scale}}$ & -- & $0.016,0.016$ \\
+    强增强时间遮挡率/通道丢弃率 & $p_{\mathrm{mask}},p_{\mathrm{drop}}$ & -- & $0.08,0.06$ \\
+\end{longtable}
+}
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.16\textwidth}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.49\textwidth}}
+    \caption{单源场景级参数覆盖}
+    \label{tab:seed42_cbtpu_scene_overrides}\\
+    \toprule
+    场景 & 覆盖符号 & 覆盖取值 \\
+    \midrule
+    \endfirsthead
+    \toprule
+    场景 & 覆盖符号 & 覆盖取值 \\
+    \midrule
+    \endhead
+    \midrule
+    \multicolumn{3}{r}{续下页}\\
+    \endfoot
+    \bottomrule
+    \endlastfoot
+
+    $m_1\rightarrow m_2$ & TPU：$\lambda_{\mathrm{ot}}^0,\nu_{\mathrm{align}},\nu_p,S_p,\nu_{\mathrm{temp}},S_{\mathrm{temp}}$；CBTPU：$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & TPU：$0.62,700,700,900,700,900$；CBTPU：$0.50,0.008,0.94,0.88,0.40,0.014$ \\
+    $m_1\rightarrow m_5$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},h_{\mathrm{ot}}$ & $0.10,0.50,0.010,0.94,0.87,0.45,0.72$ \\
+    $m_2\rightarrow m_1$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\lambda_{\mathrm{cons}}^0,\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & $0.12,0.50,0.010,0.016,1.25,0.85$ \\
+    $m_2\rightarrow m_5$ & $\Delta_{\min},\Delta_{\max},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & $-0.40,0.10,0.50,0.008,0.95,0.88,0.38,0.012$ \\
+    $m_5\rightarrow m_1$ & -- & 采用表 \ref{tab:seed42_single_method_params} 通用取值 \\
+    $m_5\rightarrow m_2$ & $\Delta_{\min},\Delta_{\max}$ & $-0.40,0.04$；其余采用表 \ref{tab:seed42_single_method_params} 通用取值 \\
+\end{longtable}
+}
+
+\section{多源主线参数}
+
+表 \ref{tab:seed42_ca_ccsr_params} 列出 CA-\allowbreak{}CCSR-\allowbreak{}WJDOT 在二源和五源主线中的核心算法参数。二源主线采用统一参数；五源主线的目标域相关覆盖见表 \ref{tab:seed42_ca_scene_overrides}。
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.21\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}}
+    \caption{CA-CCSR-WJDOT 主参数}
+    \label{tab:seed42_ca_ccsr_params}\\
+    \toprule
+    参数含义 & 符号 & 二源 & 五源通用 \\
+    \midrule
+    \endfirsthead
+    \toprule
+    参数含义 & 符号 & 二源 & 五源通用 \\
+    \midrule
+    \endhead
+    \midrule
+    \multicolumn{4}{r}{续下页}\\
+    \endfoot
+    \bottomrule
+    \endlastfoot
+
+    训练轮数 & $E$ & $28$ & $28$ \\
+    批量大小 & $B$ & $32$ & $32$ \\
+    学习率 & $\eta_{\mathrm{lr}}$ & $4.0\times10^{-5}$ & $4.0\times10^{-5}$ \\
+    梯度裁剪阈值 & $g_{\max}$ & $3.0$ & $3.0$ \\
+    对齐损失基础权重 & $\lambda_{\mathrm{ot}}^0$ & $0.48$ & $0.48$ \\
+    源域分类权重 & $\lambda_s$ & $0.75$ & $0.75$ \\
+    特征代价权重 & $\lambda_f$ & $0.06$ & $0.06$ \\
+    标签代价权重 & $\lambda_y$ & $1.0$ & $1.0$ \\
+    Sinkhorn 熵正则 & $\varepsilon$ & $0.05$ & $0.05$ \\
+    Sinkhorn 最大迭代 & $N_{\mathrm{Sink}}$ & $70$ & $70$ \\
+    对齐启动/预热 & $\nu_{\mathrm{align}},S_{\mathrm{align}}$ & $0,350$ & $0,350$ \\
+    可靠性启动比例 & $r_{\mathrm{rel},0}$ & $0.25$ & $0.25$ \\
+    可靠性预热比例 & $r_{\mathrm{rel},S}$ & $0.30$ & $0.30$ \\
+    可靠性总步数 & $N_{\mathrm{rel}}$ & $1800$ & $1800$ \\
+    类条件温度 & $T_{\mathrm{rel}}$ & $0.45$ & $0.45$ \\
+    每类候选样本数 & $M_{\mathrm{top}}$ & $3$ & $3$ \\
+    原型阈值 & $\tau_{\mathrm{proto}}$ & $0.84$ & $0.84$ \\
+    最小原型样本数 & $n_{\min}^{\mathrm{proto}}$ & $3$ & $3$ \\
+    可靠性证据权重 & $w_p,w_o,w_h,w_e$ & $0.34,0.36,0.18,0.12$ & $0.34,0.36,0.18,0.12$ \\
+    领域对抗权重 & $\lambda_d$ & $0.12$ & $0.12$ \\
+    WJDOT 损失权重 & $\lambda_{\mathrm{WJDOT}}$ & $0.055$ & $0.055$ \\
+    CCSR 损失权重 & $\lambda_{\mathrm{CCSR}}$ & $0.055$ & $0.055$ \\
+    教师约束权重 & $\lambda_{\mathrm{tea}}$ & $0.12$ & $0.12$ \\
+    教师约束预热步数 & $S_{\mathrm{tea}}$ & $400$ & $400$ \\
+    领域自适应最大步数 & $N_{\mathrm{da}}$ & $700$ & $700$ \\
+    梯度反转系数 & $\lambda_{\mathrm{grl}}$ & $0.45$ & $0.45$ \\
+    梯度反转最大迭代 & $N_{\mathrm{grl}}$ & $700$ & $700$ \\
+    先验均衡强度 & $\beta$ & $1.30$ & $0.80$ \\
+    学生混合比例 & $\omega_{\mathrm{mix}}$ & $0.35$ & $0.35$ \\
+    最小先验概率 & $\pi_{\min}$ & $10^{-4}$ & $10^{-4}$ \\
+    同类融合系数 & $\lambda_{\mathrm{same}}$ & $0.04$ & $0.04$ \\
+    覆盖融合系数 & $\lambda_{\mathrm{override}}$ & $0.35$ & $0.35$ \\
+    覆盖置信/熵裕度 & $\Delta_{\mathrm{conf}},\Delta_H$ & $0.08,0.04$ & $0.08,0.04$ \\
+    融合系数范围 & $\eta_{\min},\eta_{\max}$ & $0,0.45$ & $0,0.45$ \\
+    学生保护裕度 & $\Delta_{\mathrm{guard}}^{\mathrm{conf}},\Delta_{\mathrm{guard}}^H$ & -- & $0.05,0.02$ \\
+    WJDOT 锚点融合权重 & $\alpha_{\mathrm{anchor}}$ & $0.28$ & $0.41$ \\
+\end{longtable}
+}
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.21\textwidth}>{\raggedright\arraybackslash}p{0.71\textwidth}}
+    \caption{五源 CA-CCSR-WJDOT 场景级参数覆盖}
+    \label{tab:seed42_ca_scene_overrides}\\
+    \toprule
+    目标域 & 覆盖参数取值 \\
+    \midrule
+    \endfirsthead
+    \toprule
+    目标域 & 覆盖参数取值 \\
+    \midrule
+    \endhead
+    \midrule
+    \multicolumn{2}{r}{续下页}\\
+    \endfoot
+    \bottomrule
+    \endlastfoot
+
+    $m_1$ & 采用表 \ref{tab:seed42_ca_ccsr_params} 五源通用取值。 \\
+    $m_2$ & $E=32$，$\eta_{\mathrm{lr}}=5.0\times10^{-5}$，$\lambda_s=0.70$，$\lambda_d=0.10$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.070$，$\lambda_{\mathrm{tea}}=0.08$，$(w_p,w_o,w_h,w_e)=(0.30,0.42,0.18,0.10)$，$\lambda_{\mathrm{same}}=\lambda_{\mathrm{override}}=0$，$(\Delta_{\mathrm{conf}},\Delta_H)=(0.04,0.02)$，$(\eta_{\min},\eta_{\max})=(0,0.70)$。 \\
+    $m_3$ & $E=20$，$\eta_{\mathrm{lr}}=3.0\times10^{-5}$，$\lambda_{\mathrm{ot}}^0=0.45$，$\lambda_s=0.70$，$S_{\mathrm{align}}=300$，$N_{\mathrm{rel}}=1440$，$(w_p,w_o,w_h,w_e)=(0.30,0.35,0.20,0.15)$，$\lambda_d=0.15$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.04$，$\lambda_{\mathrm{tea}}=0.20$，$\lambda_{\mathrm{same}}=0.05$，$\lambda_{\mathrm{override}}=0.60$，$(\eta_{\min},\eta_{\max})=(0,0.70)$。 \\
+    $m_4$ & 采用表 \ref{tab:seed42_ca_ccsr_params} 五源通用取值。 \\
+    $m_5$ & 继承 $m_3$ 的覆盖参数，但 $\lambda_{\mathrm{same}}=\lambda_{\mathrm{override}}=0$。 \\
+    $m_6$ & $E=30$，$\lambda_s=0.82$，$\lambda_d=0.10$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.060$，$\lambda_{\mathrm{tea}}=0.08$；融合参数采用 $m_2$ 的覆盖取值。 \\
+\end{longtable}
+}
+
+以上参数表仅用于说明本文主线实验中的算法超参数取值；未在表中列出的量按正文算法定义取值。
+
+\cleardoublepage
 \bibliography{bib/references}
 
 \begin{acknowledgement}

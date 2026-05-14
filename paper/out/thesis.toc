@@ -86,5 +86,8 @@
 \contentsline {subsection}{\numberline {7.1.3}存在不足}{57}{subsection.7.1.3}%
 \contentsline {section}{\numberline {7.2}未来展望}{58}{section.7.2}%
 \contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{60}{appendix.A}%
-\contentsline {chapter}{参考文献}{66}{appendix*.26}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{69}{appendix*.27}%
+\contentsline {chapter}{\numberline {附录B\hspace {.3em}}SEED42 主线算法参数表}{66}{appendix.B}%
+\contentsline {section}{\numberline {B.1}单源主线参数}{66}{section.B.1}%
+\contentsline {section}{\numberline {B.2}多源主线参数}{68}{section.B.2}%
+\contentsline {chapter}{参考文献}{71}{appendix*.26}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{74}{appendix*.27}%
