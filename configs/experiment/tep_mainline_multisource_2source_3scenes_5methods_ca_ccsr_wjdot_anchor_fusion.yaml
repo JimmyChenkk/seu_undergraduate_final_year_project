@@ -1,4 +1,4 @@
-experiment_name: tep_ot_multisource_ca_ccsr_fusion_rescue_20260508
+experiment_name: tep_mainline_multisource_2source_3scenes_5methods_ca_ccsr_wjdot_anchor_fusion
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -40,21 +40,15 @@ automation:
     - source_only
     - codats
     - wjdot
-    - ca_ccsr_wjdot_prior20
+    - ca_ccsr_wjdot
     - target_ref
   multisource_scenes:
     - mode1+mode2->mode5
     - mode2+mode5->mode1
     - mode1+mode5->mode2
-    - mode2+mode3+mode4+mode5+mode6->mode1
-    - mode1+mode3+mode4+mode5+mode6->mode2
-    - mode1+mode2+mode4+mode5+mode6->mode3
-    - mode1+mode2+mode3+mode5+mode6->mode4
-    - mode1+mode2+mode3+mode4+mode6->mode5
-    - mode1+mode2+mode3+mode4+mode5->mode6
 
 method_overrides:
-  ca_ccsr_wjdot_prior20:
+  ca_ccsr_wjdot:
     optimization:
       epochs: 28
       batch_size: 32
@@ -105,56 +99,6 @@ method_overrides:
         enabled: true
         ca_weight_by_source_count:
           2: 0.28
-          5: 0.41
-  m1_3_4_5_6_m2:
-    ca_ccsr_wjdot_prior20:
-      optimization:
-        epochs: 32
-        learning_rate: 0.00005
-      loss:
-        source_ce_weight: 0.70
-        lambda_adv: 0.10
-        lambda_ot: 0.070
-        lambda_ccsr: 0.070
-        lambda_teacher: 0.08
-        w_proto: 0.30
-        w_ot: 0.42
-        w_entropy: 0.18
-        w_source_error: 0.10
-  m1_2_4_5_6_m3:
-    ca_ccsr_wjdot_prior20:
-      optimization:
-        epochs: 32
-      loss:
-        source_ce_weight: 0.90
-        lambda_adv: 0.08
-        lambda_ot: 0.045
-        lambda_ccsr: 0.045
-        lambda_teacher: 0.10
-        w_proto: 0.36
-        w_ot: 0.30
-        w_entropy: 0.18
-        w_source_error: 0.16
-  m1_2_3_4_6_m5:
-    ca_ccsr_wjdot_prior20:
-      optimization:
-        epochs: 32
-      loss:
-        source_ce_weight: 0.80
-        lambda_adv: 0.10
-        lambda_ot: 0.060
-        lambda_ccsr: 0.060
-        lambda_teacher: 0.08
-  m1_2_3_4_5_m6:
-    ca_ccsr_wjdot_prior20:
-      optimization:
-        epochs: 30
-      loss:
-        source_ce_weight: 0.82
-        lambda_adv: 0.10
-        lambda_ot: 0.060
-        lambda_ccsr: 0.060
-        lambda_teacher: 0.08
 
 protocol_override:
   setting: multi_source
@@ -186,6 +130,6 @@ protocol_override:
     note: "Fold 0 in legacy CLI terms is represented here as Fold 1."
 
 notes:
-  - Target-label-free rescue probe for CA-CCSR-WJDOT.
-  - The fusion profile is a single frozen rule for all two-source and five-source scenes, not a per-scene oracle.
+  - Target-label-free two-source mainline for CA-CCSR-WJDOT.
+  - The fusion profile is a single frozen rule for the three two-source scenes, not a per-scene oracle.
   - Existing 20260506 post-hoc diagnostics suggest this profile improves mean CA-vs-CoDATS margin, but it still needs a fresh rerun before paper use.

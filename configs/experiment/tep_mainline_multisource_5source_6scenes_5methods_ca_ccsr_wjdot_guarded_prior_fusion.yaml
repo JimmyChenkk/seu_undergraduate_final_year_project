@@ -1,4 +1,4 @@
-experiment_name: tep_ot_multisource_5source_ca_ccsr_rescue_20260510
+experiment_name: tep_mainline_multisource_5source_6scenes_5methods_ca_ccsr_wjdot_guarded_prior_fusion
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -40,7 +40,7 @@ automation:
     - source_only
     - codats
     - wjdot
-    - ca_ccsr_wjdot_prior20
+    - ca_ccsr_wjdot
     - target_ref
   multisource_scenes:
     - mode2+mode3+mode4+mode5+mode6->mode1
@@ -51,7 +51,7 @@ automation:
     - mode1+mode2+mode3+mode4+mode5->mode6
 
 method_overrides:
-  ca_ccsr_wjdot_prior20:
+  ca_ccsr_wjdot:
     optimization: &rescue_opt
       epochs: 28
       batch_size: 32
@@ -107,7 +107,7 @@ method_overrides:
           2: 0.28
           5: 0.41
   m1_3_4_5_6_m2:
-    ca_ccsr_wjdot_prior20:
+    ca_ccsr_wjdot:
       optimization:
         epochs: 32
         learning_rate: 0.00005
@@ -136,14 +136,14 @@ method_overrides:
           eta_min: 0.0
           eta_max: 0.70
   m1_2_4_5_6_m3:
-    ca_ccsr_wjdot_prior20:
-      optimization: &default_prior20_opt
+    ca_ccsr_wjdot:
+      optimization: &default_ca_ccsr_opt
         epochs: 20
         batch_size: 32
         learning_rate: 0.00003
         weight_decay: 0.0
         max_grad_norm: 3.0
-      loss: &default_prior20_loss
+      loss: &default_ca_ccsr_loss
         adaptation_weight: 0.45
         source_ce_weight: 0.70
         source_ce_reduction: mean
@@ -206,10 +206,10 @@ method_overrides:
           eta_min: 0.0
           eta_max: 0.70
   m1_2_3_4_6_m5:
-    ca_ccsr_wjdot_prior20:
-      optimization: *default_prior20_opt
+    ca_ccsr_wjdot:
+      optimization: *default_ca_ccsr_opt
       loss:
-        <<: *default_prior20_loss
+        <<: *default_ca_ccsr_loss
         teacher_safe_fusion:
           fusion_base: prior_balanced
           prior_balance_student_mix: 0.35
@@ -225,7 +225,7 @@ method_overrides:
           eta_min: 0.0
           eta_max: 0.70
   m1_2_3_4_5_m6:
-    ca_ccsr_wjdot_prior20:
+    ca_ccsr_wjdot:
       optimization:
         epochs: 30
       loss:
@@ -278,4 +278,4 @@ notes:
   - Five-source rescue candidate; it does not modify the locked two-source or single-source configs.
   - Runtime is deterministic/AMP-off so repeated reruns can be checked by scripts/verify_mainline_contract.py.
   - Final fusion uses guarded prior-balanced probabilities: prior balancing repairs class-count collapse, while the student guard prevents the fusion from overriding high-confidence low-entropy CA predictions.
-  - m3 and m5 reset CA training to the default prior20 profile; m5 now uses the same guarded prior-balanced final fusion instead of pure-student predictions.
+  - m3 and m5 reset CA training to the default ca_ccsr profile; m5 now uses the same guarded prior-balanced final fusion instead of pure-student predictions.

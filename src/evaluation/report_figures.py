@@ -22,12 +22,16 @@ _FONT_WARNING_EMITTED = False
 
 METHOD_ORDER = [
     "source_only",
+    "dan",
     "dsan",
     "cdan_ts",
     "codats",
     "deepjdot",
-    "tpu_deepjdot",
-    "cbtpu_deepjdot",
+    "tp_deepjdot",
+    "cbtp_deepjdot",
+    "tpu_dpjdot",
+    "cbtpu_dpjdot",
+    "raincoat",
     "wjdot",
     "ca_ccsr_wjdot",
     "target_ref",
@@ -36,8 +40,8 @@ METHOD_ORDER = [
 
 METHOD_DISPLAY_NAMES = {
     "deepjdot": "deepjdot",
-    "tpu_deepjdot": "tpu_dpjdot",
-    "cbtpu_deepjdot": "cbtpu_dpjdot",
+    "tpu_dpjdot": "tpu_dpjdot",
+    "cbtpu_dpjdot": "cbtpu_dpjdot",
     "ca_ccsr_wjdot": "ca_ccsr_wjdot",
     "target_only": "target_ref",
 }

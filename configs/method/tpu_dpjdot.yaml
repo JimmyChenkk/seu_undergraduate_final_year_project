@@ -1,4 +1,4 @@
-method_name: tpu_deepjdot
+method_name: tpu_dpjdot
 
 backbone:
   name: fcn
@@ -13,7 +13,7 @@ optimization:
   max_grad_norm: 5.0
 
 loss:
-  name: tpu_deepjdot
+  name: tpu_dpjdot
   adaptation_weight: 0.60
   adaptation_schedule: warm_start
   adaptation_max_steps: 2200

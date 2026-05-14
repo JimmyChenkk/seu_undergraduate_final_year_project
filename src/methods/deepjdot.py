@@ -1049,7 +1049,7 @@ class _DeepJDOTTemporalAugmenter:
 class TPUDeepJDOTMethod(DeepJDOTMethod):
     """Temporal-prototypical unbalanced DeepJDOT without target pseudo labels."""
 
-    method_name = "tpu_deepjdot"
+    method_name = "tpu_dpjdot"
 
     def __init__(
         self,
@@ -1230,7 +1230,7 @@ class TPUDeepJDOTMethod(DeepJDOTMethod):
 class CBTPUDeepJDOTMethod(TPUDeepJDOTMethod):
     """Confidence-balanced TPU-DeepJDOT with three-way target pseudo semantics."""
 
-    method_name = "cbtpu_deepjdot"
+    method_name = "cbtpu_dpjdot"
 
     def __init__(
         self,

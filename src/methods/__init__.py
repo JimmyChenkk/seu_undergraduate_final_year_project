@@ -110,16 +110,16 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
         "u_deepjdot",
         "tp_deepjdot",
         "cbtp_deepjdot",
-        "tpu_deepjdot",
-        "cbtpu_deepjdot",
+        "tpu_dpjdot",
+        "cbtpu_dpjdot",
     }:
         method_cls = {
             "deepjdot": DeepJDOTMethod,
             "u_deepjdot": UDeepJDOTMethod,
             "tp_deepjdot": TPDeepJDOTMethod,
             "cbtp_deepjdot": CBTPDeepJDOTMethod,
-            "tpu_deepjdot": TPUDeepJDOTMethod,
-            "cbtpu_deepjdot": CBTPUDeepJDOTMethod,
+            "tpu_dpjdot": TPUDeepJDOTMethod,
+            "cbtpu_dpjdot": CBTPUDeepJDOTMethod,
         }[method_name]
         augment_loss = loss.get("augment", {})
         deepjdot_kwargs = {
@@ -137,12 +137,12 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
             "uot_tau_t": float(loss.get("uot_tau_t", loss.get("unbalanced_tau_t", 1.0))),
             **shared_kwargs,
         }
-        if method_name in {"u_deepjdot", "tpu_deepjdot", "cbtpu_deepjdot"}:
+        if method_name in {"u_deepjdot", "tpu_dpjdot", "cbtpu_dpjdot"}:
             deepjdot_kwargs.update(
                 {
                     "unbalanced_transport": bool(loss.get("unbalanced_transport", True)),
                     "use_ce_cost_for_plan": bool(
-                        loss.get("use_ce_cost_for_plan", method_name in {"tpu_deepjdot", "cbtpu_deepjdot"})
+                        loss.get("use_ce_cost_for_plan", method_name in {"tpu_dpjdot", "cbtpu_dpjdot"})
                     ),
                 }
             )
@@ -173,7 +173,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     ),
                 }
             )
-        if method_name in {"tpu_deepjdot", "cbtpu_deepjdot"}:
+        if method_name in {"tpu_dpjdot", "cbtpu_dpjdot"}:
             deepjdot_kwargs.update(
                 {
                     "prototype_cost_weight": float(loss.get("prototype_cost_weight", 0.015)),
@@ -225,7 +225,7 @@ def build_method(method_config, *, num_classes: int, in_channels: int, input_len
                     "target_im_diversity_weight": float(loss.get("target_im_diversity_weight", 1.0)),
                 }
             )
-        if method_name == "cbtpu_deepjdot":
+        if method_name == "cbtpu_dpjdot":
             deepjdot_kwargs.update(
                 {
                     "teacher_ema_decay": float(loss.get("teacher_ema_decay", 0.995)),

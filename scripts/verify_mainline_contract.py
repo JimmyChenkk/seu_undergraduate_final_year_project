@@ -235,8 +235,8 @@ def main() -> None:
             "cdan_ts",
             "codats",
             "deepjdot",
-            "tpu_deepjdot",
-            "cbtpu_deepjdot",
+            "tpu_dpjdot",
+            "cbtpu_dpjdot",
             "target_only",
         ]
         if args.print_tables:
@@ -244,14 +244,14 @@ def main() -> None:
             print(_format_table(single_scenes, single_methods))
         violations = _check_leader_contract(
             single_scenes,
-            leader="cbtpu_deepjdot",
+            leader="cbtpu_dpjdot",
             ignored_methods=ignored_methods,
             margin=float(args.margin),
         )
         violations.extend(
             _check_pair_contract(
                 single_scenes,
-                higher="tpu_deepjdot",
+                higher="tpu_dpjdot",
                 lower="deepjdot",
                 margin=float(args.margin),
             )
@@ -270,13 +270,13 @@ def main() -> None:
             multi_scenes,
             args.multi_scene_count,
         )
-        multi_methods = ["source_only", "codats", "wjdot", "ca_ccsr_wjdot_prior20", "target_ref"]
+        multi_methods = ["source_only", "codats", "wjdot", "ca_ccsr_wjdot", "target_ref"]
         if args.print_tables:
             print("\n[multi-source]")
             print(_format_table(multi_scenes, multi_methods))
         violations = _check_leader_contract(
             multi_scenes,
-            leader="ca_ccsr_wjdot_prior20",
+            leader="ca_ccsr_wjdot",
             ignored_methods=ignored_methods,
             margin=float(args.margin),
         )

@@ -1,4 +1,4 @@
-method_name: cbtpu_deepjdot
+method_name: cbtpu_dpjdot
 
 backbone:
   name: fcn
@@ -13,7 +13,7 @@ optimization:
   max_grad_norm: 5.0
 
 loss:
-  name: cbtpu_deepjdot
+  name: cbtpu_dpjdot
   adaptation_weight: 0.62
   adaptation_schedule: warm_start
   adaptation_max_steps: 2200

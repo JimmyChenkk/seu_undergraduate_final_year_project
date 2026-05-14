@@ -1,5 +1,5 @@
 method_name: ca_ccsr_wjdot
-method_display_name: ca_ccsr_wjdot_prior20
+method_display_name: ca_ccsr_wjdot
 
 backbone:
   name: fcn
@@ -39,7 +39,7 @@ runtime_defaults:
     class_entropy_floor: 0.70
 
 loss:
-  name: ca_ccsr_wjdot_prior20
+  name: ca_ccsr_wjdot
   adaptation_weight: 0.45
   source_ce_weight: 0.70
   source_ce_reduction: mean

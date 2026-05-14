@@ -1,4 +1,4 @@
-experiment_name: tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508
+experiment_name: tep_mainline_single_source_6scenes_8methods_dpjdot_cbtpu_anchor
 seed: 42
 device: cuda:0
 output_dir: runs
@@ -42,8 +42,8 @@ automation:
     - cdan_ts
     - codats
     - deepjdot
-    - tpu_deepjdot
-    - cbtpu_deepjdot
+    - tpu_dpjdot
+    - cbtpu_dpjdot
     - target_only
   single_source_scenes:
     - mode1->mode2
@@ -89,7 +89,7 @@ method_overrides:
       early_stopping_patience:
       early_stopping_min_delta: 0.0
       early_stopping_min_epochs: 120
-  tpu_deepjdot:
+  tpu_dpjdot:
     optimization: *stage1_optimization
     runtime: *stage1_runtime
     loss:
@@ -103,14 +103,14 @@ method_overrides:
       temporal_cost_weight: 0.012
       temporal_start_step: 450
       temporal_warmup_steps: 750
-  cbtpu_deepjdot:
+  cbtpu_dpjdot:
     optimization:
       <<: *stage1_optimization
       epochs: 80
       learning_rate: 0.00006
     runtime: *stage1_runtime
     loss:
-      teacher_checkpoint_base_method: tpu_deepjdot
+      teacher_checkpoint_base_method: tpu_dpjdot
       initialize_student_from_teacher_checkpoint: true
       freeze_loaded_teacher: true
       prediction_fusion_mode: teacher_safe_confidence
@@ -146,7 +146,7 @@ method_overrides:
       infomax_start_ratio: 0.75
       infomax_warmup_steps: 500
   m1_m2:
-    tpu_deepjdot:
+    tpu_dpjdot:
       runtime:
         model_selection: final
       loss:
@@ -160,7 +160,7 @@ method_overrides:
         temporal_cost_weight: 0.012
         temporal_start_step: 700
         temporal_warmup_steps: 900
-    cbtpu_deepjdot:
+    cbtpu_dpjdot:
       loss:
         adaptation_weight: 0.50
         pseudo_weight: 0.008
@@ -169,7 +169,7 @@ method_overrides:
         pseudo_max_acceptance: 0.40
         consistency_weight: 0.014
   m1_m5:
-    cbtpu_deepjdot:
+    cbtpu_dpjdot:
       loss:
         prediction_fusion_mode: teacher_student_mix
         prediction_fusion_student_weight: 0.10
@@ -180,7 +180,7 @@ method_overrides:
         pseudo_max_acceptance: 0.45
         q_ot_entropy_threshold: 0.72
   m2_m1:
-    cbtpu_deepjdot:
+    cbtpu_dpjdot:
       loss:
         prediction_fusion_mode: teacher_student_mix
         prediction_fusion_student_weight: 0.12
@@ -190,7 +190,7 @@ method_overrides:
         q_cls_power: 1.25
         q_proto_power: 0.85
   m2_m5:
-    cbtpu_deepjdot:
+    cbtpu_dpjdot:
       loss:
         selection_prediction_fusion_mode: teacher_safe_confidence
         selection_prediction_fusion_confidence_margin: 0.02
@@ -205,7 +205,7 @@ method_overrides:
         pseudo_max_acceptance: 0.38
         consistency_weight: 0.012
   m5_m2:
-    cbtpu_deepjdot:
+    cbtpu_dpjdot:
       loss:
         selection_prediction_fusion_mode: teacher_safe_confidence
         selection_prediction_fusion_confidence_margin: 0.02

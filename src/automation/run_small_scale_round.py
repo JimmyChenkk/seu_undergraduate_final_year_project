@@ -601,7 +601,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--experiment-config",
         type=Path,
-        default=Path("configs/experiment/tep_ot_single_source_8methods_cbtpu_anchor_rescue_20260508.yaml"),
+        default=Path("configs/experiment/tep_mainline_single_source_6scenes_8methods_dpjdot_cbtpu_anchor.yaml"),
     )
     parser.add_argument("--methods", nargs="*", default=None)
     parser.add_argument("--scenes", nargs="*", default=None)
