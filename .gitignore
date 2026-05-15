@@ -33,6 +33,7 @@ venv/
 .conda/
 
 # Cache and temporary artifacts
+/.codex_tmp/
 *.tmp
 *.temp
 *.bak
