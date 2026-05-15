@@ -33,7 +33,7 @@
 Industrial process fault diagnosis is an important problem in process monitoring and condition recognition. In cross-condition diagnosis, changes in operating regimes, working conditions, sensor statistics, and the scarcity of labeled fault samples often lead to distribution shifts between source and target conditions. As a result, a diagnostic model trained under one operating condition may not generalize well to another. To address cross-condition diagnosis with limited or unavailable target labels, this thesis studies domain adaptation methods for industrial process fault diagnosis on the Tennessee Eastman process domain adaptation benchmark, considering both single-source to single-target and multi-source to single-target settings.
 
 For the single-source setting, this thesis develops a temporal-prototype unbalanced joint distribution alignment method based on deep joint distribution optimal transport. Unbalanced transport is introduced to reduce unreliable forced matching in mini-batch alignment, while source-class prototypes, temporal statistical costs, and supervised contrastive learning are used to preserve fault-category structures. To further improve the use of unlabeled target samples, a confidence-balanced pseudo-labeling method is proposed. It combines transport semantics, teacher prediction semantics, and source-prototype semantics, and selects target samples using multi-evidence consistency, dynamic thresholds, class balancing, and weak-strong augmentation consistency. For the multi-source setting, this thesis proposes a class-conditional source reliability weighting method. A source-fault reliability matrix is constructed from prototype distance, class-conditional transport cost, target prediction entropy, and source-class performance, enabling fine-grained selective transfer across sources and fault categories. Experimental results show that the proposed methods improve target-domain diagnosis performance under cross-condition shifts and provide useful evidence for interpreting the contribution of different source domains and fault classes.
-\keywords{industrial process fault diagnosis,domain adaptation,optimal transport,pseudo-label learning,multi-source transfer}
+\keywords{Industrial process fault diagnosis,Domain adaptation,Optimal transport,Pseudo-label learning,Multi-source transfer}
 \end{abstract}
 
 \tableofcontents
@@ -1355,19 +1355,20 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \centering
     \caption{田纳西伊斯曼过程领域自适应数据集中各生产模式信息}
     \label{tab:tep_modes}
+    \zihao{5}
     \begin{tabular}{c c c c}
-        \hline
+        \toprule
         生产模式 & G/H质量比 & 生产率 & 样本数 \\
-        \hline
+        \midrule
         模式1 & 50/50 & 7038 kg/h G 和 7038 kg/h H & 2900 \\
         模式2 & 10/90 & 1408 kg/h G 和 12669 kg/h H & 2845 \\
         模式3 & 90/10 & 10000 kg/h G 和 1111 kg/h H & 2899 \\
         模式4 & 50/50 & 最大生产率 & 2865 \\
         模式5 & 10/90 & 最大生产率 & 2883 \\
         模式6 & 90/10 & 最大生产率 & 2897 \\
-        \hline
+        \addlinespace
         合计 & -- & -- & 17289 \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1431,17 +1432,18 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \centering
     \caption{单源跨工况实验场景}
     \label{tab:single_source_tasks}
+    \zihao{5}
     \begin{tabular}{c c c}
-        \hline
+        \toprule
         序号 & 源域 & 目标域 \\
-        \hline
+        \midrule
         1 & $m_1$ & $m_2$ \\
         2 & $m_2$ & $m_1$ \\
         3 & $m_1$ & $m_5$ \\
         4 & $m_5$ & $m_1$ \\
         5 & $m_2$ & $m_5$ \\
         6 & $m_5$ & $m_2$ \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1458,14 +1460,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \centering
     \caption{生产模式1、生产模式2和生产模式5之间的两源域到单目标域实验场景}
     \label{tab:two_source_tasks}
+    \zihao{5}
     \begin{tabular}{c c c}
-        \hline
+        \toprule
         序号 & 源域 & 目标域 \\
-        \hline
+        \midrule
         1 & $m_1 + m_2$ & $m_5$ \\
         2 & $m_2 + m_5$ & $m_1$ \\
         3 & $m_1 + m_5$ & $m_2$ \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1475,17 +1478,18 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \centering
     \caption{6个生产模式之间的五源域到单目标域实验场景}
     \label{tab:five_source_tasks}
+    \zihao{5}
     \begin{tabular}{c c c}
-        \hline
+        \toprule
         序号 & 源域 & 目标域 \\
-        \hline
+        \midrule
         1 & $m_2 + m_3 + m_4 + m_5 + m_6$ & $m_1$ \\
         2 & $m_1 + m_3 + m_4 + m_5 + m_6$ & $m_2$ \\
         3 & $m_1 + m_2 + m_4 + m_5 + m_6$ & $m_3$ \\
         4 & $m_1 + m_2 + m_3 + m_5 + m_6$ & $m_4$ \\
         5 & $m_1 + m_2 + m_3 + m_4 + m_6$ & $m_5$ \\
         6 & $m_1 + m_2 + m_3 + m_4 + m_5$ & $m_6$ \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1503,12 +1507,16 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \centering
     \caption{单源跨工况主结果的平均诊断性能}
     \label{tab:single_average_results}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabular}{l c c c c}
-        \hline
+    \zihao{5}
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.16\textwidth}@{}}
+        \toprule
         方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
-        \hline
+        \midrule
         SourceOnly & 55.88$\pm$7.67 & 49.97$\pm$7.96 & 55.83$\pm$7.79 & 0/6 \\
         DSAN & 62.42$\pm$13.35 & 58.45$\pm$15.51 & 62.41$\pm$13.67 & 0/6 \\
         CDAN-TS & 67.76$\pm$9.99 & 64.25$\pm$11.51 & 67.61$\pm$9.91 & 0/6 \\
@@ -1517,7 +1525,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
         TPU\_DPJDOT & 80.54$\pm$2.20 & 78.82$\pm$2.18 & 80.64$\pm$2.28 & 0/6 \\
         CBTPU\_DPJDOT & 82.02$\pm$1.64 & 80.73$\pm$1.54 & 82.12$\pm$1.71 & 6/6 \\
         Target-ref & 90.92$\pm$1.42 & 90.67$\pm$1.66 & 90.98$\pm$1.41 & -- \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1640,18 +1648,22 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     \centering
     \caption{两源跨工况主结果的平均诊断性能}
     \label{tab:two_source_average_results}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabular}{l c c c c}
-        \hline
+    \zihao{5}
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.16\textwidth}@{}}
+        \toprule
         方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
-        \hline
+        \midrule
         SourceOnly & 66.51$\pm$8.20 & 62.00$\pm$7.06 & 66.58$\pm$8.21 & 0/3 \\
         CoDATS & 77.22$\pm$6.22 & 75.58$\pm$6.95 & 77.28$\pm$6.28 & 0/3 \\
         WJDOT & 72.41$\pm$4.96 & 69.07$\pm$5.40 & 72.50$\pm$4.96 & 0/3 \\
         CA\_CCSR\_WJDOT & 81.21$\pm$4.12 & 79.97$\pm$4.50 & 81.32$\pm$4.20 & 3/3 \\
         Target-ref & 91.94$\pm$1.44 & 91.49$\pm$0.92 & 91.98$\pm$1.42 & -- \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1661,18 +1673,22 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     \centering
     \caption{五源留一域主结果的平均诊断性能}
     \label{tab:multi_average_results}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabular}{l c c c c}
-        \hline
+    \zihao{5}
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.18\textwidth}
+                    >{\centering\arraybackslash}p{0.16\textwidth}@{}}
+        \toprule
         方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
-        \hline
+        \midrule
         SourceOnly & 71.63$\pm$10.88 & 68.04$\pm$12.61 & 71.48$\pm$11.15 & 0/6 \\
         CoDATS & 83.44$\pm$3.19 & 82.46$\pm$3.42 & 83.21$\pm$3.53 & 0/6 \\
         WJDOT & 78.37$\pm$4.30 & 75.70$\pm$5.30 & 78.47$\pm$4.35 & 0/6 \\
         CA\_CCSR\_WJDOT & 85.50$\pm$2.50 & 84.30$\pm$2.58 & 85.51$\pm$2.54 & 6/6 \\
         Target-ref & 92.24$\pm$1.07 & 91.46$\pm$1.21 & 92.28$\pm$1.09 & -- \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1796,16 +1812,19 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     \centering
     \caption{主线方法跨迁移场景配对显著性检验结果}
     \label{tab:significance_results}
-    \footnotesize
-    \setlength{\tabcolsep}{5pt}
-    \begin{tabular}{l c c c}
-        \hline
+    \zihao{5}
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.37\textwidth}
+                    >{\centering\arraybackslash}p{0.20\textwidth}
+                    >{\centering\arraybackslash}p{0.17\textwidth}
+                    >{\centering\arraybackslash}p{0.20\textwidth}@{}}
+        \toprule
         配对比较 & 配对场景 & 正向场景数 & Wilcoxon $p$ 值 \\
-        \hline
+        \midrule
         TPU\_DPJDOT vs. DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
         CBTPU\_DPJDOT vs. TPU\_DPJDOT & 单源6任务 & 6/6 & 0.015625 \\
         CA\_CCSR\_WJDOT vs. WJDOT & 两源与五源共9任务 & 9/9 & 0.001953 \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -1883,6 +1902,9 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 
 综上，本文为跨工况工业过程故障诊断提供了基于最优传输、时序原型、置信伪标签和类条件源域可靠性的领域自适应方法框架。后续若进一步结合弱监督目标校准、在线自适应、可解释建模和轻量化方法，有望提升模型在复杂跨域设定中的泛化能力、稳定性和研究价值。
 
+\cleardoublepage
+\bibliography{bib/references}
+
 \clearpage
 \appendix
 \renewcommand{\thetable}{\Alph{chapter}.\arabic{table}}
@@ -1890,7 +1912,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 
 为避免正文中同一符号表示不同含义，本文将主要数学符号统一整理如表 \ref{tab:symbols} 所示。上标 $s$、$t$ 和 $s_k$ 分别表示源域、目标域和第 $k$ 个源域；未列入表中的局部求和下标仅在其所在公式附近使用。
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.18}
 \setlength{\emergencystretch}{3em}
@@ -1904,18 +1926,18 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     符号 & 含义 & 说明 \\
     \midrule
     \endfirsthead
+    \multicolumn{3}{r}{续表~\thetable}\\
     \toprule
     符号 & 含义 & 说明 \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{3}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
 
     \multicolumn{3}{l}{\textbf{数据、领域与类别}}\\
-    \midrule
+    \addlinespace
     $\mathcal{D}_s,\mathcal{D}_t,\mathcal{D}_{s_k}$ & 源域、目标域、第 $k$ 个源域数据集 & 单源或多源领域自适应设定 \\
     $\mathcal{D}_{s}^{\mathrm{train}}$、$\mathcal{D}_{t}^{\mathrm{train}}$、$\mathcal{D}_{t}^{\mathrm{test}}$ & 源域训练集、目标域无标签训练集、目标域测试集 & 目标域测试标签仅用于最终评价 \\
     $\mathcal{B}_s,\mathcal{B}_t,\mathcal{B}_{s_k}$ & 源域小批量、目标域小批量、第 $k$ 个源域小批量 & 训练迭代中采样得到 \\
@@ -1937,9 +1959,9 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     $\epsilon$ & 数值稳定常数 & 防止除零或对数为零 \\
     $\nu,N_{\mathrm{iter}}$ & 训练步索引与总训练步数 & $\nu$ 不再表示时间序列下标 \\
 
-    \midrule
+    \addlinespace
     \multicolumn{3}{l}{\textbf{模型、特征与预测}}\\
-    \midrule
+    \addlinespace
     $F_\theta(\cdot)$ & 特征提取器 & 参数为 $\theta$ \\
     $G_\phi(\cdot)$ & 故障分类器 & 参数为 $\phi$ \\
     $G_{\phi,c}(\cdot)$ & 分类器输出第 $c$ 类概率的分量 & 领域对抗基线公式中使用 \\
@@ -1961,9 +1983,9 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     $\varphi(\cdot)$ & 非线性激活函数 & 与标准差 $\sigma_{\cdot}$ 区分 \\
     $Z_s,Z_t$ & 源域特征集合与目标域特征集合 & 领域对抗损失中使用 \\
 
-    \midrule
+    \addlinespace
     \multicolumn{3}{l}{\textbf{最优传输与对齐}}\\
-    \midrule
+    \addlinespace
     $C,C_{ij},C_{ij}^{(k)},C^{(k)},C^{\mathrm{loss}}$ & 传输代价矩阵、代价元素、第 $k$ 源域代价、矩阵形式、训练代价 & $C$ 专用于代价矩阵 \\
     $\gamma$、$\gamma^\ast$、$\gamma_{ij}$、$\gamma_{ij}^{(k)}$、$\gamma_k$、$\gamma_k^\ast$、$\gamma_{k,ij}$ & 传输计划、最优传输计划及其元素、第 $k$ 源域传输计划及其元素 & 表示源目标样本匹配质量 \\
     $\Pi(a,b),\Pi(a_k,b)$ & 满足边际分布的传输计划集合 & $a_k$ 为第 $k$ 源域边际 \\
@@ -1981,9 +2003,9 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     $\lambda_p(\nu),\lambda_{\mathrm{temp}}(\nu),\lambda_p^0$ & 原型代价权重、时序统计代价权重、原型代价基础权重 & 延迟启动并线性预热 \\
     $\nu_p,S_p$ & 原型代价启动步数与预热步数 & 时序统计代价采用相同形式 \\
 
-    \midrule
+    \addlinespace
     \multicolumn{3}{l}{\textbf{原型、伪标签与一致性}}\\
-    \midrule
+    \addlinespace
     $\mu_c,\bar{\mu}_c,\mu_{kc}^s,\mu_c^t$ & 源域类别原型、小批量源类均值、第 $k$ 源域原型、目标域原型 & 用于类别结构建模 \\
     $\rho$ & 源域原型动量系数 & 原型指数滑动平均 \\
     $d_{cj}^{\mathrm{proto}},d_{jc}^{\mathrm{proto}}$ & 目标样本到源域类别原型的距离 & 分别服务于传输代价和原型语义分布 \\
@@ -2010,9 +2032,9 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     $\mathcal{S}_{\mathrm{cons}}$ & 参与一致性损失的目标样本集合 & 包括高置信和部分中等置信目标样本 \\
     $T_{\mathrm{tea}},T_{\mathrm{proto}}$ & 教师预测温度与原型语义温度 & 伪标签语义分布估计 \\
 
-    \midrule
+    \addlinespace
     \multicolumn{3}{l}{\textbf{多源可靠性与损失函数}}\\
-    \midrule
+    \addlinespace
     $R\in\mathbb{R}^{K\times N_c}$ & 源域--故障类别可靠性矩阵 & 数值越小表示越可靠 \\
     $R_{kc},\alpha_{kc},\alpha_{kc}(\nu)$ & 第 $k$ 源域第 $c$ 类可靠性分数、类条件权重及其训练步调度形式 & $\sum_k\alpha_{kc}=1$ \\
     $\alpha_k$ & 第 $k$ 个源域的全局源域权重 & WJDOT 中使用 \\
@@ -2048,7 +2070,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 
 为避免附录冗长，表中只列出影响三条创新主线的主要数值参数。若某一参数在特定场景中有覆盖取值，则以场景覆盖表为准；未列出的基线方法参数不属于本文创新方法参数，故不在本附录展开。
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \setlength{\emergencystretch}{3em}
@@ -2059,12 +2081,12 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     参数含义 & 符号 & 取值 \\
     \midrule
     \endfirsthead
+    \multicolumn{3}{r}{续表~\thetable}\\
     \toprule
     参数含义 & 符号 & 取值 \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{3}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
@@ -2083,7 +2105,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 
 \section{单源主线参数}
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}@{}}
@@ -2093,12 +2115,12 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     参数含义 & 符号 & TPU\_DPJDOT & CBTPU\_DPJDOT \\
     \midrule
     \endfirsthead
+    \multicolumn{4}{r}{续表~\thetable}\\
     \toprule
     参数含义 & 符号 & TPU\_DPJDOT & CBTPU\_DPJDOT \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{4}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
@@ -2144,7 +2166,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 \end{longtable}
 }
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.14\textwidth}>{\raggedright\arraybackslash}p{0.35\textwidth}>{\raggedright\arraybackslash}p{0.43\textwidth}@{}}
@@ -2154,12 +2176,12 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     场景 & 覆盖符号 & 覆盖取值 \\
     \midrule
     \endfirsthead
+    \multicolumn{3}{r}{续表~\thetable}\\
     \toprule
     场景 & 覆盖符号 & 覆盖取值 \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{3}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
@@ -2167,7 +2189,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     $m_1\rightarrow m_2$ & TPU\_DPJDOT：$\lambda_{\mathrm{ot}}^0,\nu_{\mathrm{align}},\nu_p,S_p,\nu_{\mathrm{temp}},S_{\mathrm{temp}}$；CBTPU\_DPJDOT：$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & TPU\_DPJDOT：$0.62,700,700,900,700,900$；CBTPU\_DPJDOT：$0.50,0.008,0.94,0.88,0.40,0.014$ \\
     $m_1\rightarrow m_5$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},h_{\mathrm{ot}}$ & $0.10,0.50,0.010,0.94,0.87,0.45,0.72$ \\
     $m_2\rightarrow m_1$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\lambda_{\mathrm{cons}}^0,\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & $0.12,0.50,0.010,0.016,1.25,0.85$ \\
-    $m_2\rightarrow m_5$ & $\Delta_{\min},\Delta_{\max},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & $-0.40,0.10,0.50,0.008,0.95,0.88,0.38,0.012$ \\
+    $m_2\rightarrow m_5$ & $\Delta_{\min},\Delta_{\max}$；$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0$；$\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}}$；$a_{\max},\lambda_{\mathrm{cons}}^0$ & $-0.40,0.10$；$0.50,0.008$；$0.95,0.88$；$0.38,0.012$ \\
     $m_5\rightarrow m_1$ & -- & 采用表 \ref{tab:seed42_single_method_params} 通用取值 \\
     $m_5\rightarrow m_2$ & $\Delta_{\min},\Delta_{\max}$ & $-0.40,0.04$；其余采用表 \ref{tab:seed42_single_method_params} 通用取值 \\
 \end{longtable}
@@ -2177,7 +2199,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 
 表 \ref{tab:seed42_ca_ccsr_params} 列出 CA\_CCSR\_WJDOT 在二源和五源主线中的核心算法参数。二源主线采用统一参数；五源主线的目标域相关覆盖见表 \ref{tab:seed42_ca_scene_overrides}。
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
@@ -2187,12 +2209,12 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     参数含义 & 符号 & 二源 & 五源通用 \\
     \midrule
     \endfirsthead
+    \multicolumn{4}{r}{续表~\thetable}\\
     \toprule
     参数含义 & 符号 & 二源 & 五源通用 \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{4}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
@@ -2237,7 +2259,7 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 \end{longtable}
 }
 
-{\footnotesize
+{\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth}>{\raggedright\arraybackslash}p{0.81\textwidth}@{}}
@@ -2247,12 +2269,12 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
     目标域 & 覆盖参数取值 \\
     \midrule
     \endfirsthead
+    \multicolumn{2}{r}{续表~\thetable}\\
     \toprule
     目标域 & 覆盖参数取值 \\
     \midrule
     \endhead
-    \midrule
-    \multicolumn{2}{r}{续下页}\\
+    \bottomrule
     \endfoot
     \bottomrule
     \endlastfoot
@@ -2267,9 +2289,6 @@ CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标
 }
 
 以上参数表仅用于说明本文主线实验中的算法超参数取值；未在表中列出的量按正文算法定义取值。
-
-\cleardoublepage
-\bibliography{bib/references}
 
 \begin{acknowledgement}
   值此本科毕业论文完成之际，谨向在大学期间关心、指导和帮助过我的老师、学长、同学及家人表示诚挚感谢。
