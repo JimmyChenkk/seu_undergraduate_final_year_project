@@ -25,13 +25,13 @@
 
 \draw[panel] (-0.25,0.00) rectangle (21.25,9.00);
 \node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
-    {CBTPU-DeepJDOT 多证据置信均衡伪标签控制机制};
+    {CBTPU\_DPJDOT 多证据置信均衡伪标签控制机制};
 
 % 基础输入
 \draw[bluecard] (0.45,2.15) rectangle (3.25,7.75);
 \node at (1.85,7.43) {基础信息};
 \node[chip, minimum width=2.20cm] at (1.85,6.05)
-    {TPU-DeepJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
+    {TPU\_DPJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
 \node[chip, minimum width=2.20cm] at (1.85,4.60)
     {目标域样本\\[-1pt]$x_j^t$};
 \node[note, text width=2.30cm] at (1.85,3.25)
@@ -45,7 +45,7 @@
 \node[chip, minimum width=2.65cm] at (5.65,4.60)
     {强增强 + 学生\\[-1pt]$a_s(x_j^t),\Theta$};
 \node[note, text width=2.70cm] at (5.65,3.25)
-    {加载 TPU 检查点；冻结时不参与 EMA};
+    {加载 TPU\_DPJDOT 检查点；冻结时不参与 EMA};
 
 % 三路证据
 \draw[orangecard] (8.05,2.15) rectangle (11.15,7.75);
@@ -84,8 +84,8 @@
 % 目标域学习
 \draw[redcard] (3.95,0.50) rectangle (20.85,1.35);
 \node at (12.40,0.92)
-    {$\mathcal{L}_{CBTPU}
-    =\mathcal{L}_{TPU}
+    {$\mathcal{L}_{\mathrm{CBTPU\_DPJDOT}}
+    =\mathcal{L}_{\mathrm{TPU\_DPJDOT}}
     +\lambda_{pl}\mathcal{L}_{pl}
     +\lambda_{cons}\mathcal{L}_{cons}
     +\lambda_{im}\mathcal{L}_{im}$};

@@ -30,7 +30,7 @@
 
 \draw[panel] (-0.25,0.00) rectangle (17.95,9.00);
 \node[font=\large\fontspec{Times New Roman}\songti] at (8.85,8.55)
-    {TPU-DeepJDOT 时序原型非平衡联合分布对齐机制};
+    {TPU\_DPJDOT 时序原型非平衡联合分布对齐机制};
 
 % 输入批次
 \draw[bluecard] (0.55,2.15) rectangle (3.25,7.75);
@@ -79,7 +79,7 @@
 % 优化目标
 \draw[redcard] (4.05,0.50) rectangle (17.25,1.35);
 \node at (10.65,0.92)
-    {$\mathcal{L}_{TPU}
+    {$\mathcal{L}_{\mathrm{TPU\_DPJDOT}}
     =\mathcal{L}_{src}
     +\lambda_{supcon}\mathcal{L}_{supcon}
     +\lambda_{ot}\mathcal{L}_{align}$};
