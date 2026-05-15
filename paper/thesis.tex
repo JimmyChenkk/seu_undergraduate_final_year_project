@@ -1006,13 +1006,13 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 第三章和第四章面向单源到单目标场景，研究如何在一个有标签源工况和一个无标签目标工况之间进行可靠对齐。在多源跨工况设定中，源域数据可以来自多个生产模式或多个相邻工况。多源领域自适应能够利用更丰富的源域故障样本，但也带来新的问题：不同源域与目标域的相似程度不同，同一源域对不同故障类别的可迁移性也可能不同。若简单合并多个源域，模型可能受到不可靠源域或不可靠故障类别干扰，出现负迁移。
 
-针对上述问题，本章提出类条件源域可靠性加权方法。该方法结合 CoDATS 的时间序列领域对抗表征、WJDOT 的逐源联合分布传输思想，以及本文设计的类条件源域可靠性矩阵。具体而言，在每个源域与目标域之间分别计算联合传输代价，并从原型距离、类条件传输代价、目标预测熵和源域类别召回误差四个角度估计“源域--故障类别”可靠性，再据此分配类条件源域权重。训练和模型选择过程中不使用目标域标签，目标域标签仅用于最终评价。方法整体结构如图 \ref{fig:ch5_ca_ccsr_wjdot} 所示。
+针对上述问题，本章提出类条件源域可靠性加权方法。该方法结合 CoDATS 的时间序列领域对抗表征、WJDOT 的逐源联合分布传输思想，以及本文设计的类条件源域可靠性矩阵。具体而言，在每个源域与目标域之间分别计算联合传输代价，并从原型距离、类条件传输代价、目标预测熵和源域类别召回误差四个角度估计“源域--故障类别”可靠性，再据此分配类条件源域权重。训练和模型选择过程中不使用目标域标签，目标域标签仅用于最终评价。方法整体结构如图 \ref{fig:ch5_CA_CCSR_WJDOT} 所示。
 
 \begin{figure}[htbp]
     \centering
-    \resizebox{\textwidth}{!}{\input{figs/ch5_ca_ccsr_wjdot.tikz.tex}}
+    \resizebox{\textwidth}{!}{\input{figs/ch5_CA_CCSR_WJDOT.tikz.tex}}
     \caption{类条件源域可靠性加权多源方法架构示意}
-    \label{fig:ch5_ca_ccsr_wjdot}
+    \label{fig:ch5_CA_CCSR_WJDOT}
 \end{figure}
 
 \section{类条件源域可靠性加权基本原理}
@@ -1332,6 +1332,8 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本文实验关注无监督领域自适应场景。除目标域监督参考方法外，领域自适应方法在训练、伪标签筛选、超参数选择和模型选择过程中均不使用目标域真实标签；目标域标签仅在最终预测完成后用于计算评价指标。考虑到不同生产模式之间的分布偏移程度不同，且多源场景中不同源域对不同故障类别的贡献可能存在差异，本章结果分析不仅关注平均性能提升，也关注困难迁移场景、类别混淆现象和源域可靠性差异，以检验本文方法在跨工况工业过程故障诊断中的性能、稳定性和解释能力。
 
+本文方法名称按全文统一约定书写。第三章方法记为 TPU\_DPJDOT，第四章方法记为 CBTPU\_DPJDOT，第五章方法记为 CA\_CCSR\_WJDOT。DeepJDOT、WJDOT、CoDATS 仅作为基线或基础方法名称保留。
+
 \section{数据集与实验场景}
 
 \noindent\textbf{田纳西伊斯曼过程领域自适应数据集}
@@ -1489,88 +1491,175 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 在多源实验中，源域直接迁移方法用于衡量不进行领域自适应时的多源泛化能力，CoDATS 用于衡量卷积式时间序列领域自适应基线性能，WJDOT 用于衡量基于多源加权联合分布最优传输的基线性能，本文第五章方法用于验证类条件源域可靠性加权机制的有效性。通过两源域和五源域两组实验，可以分别分析源域数量较少和源域数量较多时，源域可靠性建模对目标域故障诊断结果的影响。
 
-\section{所提方法有效性验证}
+\section{单源时序原型非平衡联合分布对齐实验}
 
-本节围绕第三章、第四章和第五章提出的三条方法主线进行有效性验证。为避免将机制验证写成完整基线汇总，本节只比较相邻方法之间的增量关系：TPU\_DPJDOT 相对 DeepJDOT，CBTPU\_DPJDOT 相对 TPU\_DPJDOT，CA\_CCSR\_WJDOT 相对 WJDOT。完整基线对比统一放在 6.4 节展开。
+本节验证第三章提出的时序原型非平衡联合分布对齐机制，叙事重点是 DeepJDOT 到 TPU\_DPJDOT 的递进关系。正文结果均采用固定 seed42、固定第一折协议和冻结的主线结果；表中“均值 $\pm$ 标准差”表示不同迁移任务或目标域之间的均值与场景标准差。其他随机性条件下的补充结果不在正文展开。
 
-正文结果均采用统一的数据划分和随机性控制。表中“均值 $\pm$ 标准差”表示不同迁移任务或目标域之间的均值与场景标准差；其他随机性条件下的补充实验仅作为附录候选，不在正文中展开讨论。
+\subsection{单源实验结果对比}
 
-\subsection{时序原型非平衡联合分布对齐有效性}
-
-第三章方法的目标是缓解 DeepJDOT 在小批量联合分布最优传输中可能出现的错误强制匹配，并通过源域类别原型、时序统计代价和源域监督对比约束保持故障类别结构。因此，本小节只比较 DeepJDOT 与 TPU\_DPJDOT。
-
-在 6 个单源迁移任务上，DeepJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 68.88\%、66.04\% 和 69.08\%；TPU\_DPJDOT 分别达到 80.54\%、78.82\% 和 80.64\%。相较 DeepJDOT，TPU\_DPJDOT 的平均准确率提升 11.66 个百分点，宏平均 F1 提升 12.78 个百分点，平衡准确率提升 11.56 个百分点，并且在全部 6 个单源迁移方向上均取得更高目标域准确率。
-
-本小节核心结论是：时序原型非平衡联合分布对齐能够稳定增强 DeepJDOT 的跨工况类别结构保持能力。
-
-\subsection{多证据置信均衡伪标签有效性}
-
-第四章方法的目标是在 TPU\_DPJDOT 已完成较可靠源目标对齐的基础上，进一步利用目标域无标签样本。CBTPU\_DPJDOT 通过冻结 TPU\_DPJDOT 教师锚点、多证据伪标签筛选、类别均衡和强弱增强一致性约束，减少错误伪标签对目标域决策边界的干扰。因此，本小节只比较 CBTPU\_DPJDOT 与 TPU\_DPJDOT。
-
-CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.02\%、80.73\% 和 82.12\%，相较 TPU\_DPJDOT 继续提升 1.48、1.91 和 1.48 个百分点。逐任务结果中，CBTPU\_DPJDOT 在 6 个单源迁移方向上均高于 TPU\_DPJDOT，其中 $m_1\rightarrow m_2$ 和 $m_5\rightarrow m_1$ 的额外提升分别达到 3.00 和 3.79 个百分点。
-
-本小节核心结论是：多证据置信均衡伪标签机制能够在已有单源对齐基础上继续带来小幅但一致的目标域收益。
-
-\subsection{类条件源域可靠性加权有效性}
-
-第五章方法的目标是解决 WJDOT 全局源域权重粒度较粗的问题。CA\_CCSR\_WJDOT 将源域加权细化到源域--故障类别层面，并结合 CoDATS 风格时间序列表征和教师先验融合，使模型能够为不同故障类别选择更可靠的源域信息。因此，本小节只比较 CA\_CCSR\_WJDOT 与 WJDOT。
-
-在五源留一域设置中，WJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 78.37\%、75.70\% 和 78.47\%；CA\_CCSR\_WJDOT 分别达到 85.50\%、84.30\% 和 85.51\%。相较 WJDOT，CA\_CCSR\_WJDOT 的平均准确率提升 7.13 个百分点，宏平均 F1 提升 8.60 个百分点，平衡准确率提升 7.04 个百分点，并在 6/6 个目标域上取得无监督方法中的最高准确率。
-
-本小节核心结论是：类条件源域可靠性加权能够显著改善 WJDOT 在多源留一域场景中的稳定性和整体性能。
-
-\section{方法间综合对比与准确率汇总}
-
-\subsection{单源完整基线对比与准确率汇总}
-
-本小节汇总单源跨工况实验的完整基线。参与比较的方法包括 SourceOnly、DSAN、CDAN-TS、CoDATS、DeepJDOT、TPU\_DPJDOT、CBTPU\_DPJDOT 和 Target-ref。其中 Target-ref 使用目标域训练部分标签进行监督训练，仅作为有标签参考，不参与无监督方法公平排序。
+表 \ref{tab:single_average_results} 给出单源跨工况实验的主结果。参与比较的方法包括 SourceOnly、DSAN、CDAN-TS、CoDATS、DeepJDOT、TPU\_DPJDOT、CBTPU\_DPJDOT 和 Target-ref。其中 Target-ref 使用目标域训练部分标签进行监督训练，仅作为有标签参考，不参与无监督方法公平排序。为避免后文重复列同一组单源结果，本表同时作为第 6.3 节和第 6.4 节的单源性能依据；本小节只分析 SourceOnly、DeepJDOT 和 TPU\_DPJDOT。
 
 \begin{table}[htbp]
     \centering
-    \caption{单源跨工况完整基线的平均诊断性能}
+    \caption{单源跨工况主结果的平均诊断性能}
     \label{tab:single_average_results}
-    \small
-    \begin{tabular}{l c c c}
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{l c c c c}
         \hline
-        方法 & 准确率 & 宏平均F1 & 平衡准确率 \\
+        方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
         \hline
-        SourceOnly & 55.88$\pm$7.67 & 49.97$\pm$7.96 & 55.83$\pm$7.79 \\
-        DSAN & 62.42$\pm$13.35 & 58.45$\pm$15.51 & 62.41$\pm$13.67 \\
-        CDAN-TS & 67.76$\pm$9.99 & 64.25$\pm$11.51 & 67.61$\pm$9.91 \\
-        CoDATS & 74.30$\pm$4.62 & 72.34$\pm$5.72 & 74.33$\pm$4.71 \\
-        DeepJDOT & 68.88$\pm$1.76 & 66.04$\pm$1.46 & 69.08$\pm$1.62 \\
-        TPU\_DPJDOT & 80.54$\pm$2.20 & 78.82$\pm$2.18 & 80.64$\pm$2.28 \\
-        CBTPU\_DPJDOT & 82.02$\pm$1.64 & 80.73$\pm$1.54 & 82.12$\pm$1.71 \\
-        Target-ref & 90.92$\pm$1.42 & 90.67$\pm$1.66 & 90.98$\pm$1.41 \\
+        SourceOnly & 55.88$\pm$7.67 & 49.97$\pm$7.96 & 55.83$\pm$7.79 & 0/6 \\
+        DSAN & 62.42$\pm$13.35 & 58.45$\pm$15.51 & 62.41$\pm$13.67 & 0/6 \\
+        CDAN-TS & 67.76$\pm$9.99 & 64.25$\pm$11.51 & 67.61$\pm$9.91 & 0/6 \\
+        CoDATS & 74.30$\pm$4.62 & 72.34$\pm$5.72 & 74.33$\pm$4.71 & 0/6 \\
+        DeepJDOT & 68.88$\pm$1.76 & 66.04$\pm$1.46 & 69.08$\pm$1.62 & 0/6 \\
+        TPU\_DPJDOT & 80.54$\pm$2.20 & 78.82$\pm$2.18 & 80.64$\pm$2.28 & 0/6 \\
+        CBTPU\_DPJDOT & 82.02$\pm$1.64 & 80.73$\pm$1.54 & 82.12$\pm$1.71 & 6/6 \\
+        Target-ref & 90.92$\pm$1.42 & 90.67$\pm$1.66 & 90.98$\pm$1.41 & -- \\
         \hline
     \end{tabular}
 \end{table}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{figs/ch6_single_source_method_mean_accuracy.pdf}
-    \caption{单源跨工况完整基线平均目标域准确率柱状图}
-    \label{fig:single_source_accuracy_bar}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
     \includegraphics[width=1\textwidth]{figs/ch6_single_source_heatmap.pdf}
-    \caption{单源跨工况完整基线逐任务目标域准确率热力图}
+    \caption{单源跨工况逐任务目标域准确率热力图}
     \label{fig:single_source_heatmap}
 \end{figure}
 
-表 \ref{tab:single_average_results}、图 \ref{fig:single_source_accuracy_bar} 和图 \ref{fig:single_source_heatmap} 表明，SourceOnly 的平均准确率仅为 55.88\%，说明单一生产模式监督训练难以直接泛化到目标模式。传统领域自适应方法中，CoDATS 的平均准确率为 74.30\%，是较强的时间序列对抗适配基线；DeepJDOT 的平均准确率为 68.88\%，说明普通联合分布最优传输在部分跨工况方向上仍受到错误匹配影响。TPU\_DPJDOT 和 CBTPU\_DPJDOT 分别达到 80.54\% 和 82.02\%，其中 CBTPU\_DPJDOT 在全部 6 个单源迁移方向上取得无监督方法中的最高准确率。
+表 \ref{tab:single_average_results} 与图 \ref{fig:single_source_heatmap} 表明，SourceOnly 的平均准确率仅为 55.88\%，说明单一生产模式监督训练难以直接泛化到目标模式。DeepJDOT 的平均准确率为 68.88\%，相比 SourceOnly 有明显提升，但普通平衡联合分布传输仍容易在类别组成不一致的小批量中产生错误匹配。TPU\_DPJDOT 的平均准确率达到 80.54\%，相较 DeepJDOT 提升 11.66 个百分点，宏平均 F1 和平衡准确率分别提升 12.78 和 11.56 个百分点，并在 6 个单源迁移任务中均高于 DeepJDOT。
 
-本小节核心结论是：单源主线呈现 DeepJDOT $\rightarrow$ TPU\_DPJDOT $\rightarrow$ CBTPU\_DPJDOT 的稳定递进关系，且最终方法整体优于传统单源基线。
+上述结果说明，非平衡传输、源域类别原型和时序统计代价并非只带来局部场景收益，而是在全部单源迁移方向上稳定增强了 DeepJDOT 的类别结构保持能力。
 
-\subsection{多源完整基线对比与准确率汇总}
+单源代表场景的混淆矩阵和域融合特征在第 6.4 节与 CBTPU\_DPJDOT 一并呈现，以保持同一代表场景下的图像比较完整。
 
-本小节汇总五源留一域设置下的完整基线。参与比较的方法包括 SourceOnly、CoDATS、WJDOT、CA\_CCSR\_WJDOT 和 Target-ref。两源结果用于补充检验小规模多源情形，正文综合对比以覆盖 6 个目标生产模式的五源主设置为准。
+\subsection{时序原型非平衡联合分布对齐机制分析}
+
+DeepJDOT 使用平衡最优传输时，每个小批量内的源域和目标域样本质量需要被完整匹配。对于 TEP 跨工况任务，这一约束会在目标域类别组成不均衡或预测尚不稳定时放大错误传输。TPU\_DPJDOT 将对齐损失改为非平衡联合分布传输，使不可靠传输质量可以被削减；同时将源域类别原型距离、原始时间窗口统计代价和源域监督对比约束引入联合代价，使传输计划同时受到特征几何、故障类别中心和时序动态信息约束。
+
+以 $m_5\rightarrow m_2$ 为例，训练诊断中 DeepJDOT 的传输质量始终固定为完整匹配，而 TPU\_DPJDOT 的非平衡传输质量不再被强制固定为 1，后期保持在约 0.69 左右；同时，目标域训练样本的平均预测熵低于 DeepJDOT，对应目标域预测置信度更高。该现象说明 TPU\_DPJDOT 的收益不是简单增大传输损失权重，而是通过非平衡传输和原型代价共同抑制了低可靠匹配。
+
+\section{单源多证据置信均衡伪标签实验}
+
+本节验证第四章提出的多证据置信均衡伪标签机制，叙事重点是 TPU\_DPJDOT 到 CBTPU\_DPJDOT 的递进关系。为使单源图像安排与方法递进一致，本节在同一代表场景中同时展示 SourceOnly、DeepJDOT、TPU\_DPJDOT 和 CBTPU\_DPJDOT。
+
+\subsection{单源实验结果对比}
+
+由表 \ref{tab:single_average_results} 可知，CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.02\%、80.73\% 和 82.12\%，相较 TPU\_DPJDOT 继续提升 1.48、1.91 和 1.48 个百分点。逐任务结果中，CBTPU\_DPJDOT 在 6 个单源迁移方向上均高于 TPU\_DPJDOT，并在全部 6 个单源任务中取得无监督方法第一。
+
+这一结果说明，多证据置信均衡伪标签学习并不是替代前一阶段对齐机制，而是在 TPU\_DPJDOT 已建立较可靠源目标对应关系后，进一步利用目标域无标签样本微调目标域决策边界。
+
+\subsection{代表场景混淆矩阵分析}
+
+代表场景选取较困难的单源任务 $m_5\rightarrow m_2$。该目标域与模式5存在较明显分布差异，适合观察单源方法是否能够减少类别间误判。图 \ref{fig:single_source_confusion_matrix_grid} 展示 SourceOnly、DeepJDOT、TPU\_DPJDOT 和 CBTPU\_DPJDOT 的目标域混淆矩阵。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_sourceonly_5_to_2_confusion.pdf}
+        \caption{SourceOnly}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_deepjdot_5_to_2_confusion.pdf}
+        \caption{DeepJDOT}
+    \end{subfigure}
+    \vspace{0.4em}
+
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_confusion.pdf}
+        \caption{TPU\_DPJDOT}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_CBTPU_DPJDOT_5_to_2_confusion.pdf}
+        \caption{CBTPU\_DPJDOT}
+    \end{subfigure}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中单源主线方法的目标域混淆矩阵}
+    \label{fig:single_source_confusion_matrix_grid}
+\end{figure}
+
+图 \ref{fig:single_source_confusion_matrix_grid} 显示，SourceOnly 在目标域上存在较分散的非对角误判，说明仅依赖源域监督训练难以处理生产模式偏移；DeepJDOT 改善了部分故障类识别，但仍保留较明显的类别混淆。TPU\_DPJDOT 的对角线响应更集中，说明非平衡联合传输和原型约束能够减少不可靠样本强制匹配对类别边界的干扰。CBTPU\_DPJDOT 相比 TPU\_DPJDOT 的代表场景准确率由 83.60\% 提升到 83.77\%，图中整体结构变化不剧烈，主要体现为局部非对角误判继续减弱；因此第四章方法的主要证据来自 6 个单源任务上的一致正向增益。
+
+\subsection{域融合特征可视化分析}
+
+图 \ref{fig:single_source_tsne_domain_grid} 展示同一代表场景的源域和目标域特征分布。该图用于观察方法是否仅提高分类器输出，还是同时改善源目标特征融合状态。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_sourceonly_5_to_2_tsne_domain.pdf}
+        \caption{SourceOnly}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_deepjdot_5_to_2_tsne_domain.pdf}
+        \caption{DeepJDOT}
+    \end{subfigure}
+    \vspace{0.4em}
+
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_tsne_domain.pdf}
+        \caption{TPU\_DPJDOT}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figs/ch6_single_CBTPU_DPJDOT_5_to_2_tsne_domain.pdf}
+        \caption{CBTPU\_DPJDOT}
+    \end{subfigure}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中单源主线方法的域融合特征可视化}
+    \label{fig:single_source_tsne_domain_grid}
+\end{figure}
+
+从图 \ref{fig:single_source_tsne_domain_grid} 可以看出，SourceOnly 的源域与目标域特征分布仍存在明显分离；DeepJDOT 缩小了部分域间距离，但目标域样本仍未充分进入稳定的类别结构中。TPU\_DPJDOT 使更多目标域样本靠近源域类别区域；CBTPU\_DPJDOT 在保持该对齐结构的基础上，使主簇附近的目标样本分布更加紧凑。该趋势与 CBTPU\_DPJDOT 在 6/6 单源任务中取得无监督第一的结果相互印证。
+
+\subsection{多证据置信均衡伪标签机制分析}
+
+CBTPU\_DPJDOT 的关键不是扩大伪标签样本覆盖率，而是控制目标样本进入监督信号的可靠性。该方法同时融合非平衡传输语义分布、冻结教师预测分布和源域原型语义分布，并通过置信度、熵和多证据一致性进行筛选。以 $m_5\rightarrow m_2$ 为例，代表性训练诊断中目标样本接受比例约为 0.55，传输语义与分类器--原型语义的一致率后期约为 0.74，目标域预测熵低于 TPU\_DPJDOT，平均预测置信度更高。
+
+因此，CBTPU\_DPJDOT 的增益可解释为“保守地使用目标域样本”：只有当传输计划、教师锚点和原型距离给出相对一致的语义判断时，目标样本才参与伪标签学习；类别均衡约束则避免高置信类别过度主导训练。该机制解释了为什么 CBTPU\_DPJDOT 的平均提升幅度不如 TPU\_DPJDOT 相对 DeepJDOT 那样大，但能够在所有单源场景上保持正向增益。
+
+\section{多源类条件源域可靠性实验}
+
+本节验证第五章提出的类条件源域可靠性加权机制，叙事重点是 CoDATS / WJDOT 到 CA\_CCSR\_WJDOT 的递进关系。多源实验分为两源和五源两组：两源任务用于检验小规模多源场景，五源留一域任务用于检验源域数量增加时的选择性迁移能力。
+
+\subsection{多源实验结果对比}
+
+表 \ref{tab:two_source_average_results} 给出两源任务的平均诊断性能。CA\_CCSR\_WJDOT 在 3 个两源目标域上均取得无监督方法第一，平均准确率达到 81.21\%，分别高于 CoDATS 和 WJDOT 3.99 和 8.80 个百分点。
 
 \begin{table}[htbp]
     \centering
-    \caption{五源留一域完整基线的平均诊断性能}
+    \caption{两源跨工况主结果的平均诊断性能}
+    \label{tab:two_source_average_results}
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{l c c c c}
+        \hline
+        方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
+        \hline
+        SourceOnly & 66.51$\pm$8.20 & 62.00$\pm$7.06 & 66.58$\pm$8.21 & 0/3 \\
+        CoDATS & 77.22$\pm$6.22 & 75.58$\pm$6.95 & 77.28$\pm$6.28 & 0/3 \\
+        WJDOT & 72.41$\pm$4.96 & 69.07$\pm$5.40 & 72.50$\pm$4.96 & 0/3 \\
+        CA\_CCSR\_WJDOT & 81.21$\pm$4.12 & 79.97$\pm$4.50 & 81.32$\pm$4.20 & 3/3 \\
+        Target-ref & 91.94$\pm$1.44 & 91.49$\pm$0.92 & 91.98$\pm$1.42 & -- \\
+        \hline
+    \end{tabular}
+\end{table}
+
+表 \ref{tab:multi_average_results} 给出五源留一域任务的平均诊断性能。CA\_CCSR\_WJDOT 在 6 个目标生产模式上均取得无监督方法第一，平均准确率达到 85.50\%，高于 CoDATS 的 83.44\% 和 WJDOT 的 78.37\%。宏平均 F1 和平衡准确率也呈现相同趋势，说明该方法的收益并非只来自部分类别或样本数量较多的类别。
+
+\begin{table}[htbp]
+    \centering
+    \caption{五源留一域主结果的平均诊断性能}
     \label{tab:multi_average_results}
     \footnotesize
     \setlength{\tabcolsep}{4pt}
@@ -1589,186 +1678,146 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{figs/ch6_multi_source_method_mean_accuracy.pdf}
-    \caption{五源留一域完整基线平均目标域准确率柱状图}
-    \label{fig:multi_source_accuracy_bar}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
     \includegraphics[width=1\textwidth]{figs/ch6_multi_source_heatmap.pdf}
-    \caption{五源留一域完整基线逐目标域准确率热力图}
+    \caption{五源留一域逐目标生产模式准确率热力图}
     \label{fig:multi_source_heatmap}
 \end{figure}
 
-表 \ref{tab:multi_average_results}、图 \ref{fig:multi_source_accuracy_bar} 和图 \ref{fig:multi_source_heatmap} 表明，CoDATS 相比 SourceOnly 取得明显提升，说明卷积式时间序列表征和领域对抗约束能够有效利用多源信息。WJDOT 的平均准确率为 78.37\%，低于 CoDATS，说明仅依赖全局源域权重时，逐源联合分布传输仍可能受到源域差异和类别级负迁移影响。CA\_CCSR\_WJDOT 达到 85.50$\pm$2.50\%，高于 CoDATS 和 WJDOT，并在 6/6 个目标域上取得无监督方法第一。
+两组多源结果共同表明，CA\_CCSR\_WJDOT 相比 CoDATS 和 WJDOT 均取得更高目标域性能。图 \ref{fig:multi_source_heatmap} 给出五源留一域任务的逐目标模式结果。CA\_CCSR\_WJDOT 在 6 个目标生产模式上均取得无监督方法最高准确率。CoDATS 提供较强的时间序列表征和领域对抗基线，WJDOT 提供逐源联合分布传输思想。CA\_CCSR\_WJDOT 在此基础上引入类条件源域可靠性，使模型能够针对不同故障类别选择不同源域信息。
 
-本小节核心结论是：CA\_CCSR\_WJDOT 在五源留一域设置中整体优于 CoDATS 和 WJDOT。
+\subsection{代表场景混淆矩阵分析}
 
-\section{代表性场景可视化与机制分析}
-
-\subsection{单源代表场景分析}
-
-为避免在正文中堆叠所有任务的可视化结果，本小节选取较困难的单源任务 $m_5\rightarrow m_2$ 作为代表场景，分别展示目标域混淆矩阵和域融合特征可视化结果。该任务用于观察 DeepJDOT、TPU\_DPJDOT 和 CBTPU\_DPJDOT 在类别边界和源目标特征融合上的递进变化。
-
-\begin{figure}[htbp]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_sourceonly_5_to_2_confusion.pdf}
-        \caption{源域直接迁移}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_deepjdot_5_to_2_confusion.pdf}
-        \caption{联合分布传输}
-    \end{subfigure}
-    \vspace{0.4em}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_tpu_deepjdot_5_to_2_confusion.pdf}
-        \caption{时序原型非平衡方法}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_cbtpu_deepjdot_5_to_2_confusion.pdf}
-        \caption{置信均衡伪标签方法}
-    \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中代表方法的目标域混淆矩阵}
-    \label{fig:single_confusion_matrix_grid}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_sourceonly_5_to_2_tsne_domain.pdf}
-        \caption{源域直接迁移}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_deepjdot_5_to_2_tsne_domain.pdf}
-        \caption{联合分布传输}
-    \end{subfigure}
-    \vspace{0.4em}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_tpu_deepjdot_5_to_2_tsne_domain.pdf}
-        \caption{时序原型非平衡方法}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figs/ch6_single_cbtpu_deepjdot_5_to_2_tsne_domain.pdf}
-        \caption{置信均衡伪标签方法}
-    \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中代表方法的域融合特征可视化}
-    \label{fig:single_tsne_domain_grid}
-\end{figure}
-
-图 \ref{fig:single_confusion_matrix_grid} 和图 \ref{fig:single_tsne_domain_grid} 显示，SourceOnly 的类别错误分布较分散，源域和目标域特征也存在明显分离；DeepJDOT 能够拉近部分源目标样本，但仍存在类别混淆；TPU\_DPJDOT 通过非平衡传输和原型约束增强对角线响应；CBTPU\_DPJDOT 进一步利用高置信目标样本，使目标域样本更集中地进入可判别区域。
-
-本小节核心结论是：单源代表场景中的混淆矩阵和特征可视化结果与主结果一致，说明性能提升主要来自类别边界更清晰和源目标特征融合更可靠。
-
-\subsection{多源代表场景分析}
-
-多源代表场景选取五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$。该任务与单源代表场景具有相同目标域 $m_2$，便于观察在目标域困难时，多源方法是否能够通过可靠源域选择改善类别识别。
+多源代表场景选取五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$。该任务与单源代表场景具有相同目标域 $m_2$，便于观察在困难目标域下，多源选择性迁移是否能够减少类别混淆。图 \ref{fig:multi_confusion_matrix_grid} 同时展示 SourceOnly、CoDATS、WJDOT 和 CA\_CCSR\_WJDOT，使可视化比较与表中主要多源基线保持一致。
 
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_sourceonly_5src_to_2_confusion.pdf}
-        \caption{源域直接迁移}
+        \caption{SourceOnly}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_codats_5src_to_2_confusion.pdf}
-        \caption{时间序列对抗方法}
+        \caption{CoDATS}
     \end{subfigure}
     \vspace{0.4em}
+
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_wjdot_5src_to_2_confusion.pdf}
-        \caption{多源加权传输}
+        \caption{WJDOT}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figs/ch6_multi_ca_ccsr_wjdot_5src_to_2_confusion.pdf}
-        \caption{类条件可靠性加权方法}
+        \includegraphics[width=\linewidth]{figs/ch6_multi_CA_CCSR_WJDOT_5src_to_2_confusion.pdf}
+        \caption{CA\_CCSR\_WJDOT}
     \end{subfigure}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中代表方法的目标域混淆矩阵}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中多源代表方法的目标域混淆矩阵}
     \label{fig:multi_confusion_matrix_grid}
 \end{figure}
+
+图 \ref{fig:multi_confusion_matrix_grid} 表明，SourceOnly 虽然已经利用多个源域训练，但在目标域 $m_2$ 上仍存在若干集中误判；CoDATS 的对角线明显增强，说明时间序列表征和领域对抗约束提供了较强多源基线。WJDOT 仍有部分故障类被错误吸收到少数预测类别，反映全局源域权重难以充分刻画类别级源域差异。CA\_CCSR\_WJDOT 在保留 CoDATS 对角线优势的基础上，进一步减弱若干非对角误判，与五源主结果中 6/6 目标域第一的趋势一致。
+
+\subsection{域融合特征可视化分析}
+
+图 \ref{fig:multi_tsne_domain_grid} 展示同一五源代表场景下的域融合特征。四个子图依次对应 SourceOnly、CoDATS、WJDOT 和 CA\_CCSR\_WJDOT。该图用于观察类条件源域可靠性是否改善目标域样本在多源特征空间中的位置。
 
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_sourceonly_5src_to_2_tsne_domain.pdf}
-        \caption{源域直接迁移}
+        \caption{SourceOnly}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_codats_5src_to_2_tsne_domain.pdf}
-        \caption{时间序列对抗方法}
+        \caption{CoDATS}
     \end{subfigure}
     \vspace{0.4em}
+
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_wjdot_5src_to_2_tsne_domain.pdf}
-        \caption{多源加权传输}
+        \caption{WJDOT}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figs/ch6_multi_ca_ccsr_wjdot_5src_to_2_tsne_domain.pdf}
-        \caption{类条件可靠性加权方法}
+        \includegraphics[width=\linewidth]{figs/ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_domain.pdf}
+        \caption{CA\_CCSR\_WJDOT}
     \end{subfigure}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中代表方法的域融合特征可视化}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中多源代表方法的域融合特征可视化}
     \label{fig:multi_tsne_domain_grid}
 \end{figure}
 
-图 \ref{fig:multi_confusion_matrix_grid} 和图 \ref{fig:multi_tsne_domain_grid} 表明，SourceOnly 和 WJDOT 在目标域 $m_2$ 上仍存在较多类别混淆，说明简单合并源域或仅学习全局源域权重都不足以完全避免负迁移。CoDATS 通过时间序列表征和领域对抗约束改善整体识别能力；CA\_CCSR\_WJDOT 则进一步使目标域样本靠近对其类别更可靠的源域特征区域，与五源平均性能提升相一致。
+从图 \ref{fig:multi_tsne_domain_grid} 可以看出，SourceOnly 下目标域样本在部分区域与源域簇仍有明显距离；CoDATS 已经使多个目标簇靠近源域结构，但局部仍存在目标样本游离。WJDOT 的部分目标样本仍分布在源域簇外或仅靠近少数源域。CA\_CCSR\_WJDOT 使目标域样本更稳定地靠近可靠源域形成的判别区域，说明多源性能提升并非单纯来自源域数量增加，而是来自对源域贡献的选择性利用。
 
-本小节核心结论是：多源代表场景说明 CA\_CCSR\_WJDOT 的优势不是无差别混合所有源域，而是更有选择地利用可靠源域信息。
+\subsection{类条件源域可靠性机制分析}
 
-\subsection{类条件源域权重机制分析}
-
-为使机制解释服务于结果，本小节仅保留一张源域--类别权重热力图，用于说明 CA\_CCSR\_WJDOT 为什么能够在五源设置中优于 WJDOT。图 \ref{fig:class_source_alpha_heatmap} 展示了五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中，不同源域对不同故障类别的类条件权重。
+为使机制解释服务于结果，正文只保留一张源域--类别权重热力图。图 \ref{fig:class_source_alpha_heatmap} 展示了五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中，不同源域对不同故障类别的类条件权重。
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1\textwidth]{figs/ch6_class_source_alpha_heatmap.pdf}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中本文多源方法的源域--类别权重热力图}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 CA\_CCSR\_WJDOT 的源域--类别权重热力图}
     \label{fig:class_source_alpha_heatmap}
 \end{figure}
 
-图 \ref{fig:class_source_alpha_heatmap} 反映出，不同故障类别并不总是依赖同一个源域：部分类别更偏向 $m_1$ 或 $m_5$，部分类别则更多利用 $m_4$ 或 $m_6$。这说明 CA\_CCSR\_WJDOT 的改进不是简单增加一个全局源域权重，而是在类别层面对源域贡献进行重新分配，从而解释了其相对 WJDOT 的平均性能提升和 6/6 目标域第一结果。
+图 \ref{fig:class_source_alpha_heatmap} 反映出，不同故障类别并不依赖同一个源域。例如，在该代表场景中，类别1、类别2和类别8对 $m_1$ 的权重较高，类别11和类别27明显偏向 $m_6$，类别24和类别25则更多依赖 $m_4$；同时也有若干类别呈现多个源域共同提供信息的状态。配套诊断中，部分类别的权重熵较低，说明其可靠源域更集中；另一些类别的有效源域数更高，说明这些类别需要更分散的源域支持。相对 WJDOT，CA\_CCSR\_WJDOT 在类别1和类别8等故障类上取得明显召回增益，虽然个别类别仍存在局部下降，但整体目标域准确率、宏平均 F1 和平衡准确率均获得提升。
 
-本小节核心结论是：源域--类别权重矩阵提供了对多源结果的必要解释，但正文只需保留该代表性机制图，其他诊断曲线和中间状态更适合作为附录候选。
+因此，CA\_CCSR\_WJDOT 的关键不是简单平均源域，也不是只学习一个全局源域权重，而是在“源域--故障类别”层面重新分配迁移贡献。这一机制与两源 3/3 第一、五源 6/6 第一的主结果相对应。
 
-\subsection{主线目标达成分析}
+\section{主线目标达成与综合分析}
 
-综合 6.3 节至 6.5 节结果，本文三条方法主线分别对应单源可靠对齐、目标域无标签样本利用和多源选择性迁移。单源实验中，TPU\_DPJDOT 相比 DeepJDOT 在平均准确率、宏平均 F1 和平衡准确率上均取得明显提升，说明时序原型、非平衡传输和时序统计代价能够缓解普通联合分布最优传输中的错误匹配；CBTPU\_DPJDOT 在此基础上继续获得一致增益，说明冻结教师锚点和多证据置信均衡伪标签机制能够进一步利用目标域无标签样本。单源代表场景中的混淆矩阵和域融合特征可视化也与该趋势一致。
+本节汇总第 6.3 节至第 6.5 节的实验结论，重点说明三条实验主线是否达到预期目标。该节不讨论方法局限，而是从性能递进、跨场景稳定性和统计显著性角度进行综合分析。
 
-多源实验中，CA\_CCSR\_WJDOT 在五源留一域完整基线中取得最高无监督平均准确率，并在 6 个目标域上均达到无监督方法第一。与 WJDOT 相比，该结果说明全局源域权重不足以刻画不同故障类别对源域的差异化需求，而类条件源域可靠性矩阵能够提供更细粒度的选择性迁移能力。源域--类别权重热力图进一步说明，不同故障类别确实依赖不同源域信息，从而为多源方法的性能提升提供了可解释支撑。
+\subsection{单源递进主线分析}
 
-总体来看，本文方法基本达成了在目标域无标签条件下提升跨工况故障诊断性能并解释源域可靠性差异的目标。但与 Target-ref 仍存在一定差距，说明完全无标签条件下的目标域类别校准仍然困难；在部分复杂目标域中，伪标签语义偏差和多源负迁移仍可能影响最终性能。这些现象也构成后续研究弱监督目标域校准和更稳健源域筛选策略的依据。
+单源主线的目标是验证 DeepJDOT $\rightarrow$ TPU\_DPJDOT $\rightarrow$ CBTPU\_DPJDOT 的逐级改进。实验结果表明，DeepJDOT 相比 SourceOnly 能够引入联合分布对齐，但在部分场景中仍受到平衡传输和类别混淆影响；TPU\_DPJDOT 将平均准确率从 68.88\% 提升到 80.54\%，并在 6/6 单源任务上优于 DeepJDOT，说明时序原型非平衡联合分布对齐是单源主线中的主要增益来源；CBTPU\_DPJDOT 进一步达到 82.02\%，并在 6/6 单源任务中取得无监督方法第一，说明多证据置信均衡伪标签能够在可靠对齐基础上继续改善目标域决策边界。
+
+从代表场景看，混淆矩阵和域融合特征可视化也呈现同样递进关系：SourceOnly 的目标域误判分散，DeepJDOT 改善部分对齐，TPU\_DPJDOT 增强类别结构，CBTPU\_DPJDOT 进一步稳定目标域样本利用。
+
+\subsection{多源选择性迁移分析}
+
+多源主线的目标是验证 CoDATS / WJDOT $\rightarrow$ CA\_CCSR\_WJDOT 的选择性迁移收益。两源任务中，CA\_CCSR\_WJDOT 达到 81.21\% 平均准确率，并在 3/3 目标域上取得无监督第一；五源留一域任务中，CA\_CCSR\_WJDOT 达到 85.50\% 平均准确率，并在 6/6 目标域上取得无监督第一。该结果说明，随着源域数量增加，简单利用多源数据并不足够，模型还需要判断不同源域对不同故障类别是否可靠。
+
+源域--类别权重热力图进一步说明，CA\_CCSR\_WJDOT 的提升与机制设计存在对应关系：不同故障类别具有不同的源域依赖模式，类条件源域可靠性矩阵能够将这些差异显式纳入训练和融合过程，从而缓解全局源域权重粒度过粗带来的负迁移风险。
+
+\subsection{统计显著性验证}
+
+为验证主线提升是否具有跨迁移场景的一致性，本文采用 Wilcoxon signed-rank test 对相邻主线方法进行配对检验。这里的配对单位是迁移场景，而不是多随机种子重复实验，因此检验结论表述为“跨迁移场景配对显著性”。检验结果如表 \ref{tab:significance_results} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{主线方法跨迁移场景配对显著性检验结果}
+    \label{tab:significance_results}
+    \footnotesize
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabular}{l c c c}
+        \hline
+        配对比较 & 配对场景 & 正向场景数 & Wilcoxon $p$ 值 \\
+        \hline
+        TPU\_DPJDOT vs. DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
+        CBTPU\_DPJDOT vs. TPU\_DPJDOT & 单源6任务 & 6/6 & 0.015625 \\
+        CA\_CCSR\_WJDOT vs. WJDOT & 两源与五源共9任务 & 9/9 & 0.001953 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+表 \ref{tab:significance_results} 表明，三条相邻主线比较均呈现跨场景一致正向差异。该结果支持本文实验主张：TPU\_DPJDOT 相比 DeepJDOT 更稳定，CBTPU\_DPJDOT 相比 TPU\_DPJDOT 继续带来一致增益，CA\_CCSR\_WJDOT 相比 WJDOT 在多源任务中具有更强的选择性迁移能力。
 
 \section{本章小结}
 
-本章围绕田纳西伊斯曼过程领域自适应数据集，在统一实验协议下对单源和多源跨工况故障诊断方法进行了实验验证。单源实验表明，TPU\_DPJDOT 相比 DeepJDOT 明显提升平均准确率、宏平均 F1 和平衡准确率，验证了时序原型非平衡联合分布对齐的有效性；CBTPU\_DPJDOT 相比 TPU\_DPJDOT 进一步取得一致增益，验证了冻结教师锚点和多证据置信均衡伪标签机制的作用。
+本章围绕田纳西伊斯曼过程领域自适应数据集，在统一实验协议下对单源和多源跨工况故障诊断方法进行了实验验证。单源实验表明，TPU\_DPJDOT 相比 DeepJDOT 明显提升平均准确率、宏平均 F1 和平衡准确率，验证了时序原型非平衡联合分布对齐的有效性；CBTPU\_DPJDOT 相比 TPU\_DPJDOT 进一步取得一致增益，并在 6/6 个单源任务中取得无监督方法第一，验证了多证据置信均衡伪标签机制的作用。
 
-多源实验表明，CA\_CCSR\_WJDOT 在五源留一域设置中达到 85.50$\pm$2.50\% 的平均准确率，并在 6/6 个目标域上取得无监督方法第一，整体优于 CoDATS 和 WJDOT。该结果说明，类条件源域可靠性加权能够缓解 WJDOT 全局源域权重粒度过粗的问题，并提升多源选择性迁移能力。
+多源实验表明，CA\_CCSR\_WJDOT 在两源设置中 3/3 第一，在五源留一域设置中 6/6 第一，并在五源任务上达到 85.50$\pm$2.50\% 的平均准确率，整体优于 CoDATS 和 WJDOT。该结果说明，类条件源域可靠性加权能够缓解 WJDOT 全局源域权重粒度过粗的问题，并提升多源选择性迁移能力。
 
-总体而言，本章正文保留了单源和多源主结果表、平均准确率柱状图、逐任务准确率热力图、代表场景的混淆矩阵与特征可视化结果，以及一张源域--类别权重热力图。其他诊断材料不进入正文，可作为附录或内部分析材料。实验结果共同说明，本文方法能够在目标域无标签条件下提升工业过程跨工况故障诊断性能，并为源域可靠性差异提供必要解释。
+总体而言，本章按照方法主线递进组织实验叙事，正文保留单源主结果表、单源逐任务热力图、两源和五源多源主结果表、五源逐目标热力图、代表场景混淆矩阵与特征可视化、源域--类别权重热力图以及显著性检验表。实验结果共同说明，本文方法能够在目标域无标签条件下提升工业过程跨工况故障诊断性能，并为源域可靠性差异提供必要解释。
 
 \chapter{总结与展望}
 
@@ -1842,12 +1891,13 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 为避免正文中同一符号表示不同含义，本文将主要数学符号统一整理如表 \ref{tab:symbols} 所示。上标 $s$、$t$ 和 $s_k$ 分别表示源域、目标域和第 $k$ 个源域；未列入表中的局部求和下标仅在其所在公式附近使用。
 
 {\footnotesize
-\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.18}
 \setlength{\emergencystretch}{3em}
 \hbadness=10000
 \hfuzz=40pt
 \vbadness=10000
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.45\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth}>{\raggedright\arraybackslash}p{0.42\textwidth}>{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
     \caption{论文主要符号表}
     \label{tab:symbols}\\
     \toprule
@@ -1973,6 +2023,7 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
     $\widetilde{D}_{kc}^{\mathrm{proto}}$、$\widetilde{D}_{kc}^{\mathrm{ot}}$、$\widetilde{H}_{kc}^{\mathrm{pred}}$、$\widetilde{E}_{kc}^{s}$ & 归一化后的可靠性证据 & 按类别维度 min--max 归一化 \\
     $w_p,w_o,w_h,w_e$ & 原型距离、传输代价、预测熵和源域误差的组合权重 & 可靠性分数线性组合 \\
     $T_{\mathrm{rel}}$ & 可靠性权重 softmax 温度 & 类条件源域权重分配 \\
+    $\alpha_{\min}$ & 类条件源域权重下界 & 防止权重过度集中 \\
     $r_{\mathrm{rel}}(\nu)$ & 可靠性权重启用进度 & 从均匀权重过渡到类条件权重 \\
     $\mathbb{I}(\cdot)$、$\mathbb{I}_{kc}$、$\mathcal{C}_{\mathrm{act}}$ & 指示函数、源域类别存在指示、当前活跃类别集合 & 分类和类条件传输损失中使用 \\
     $T_{\mathrm{dist}}$ & 教师先验蒸馏温度 & 多源教师先验约束 \\
@@ -1998,9 +2049,10 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 为避免附录冗长，表中只列出影响三条创新主线的主要数值参数。若某一参数在特定场景中有覆盖取值，则以场景覆盖表为准；未列出的基线方法参数不属于本文创新方法参数，故不在本附录展开。
 
 {\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \setlength{\emergencystretch}{3em}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.48\textwidth}@{}}
     \caption{主实验公共参数}
     \label{tab:seed42_common_algorithm_params}\\
     \toprule
@@ -2020,20 +2072,21 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
     随机种子 & $s_{\mathrm{rand}}$ & $42$ \\
     目标域训练标签 & $y^t$ & 训练和模型选择阶段不可见，仅最终评价使用 \\
     故障类别数 & $N_c$ & $29$ \\
-    源域与目标域折号 & $F_s,F_t$ & $1,1$ \\
+    固定数据划分 & $F_s,F_t$ & 源域与目标域均采用第 $1$ 折 \\
     评估间隔 & $I_{\mathrm{eval}}$ & $5$ 个训练轮 \\
     模型选择间隔 & $I_{\mathrm{sel}}$ & $5$ 个训练轮 \\
     早停检查间隔 & $I_{\mathrm{es}}$ & $5$ 个训练轮 \\
-    单源最小训练轮数 & $E_{\min}^{\mathrm{single}}$ & $120$ \\
-    多源最小训练轮数 & $E_{\min}^{\mathrm{multi}}$ & $80$ \\
+    单源早停最小轮数 & $E_{\mathrm{es,min}}^{\mathrm{single}}$ & $120$ \\
+    多源早停最小轮数 & $E_{\mathrm{es,min}}^{\mathrm{multi}}$ & $80$ \\
 \end{longtable}
 }
 
 \section{单源主线参数}
 
 {\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}@{}}
     \caption{TPU\_DPJDOT 与 CBTPU\_DPJDOT 主参数}
     \label{tab:seed42_single_method_params}\\
     \toprule
@@ -2092,8 +2145,9 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 }
 
 {\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.16\textwidth}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.49\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.14\textwidth}>{\raggedright\arraybackslash}p{0.35\textwidth}>{\raggedright\arraybackslash}p{0.43\textwidth}@{}}
     \caption{单源场景级参数覆盖}
     \label{tab:seed42_cbtpu_scene_overrides}\\
     \toprule
@@ -2124,8 +2178,9 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 表 \ref{tab:seed42_ca_ccsr_params} 列出 CA\_CCSR\_WJDOT 在二源和五源主线中的核心算法参数。二源主线采用统一参数；五源主线的目标域相关覆盖见表 \ref{tab:seed42_ca_scene_overrides}。
 
 {\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.21\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
     \caption{CA\_CCSR\_WJDOT 主参数}
     \label{tab:seed42_ca_ccsr_params}\\
     \toprule
@@ -2146,7 +2201,7 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
     批量大小 & $B$ & $32$ & $32$ \\
     学习率 & $\eta_{\mathrm{lr}}$ & $4.0\times10^{-5}$ & $4.0\times10^{-5}$ \\
     梯度裁剪阈值 & $g_{\max}$ & $3.0$ & $3.0$ \\
-    对齐损失基础权重 & $\lambda_{\mathrm{ot}}^0$ & $0.48$ & $0.48$ \\
+    WJDOT 调度基础权重 & $r_{\mathrm{ot}}^0$ & $0.48$ & $0.48$ \\
     源域分类权重 & $\lambda_s$ & $0.75$ & $0.75$ \\
     特征代价权重 & $\lambda_f$ & $0.06$ & $0.06$ \\
     标签代价权重 & $\lambda_y$ & $1.0$ & $1.0$ \\
@@ -2157,6 +2212,7 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
     可靠性预热比例 & $r_{\mathrm{rel},S}$ & $0.30$ & $0.30$ \\
     可靠性总步数 & $N_{\mathrm{rel}}$ & $1800$ & $1800$ \\
     类条件温度 & $T_{\mathrm{rel}}$ & $0.45$ & $0.45$ \\
+    类条件权重下界 & $\alpha_{\min}$ & $0.02$ & $0.02$ \\
     每类候选样本数 & $M_{\mathrm{top}}$ & $3$ & $3$ \\
     原型阈值 & $\tau_{\mathrm{proto}}$ & $0.84$ & $0.84$ \\
     最小原型样本数 & $n_{\min}^{\mathrm{proto}}$ & $3$ & $3$ \\
@@ -2182,8 +2238,9 @@ CBTPU\_DPJDOT 的平均准确率、宏平均 F1 和平衡准确率分别为 82.0
 }
 
 {\footnotesize
+\setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.21\textwidth}>{\raggedright\arraybackslash}p{0.71\textwidth}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth}>{\raggedright\arraybackslash}p{0.81\textwidth}@{}}
     \caption{五源 CA\_CCSR\_WJDOT 场景级参数覆盖}
     \label{tab:seed42_ca_scene_overrides}\\
     \toprule

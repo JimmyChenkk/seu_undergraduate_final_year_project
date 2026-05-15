@@ -66,28 +66,33 @@
 \contentsline {chapter}{\numberline {第六章\hspace {.3em}}实验设计与结果分析}{39}{chapter.6}%
 \contentsline {section}{\numberline {6.1}引言}{39}{section.6.1}%
 \contentsline {section}{\numberline {6.2}数据集与实验场景}{39}{section.6.2}%
-\contentsline {section}{\numberline {6.3}所提方法有效性验证}{44}{section.6.3}%
-\contentsline {subsection}{\numberline {6.3.1}时序原型非平衡联合分布对齐有效性}{44}{subsection.6.3.1}%
-\contentsline {subsection}{\numberline {6.3.2}多证据置信均衡伪标签有效性}{45}{subsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.3.3}类条件源域可靠性加权有效性}{45}{subsection.6.3.3}%
-\contentsline {section}{\numberline {6.4}方法间综合对比与准确率汇总}{46}{section.6.4}%
-\contentsline {subsection}{\numberline {6.4.1}单源完整基线对比与准确率汇总}{46}{subsection.6.4.1}%
-\contentsline {subsection}{\numberline {6.4.2}多源完整基线对比与准确率汇总}{47}{subsection.6.4.2}%
-\contentsline {section}{\numberline {6.5}代表性场景可视化与机制分析}{49}{section.6.5}%
-\contentsline {subsection}{\numberline {6.5.1}单源代表场景分析}{49}{subsection.6.5.1}%
-\contentsline {subsection}{\numberline {6.5.2}多源代表场景分析}{51}{subsection.6.5.2}%
-\contentsline {subsection}{\numberline {6.5.3}类条件源域权重机制分析}{53}{subsection.6.5.3}%
-\contentsline {subsection}{\numberline {6.5.4}主线目标达成分析}{53}{subsection.6.5.4}%
-\contentsline {section}{\numberline {6.6}本章小结}{54}{section.6.6}%
-\contentsline {chapter}{\numberline {第七章\hspace {.3em}}总结与展望}{55}{chapter.7}%
-\contentsline {section}{\numberline {7.1}工作总结}{55}{section.7.1}%
-\contentsline {subsection}{\numberline {7.1.1}本文主要研究内容}{56}{subsection.7.1.1}%
-\contentsline {subsection}{\numberline {7.1.2}本文主要创新点}{56}{subsection.7.1.2}%
-\contentsline {subsection}{\numberline {7.1.3}存在不足}{57}{subsection.7.1.3}%
-\contentsline {section}{\numberline {7.2}未来展望}{58}{section.7.2}%
-\contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{60}{appendix.A}%
-\contentsline {chapter}{\numberline {附录B\hspace {.3em}}SEED42 主线算法参数表}{66}{appendix.B}%
-\contentsline {section}{\numberline {B.1}单源主线参数}{66}{section.B.1}%
-\contentsline {section}{\numberline {B.2}多源主线参数}{68}{section.B.2}%
-\contentsline {chapter}{参考文献}{71}{appendix*.26}%
-\contentsline {chapter}{致\hspace {2\ccwd }谢}{74}{appendix*.27}%
+\contentsline {section}{\numberline {6.3}单源时序原型非平衡联合分布对齐实验}{44}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}单源实验结果对比}{44}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}时序原型非平衡联合分布对齐机制分析}{46}{subsection.6.3.2}%
+\contentsline {section}{\numberline {6.4}单源多证据置信均衡伪标签实验}{46}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}单源实验结果对比}{46}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}代表场景混淆矩阵分析}{47}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}域融合特征可视化分析}{48}{subsection.6.4.3}%
+\contentsline {subsection}{\numberline {6.4.4}多证据置信均衡伪标签机制分析}{49}{subsection.6.4.4}%
+\contentsline {section}{\numberline {6.5}多源类条件源域可靠性实验}{49}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}多源实验结果对比}{49}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}代表场景混淆矩阵分析}{50}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}域融合特征可视化分析}{52}{subsection.6.5.3}%
+\contentsline {subsection}{\numberline {6.5.4}类条件源域可靠性机制分析}{53}{subsection.6.5.4}%
+\contentsline {section}{\numberline {6.6}主线目标达成与综合分析}{53}{section.6.6}%
+\contentsline {subsection}{\numberline {6.6.1}单源递进主线分析}{53}{subsection.6.6.1}%
+\contentsline {subsection}{\numberline {6.6.2}多源选择性迁移分析}{54}{subsection.6.6.2}%
+\contentsline {subsection}{\numberline {6.6.3}统计显著性验证}{54}{subsection.6.6.3}%
+\contentsline {section}{\numberline {6.7}本章小结}{54}{section.6.7}%
+\contentsline {chapter}{\numberline {第七章\hspace {.3em}}总结与展望}{56}{chapter.7}%
+\contentsline {section}{\numberline {7.1}工作总结}{56}{section.7.1}%
+\contentsline {subsection}{\numberline {7.1.1}本文主要研究内容}{57}{subsection.7.1.1}%
+\contentsline {subsection}{\numberline {7.1.2}本文主要创新点}{57}{subsection.7.1.2}%
+\contentsline {subsection}{\numberline {7.1.3}存在不足}{58}{subsection.7.1.3}%
+\contentsline {section}{\numberline {7.2}未来展望}{59}{section.7.2}%
+\contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{61}{appendix.A}%
+\contentsline {chapter}{\numberline {附录B\hspace {.3em}}主线算法参数表}{67}{appendix.B}%
+\contentsline {section}{\numberline {B.1}单源主线参数}{67}{section.B.1}%
+\contentsline {section}{\numberline {B.2}多源主线参数}{69}{section.B.2}%
+\contentsline {chapter}{参考文献}{72}{appendix*.26}%
+\contentsline {chapter}{致\hspace {2\ccwd }谢}{75}{appendix*.27}%
