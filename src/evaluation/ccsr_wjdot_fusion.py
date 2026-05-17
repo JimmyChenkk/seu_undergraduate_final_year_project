@@ -8,7 +8,12 @@ import math
 from pathlib import Path
 from typing import Any
 
-from src.evaluation.report_figures import _build_figure_output_path, _runtime_dependencies, _save_figure
+from src.evaluation.report_figures import (
+    _build_figure_output_path,
+    _compact_mode_label,
+    _runtime_dependencies,
+    _save_figure,
+)
 
 
 EPS = 1e-8
@@ -311,7 +316,7 @@ def _save_heatmap(
         ax.set_xticks(range(matrix.shape[1]))
         ax.set_xticklabels([str(item) for item in range(matrix.shape[1])], rotation=90, fontsize=7)
         ax.set_yticks(range(matrix.shape[0]))
-        ax.set_yticklabels(source_domains)
+        ax.set_yticklabels([_compact_mode_label(source_domain) for source_domain in source_domains])
         _save_figure(output_path)
         return str(output_path)
     except Exception:

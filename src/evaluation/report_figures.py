@@ -225,6 +225,17 @@ def _titleize_setting_name(setting_name: str) -> str:
     return setting_name.replace("_", "-").title()
 
 
+def _compact_mode_label(value: str) -> str:
+    """Shorten mode labels for thesis figure axes."""
+
+    text = str(value)
+    if re.fullmatch(r"mode\d+(?:-mode\d+)*", text):
+        mode_numbers = re.findall(r"mode(\d+)", text)
+        if len(mode_numbers) >= 3:
+            return "m" + "".join(mode_numbers)
+    return re.sub(r"mode(\d+)", r"m\1", text)
+
+
 def _compact_scenario_label(label: str) -> str:
     """Shorten labels like mode1_to_mode4 to m1_m4 for heatmap axes."""
 
@@ -232,12 +243,8 @@ def _compact_scenario_label(label: str) -> str:
     if len(parts) != 2:
         return str(label)
 
-    def _compact_part(part: str) -> str:
-        compact = part.replace("mode", "m")
-        return compact if compact != part else part
-
-    left = _compact_part(parts[0])
-    right = _compact_part(parts[1])
+    left = _compact_mode_label(parts[0])
+    right = _compact_mode_label(parts[1])
     return f"{left}_{right}"
 
 
@@ -409,7 +416,18 @@ def export_setting_heatmap(
         for col_index in range(matrix.shape[1]):
             value = matrix[row_index, col_index]
             if not np.isnan(value):
-                plt.text(col_index, row_index, f"{value:.3f}", ha="center", va="center", fontsize=8)
+                red, green, blue, _ = image.cmap(image.norm(value))
+                luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+                text_color = "white" if luminance < 0.5 else "black"
+                plt.text(
+                    col_index,
+                    row_index,
+                    f"{value:.3f}",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color=text_color,
+                )
 
     _save_figure(output_path, figure_format=figure_format)
 
