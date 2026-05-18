@@ -1284,7 +1284,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本章训练阶段的总体目标函数为
 \begin{equation}
-    \mathcal{L}_{\mathrm{CA}}
+    \mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}
     =
     \lambda_s\mathcal{L}_{\mathrm{src}}
     +
@@ -2076,7 +2076,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     $\mathcal{L}_{\mathrm{src}}$、$\mathcal{L}_{\mathrm{OT}}$、$\mathcal{L}_{\mathrm{align}}$、$\mathcal{L}_{\mathrm{dom}}$ & 源域分类损失、最优传输损失、非平衡联合传输对齐损失、领域判别损失 & 基础训练目标 \\
     $\mathcal{L}_{\mathrm{supcon}}$、$\mathcal{L}_{\mathrm{pl}}$、$\mathcal{L}_{\mathrm{cons}}$、$\mathcal{L}_{\mathrm{im}}$ & 源域监督对比损失、伪标签损失、一致性损失、信息最大化正则项 & 单源改进方法中使用 \\
     $\mathcal{L}_{\mathrm{tea}}$、$\mathcal{L}_{\mathrm{WJDOT}}$、$\mathcal{L}_{\mathrm{CCSR}}$ & 教师先验约束、逐源传输聚合损失和类条件传输损失 & 多源方法中使用 \\
-    $\mathcal{L}_{\mathrm{TPU}}$、$\mathcal{L}_{\mathrm{CBTPU}}$、$\mathcal{L}_{\mathrm{CA}}$ & 第三章、第四章和第五章方法的总体损失 & 分别对应三类方法 \\
+    $\mathcal{L}_{\mathrm{TPU}}$、$\mathcal{L}_{\mathrm{CBTPU}}$、$\mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}$ & 第三章、第四章和第五章方法的总体损失 & 分别对应三类方法 \\
     $\lambda_{\mathrm{supcon}}(\nu)$、$\lambda_{\mathrm{pl}}(\nu)$、$\lambda_{\mathrm{cons}}(\nu)$、$\lambda_{\mathrm{im}}(\nu)$ & 监督对比、伪标签、一致性和信息最大化损失权重 & 单源调度权重 \\
     $\lambda_d$、$\lambda_d(\nu)$、$\lambda_s$、$\lambda_{\mathrm{ccsr}}$、$\lambda_{\mathrm{tea}}(\nu)$ & 领域判别、源域分类、类条件传输和教师约束权重 & 领域对抗和多源方法中使用 \\
     $r_{\mathrm{ot}}(\nu),r_{\mathrm{ccsr}}(\nu)$ & WJDOT 与 CCSR 损失的启用进度 & 多源训练调度参数 \\
