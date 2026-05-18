@@ -60,8 +60,8 @@ METHOD_FIGURE_LABELS = {
     "raincoat": "RAINCOAT",
     "wjdot": "WJDOT",
     "ca_ccsr_wjdot": "CA-CCSR-WJDOT",
-    "target_ref": "Target Ref",
-    "target_only": "Target Only",
+    "target_ref": "Target-ref",
+    "target_only": "Target-ref",
 }
 
 FINAL_MAIN_METHODS = (
@@ -255,7 +255,7 @@ def _compact_mode_label(value: str) -> str:
 
 
 def _compact_scenario_label(label: str) -> str:
-    """Shorten labels like mode1_to_mode4 to m1_m4 for heatmap axes."""
+    """Shorten labels like mode1_to_mode4 to m1->m4 for heatmap axes."""
 
     parts = str(label).split("_to_")
     if len(parts) != 2:
@@ -263,7 +263,7 @@ def _compact_scenario_label(label: str) -> str:
 
     left = _compact_mode_label(parts[0])
     right = _compact_mode_label(parts[1])
-    return f"{left}_{right}"
+    return f"{left}->{right}"
 
 
 def _method_sort_anchor(method_name: str) -> str:

@@ -1,4 +1,4 @@
-\begin{thebibliography}{32}
+\begin{thebibliography}{38}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -38,9 +38,38 @@ PAN S~J, YANG Q.
   Souloumiac]{montesuma2024benchmark}
 MONTESUMA E~F, MULAS M, MBOULA F~N, et~al.
 \newblock Benchmarking domain adaptation for chemical processes on the
-  {Tennessee Eastman Process}\allowbreak[A].
-\newblock 2024.
-\newblock arXiv: \eprint{https://arxiv.org/abs/2308.11247}{2308.11247}.
+  {Tennessee Eastman Process}\allowbreak[EB/OL].
+\newblock \allowbreak(2024-07-29)\allowbreak[2026-05-18].
+\newblock \url{https://arxiv.org/abs/2308.11247v2}.
+
+\bibitem[Qin(2012)]{qin2012survey}
+QIN S~J.
+\newblock Survey on data-driven industrial process monitoring and
+  diagnosis\allowbreak[J/OL].
+\newblock Annual Reviews in Control, 2012, 36\allowbreak (2): 220-234.
+\newblock DOI: \doi{10.1016/j.arcontrol.2012.09.004}.
+
+\bibitem[Ge(2017)]{ge2017review}
+GE Z.
+\newblock Review on data-driven modeling and monitoring for plant-wide
+  industrial processes\allowbreak[J/OL].
+\newblock Chemometrics and Intelligent Laboratory Systems, 2017, 171: 16-25.
+\newblock DOI: \doi{10.1016/j.chemolab.2017.09.021}.
+
+\bibitem[Taqvi et~al.(2021)Taqvi, Zabiri, Tufa, Uddin, Fatima, and
+  Maulud]{taqvi2021review}
+TAQVI S~A~A, ZABIRI H, TUFA L~D, et~al.
+\newblock A review on data-driven learning approaches for fault detection and
+  diagnosis in chemical processes\allowbreak[J/OL].
+\newblock ChemBioEng Reviews, 2021, 8\allowbreak (3): 239-259.
+\newblock DOI: \doi{10.1002/cben.202000027}.
+
+\bibitem[Yu et~al.(2023)Yu and Zhang]{yu2023challenges}
+YU J, ZHANG Y.
+\newblock Challenges and opportunities of deep learning-based process fault
+  detection and diagnosis: A review\allowbreak[J/OL].
+\newblock Neural Computing and Applications, 2023, 35\allowbreak (1): 211-252.
+\newblock DOI: \doi{10.1007/s00521-022-08017-3}.
 
 \bibitem[Li et~al.(2022)Li, Huang, Li, Liao, Chen, He, Yan, and
   Gryllias]{li2022perspective}
@@ -115,7 +144,7 @@ COURTY N, FLAMARY R, HABRARD A, et~al.
 \newblock Joint distribution optimal transportation for domain
   adaptation\allowbreak[C]//\allowbreak
 Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
-\newblock Curran Associates, Inc., 2017.
+\newblock Curran Associates, Inc., 2017: 3730-3739.
 
 \bibitem[Peyr{\'e} et~al.(2019)Peyr{\'e} and Cuturi]{peyre2019computational}
 PEYR{\'E} G, CUTURI M.
@@ -146,8 +175,8 @@ Advances in Neural Information Processing Systems: volume~30.
 ZHANG P, ZHANG B, ZHANG T, et~al.
 \newblock Prototypical pseudo label denoising and target structure learning for
   domain adaptive semantic segmentation\allowbreak[C/OL]//\allowbreak
-Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
-  Recognition.
+Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern
+  Recognition ({CVPR}).
 \newblock 2021: 12414-12424.
 \newblock DOI: \doi{10.1109/CVPR46437.2021.01223}.
 
@@ -178,30 +207,30 @@ Advances in Neural Information Processing Systems ({NeurIPS}): volume~30.
 CUI Y, JIA M, LIN T~Y, et~al.
 \newblock Class-balanced loss based on effective number of
   samples\allowbreak[C]//\allowbreak
-Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
-  Recognition.
+Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern
+  Recognition ({CVPR}).
 \newblock 2019: 9268-9277.
 
 \bibitem[Wang et~al.(2022)Wang, Wu, Lian, and Yu]{wang2022debiaspl}
 WANG X, WU Z, LIAN L, et~al.
 \newblock Debiased learning from naturally imbalanced
   pseudo-labels\allowbreak[C]//\allowbreak
-Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
-  Recognition.
-\newblock 2022.
+Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern
+  Recognition ({CVPR}).
+\newblock 2022: 14647-14657.
 
 \bibitem[Berthelot et~al.(2020)Berthelot, Carlini, Cubuk, Kurakin, Sohn, Zhang,
   and Raffel]{berthelot2020remixmatch}
 BERTHELOT D, CARLINI N, CUBUK E~D, et~al.
-\newblock Remixmatch: Semi-supervised learning with distribution alignment and
-  augmentation anchoring\allowbreak[C]//\allowbreak
+\newblock {ReMixMatch}: Semi-supervised learning with distribution alignment
+  and augmentation anchoring\allowbreak[C]//\allowbreak
 International Conference on Learning Representations.
 \newblock 2020.
 
 \bibitem[Berthelot et~al.(2022)Berthelot, Roelofs, Sohn, Carlini, and
   Kurakin]{berthelot2021adamatch}
 BERTHELOT D, ROELOFS R, SOHN K, et~al.
-\newblock Adamatch: A unified approach to semi-supervised learning and domain
+\newblock {AdaMatch}: A unified approach to semi-supervised learning and domain
   adaptation\allowbreak[C]//\allowbreak
 International Conference on Learning Representations.
 \newblock 2022.
@@ -209,7 +238,7 @@ International Conference on Learning Representations.
 \bibitem[Sohn et~al.(2020)Sohn, Berthelot, Li, Zhang, Carlini, Cubuk, Kurakin,
   Zhang, and Raffel]{sohn2020fixmatch}
 SOHN K, BERTHELOT D, LI C~L, et~al.
-\newblock Fixmatch: Simplifying semi-supervised learning with consistency and
+\newblock {FixMatch}: Simplifying semi-supervised learning with consistency and
   confidence\allowbreak[C]//\allowbreak
 Advances in Neural Information Processing Systems: volume~33.
 \newblock 2020: 596-608.
@@ -236,16 +265,31 @@ Proceedings of the 2018 Conference on Empirical Methods in Natural Language
 PENG X, BAI Q, XIA X, et~al.
 \newblock Moment matching for multi-source domain
   adaptation\allowbreak[C/OL]//\allowbreak
-Proceedings of the IEEE/CVF International Conference on Computer Vision
+Proceedings of the {IEEE/CVF} International Conference on Computer Vision
   ({ICCV}).
 \newblock 2019: 1406-1415.
 \newblock DOI: \doi{10.1109/ICCV.2019.00149}.
 
 \bibitem[Hinton et~al.(2015)Hinton, Vinyals, and Dean]{hinton2015distilling}
 HINTON G, VINYALS O, DEAN J.
-\newblock Distilling the knowledge in a neural network\allowbreak[A].
-\newblock 2015.
-\newblock arXiv: \eprint{https://arxiv.org/abs/1503.02531}{1503.02531}.
+\newblock Distilling the knowledge in a neural network\allowbreak[EB/OL].
+\newblock \allowbreak(2015-03-09)\allowbreak[2026-05-18].
+\newblock \url{https://arxiv.org/abs/1503.02531}.
+
+\bibitem[Zhu et~al.(2021)Zhu, Zhuang, Wang, Ke, Chen, Bian, Xiong, and
+  He]{zhu2021dsan}
+ZHU Y, ZHUANG F, WANG J, et~al.
+\newblock Deep subdomain adaptation network for image
+  classification\allowbreak[J/OL].
+\newblock IEEE Transactions on Neural Networks and Learning Systems, 2021,
+  32\allowbreak (4): 1713-1722.
+\newblock DOI: \doi{10.1109/TNNLS.2020.2988928}.
+
+\bibitem[Long et~al.(2018)Long, Cao, Wang, and Jordan]{long2018conditional}
+LONG M, CAO Z, WANG J, et~al.
+\newblock Conditional adversarial domain adaptation\allowbreak[C]//\allowbreak
+Advances in Neural Information Processing Systems ({NeurIPS}): volume~31.
+\newblock Curran Associates, Inc., 2018: 1647-1657.
 
 \bibitem[Downs et~al.(1993)Downs and Vogel]{downs1993plant}
 DOWNS J~J, VOGEL E~F.
@@ -256,16 +300,16 @@ DOWNS J~J, VOGEL E~F.
 \bibitem[Reinartz et~al.(2021)Reinartz, Kulahci, and
   Ravn]{reinartz2021extended}
 REINARTZ C, KULAHCI M, RAVN O.
-\newblock An extended tennessee eastman simulation dataset for fault-detection
-  and decision support systems\allowbreak[J/OL].
+\newblock An extended {Tennessee Eastman} simulation dataset for
+  fault-detection and decision support systems\allowbreak[J/OL].
 \newblock Computers \& Chemical Engineering, 2021, 149: 107281.
 \newblock DOI: \doi{10.1016/j.compchemeng.2021.107281}.
 
 \bibitem[Wang et~al.(2022)Wang, Fink, Van~Gool, and Dai]{wang2022cotta}
 WANG Q, FINK O, VAN~GOOL L, et~al.
 \newblock Continual test-time domain adaptation\allowbreak[C]//\allowbreak
-Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
-  Recognition.
+Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern
+  Recognition ({CVPR}).
 \newblock 2022: 7201-7211.
 
 \end{thebibliography}
