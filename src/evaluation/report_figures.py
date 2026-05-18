@@ -243,6 +243,18 @@ def _titleize_setting_name(setting_name: str) -> str:
     return setting_name.replace("_", "-").title()
 
 
+def _titleize_setting_from_rows(setting_name: str | None, rows: list[dict]) -> str:
+    if setting_name == "multi_source" and rows:
+        source_counts = {_source_count_from_row(row) for row in rows}
+        if source_counts == {2}:
+            return "Two-Source"
+        if source_counts == {5}:
+            return "Five-Source"
+    if setting_name is None:
+        return "Method"
+    return _titleize_setting_name(setting_name)
+
+
 def _compact_mode_label(value: str) -> str:
     """Shorten mode labels for thesis figure axes."""
 
@@ -399,7 +411,7 @@ def export_mean_bar_chart(
     if setting_name is None:
         plt.title("Method Mean Target Accuracy")
     else:
-        plt.title(f"{_titleize_setting_name(setting_name)} Mean Target Accuracy")
+        plt.title(f"{_titleize_setting_from_rows(setting_name, subset)} Mean Target Accuracy")
     _save_figure(output_path, figure_format=figure_format)
 
 
@@ -442,7 +454,7 @@ def export_setting_heatmap(
         fontsize=9,
     )
     plt.yticks(np.arange(len(scenarios)), scenario_labels)
-    plt.title(f"{setting_name.replace('_', '-').title()} Task Heatmap")
+    plt.title(f"{_titleize_setting_from_rows(setting_name, subset)} Task Heatmap")
 
     for row_index in range(matrix.shape[0]):
         for col_index in range(matrix.shape[1]):
