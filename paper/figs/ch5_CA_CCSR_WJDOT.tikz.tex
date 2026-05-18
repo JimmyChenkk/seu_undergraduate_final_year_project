@@ -26,7 +26,7 @@
 
 \draw[panel] (-0.25,0.00) rectangle (21.25,9.00);
 \node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
-    {CA\_CCSR\_WJDOT 类条件源域可靠性加权机制};
+    {CA-CCSR-WJDOT 类条件源域可靠性加权机制};
 
 % 多源输入
 \draw[bluecard] (0.45,2.15) rectangle (3.05,7.75);
@@ -44,9 +44,9 @@
 \node[chip, minimum width=2.80cm] at (5.55,6.20)
     {共享 FCN + 分类头\\[-1pt]$F_\theta,\ G_\phi$};
 \node[chip, minimum width=2.80cm] at (5.55,4.95)
-    {领域对抗约束\\[-1pt]$\mathcal{L}_{dom}$};
+    {领域对抗约束\\[-1pt]$\mathcal{L}_{\mathrm{dom}}$};
 \node[chip, minimum width=2.80cm] at (5.55,3.70)
-    {教师先验锚定\\[-1pt]$\bar{\Theta}_{C},\ \mathcal{L}_{tea}$};
+    {教师先验保护\\[-1pt]$\bar{\Theta}_{C},\ \mathcal{L}_{\mathrm{tea}}$};
 \node[note, text width=2.90cm] at (5.55,2.60)
     {提供稳定跨域时序表征};
 
@@ -56,9 +56,9 @@
 \node[chip, minimum width=2.80cm] at (9.85,6.20)
     {$s_k\rightarrow t$ 独立传输\\[-1pt]$\gamma_k^\ast$};
 \node[chip, minimum width=2.80cm] at (9.85,4.95)
-    {类条件统计\\[-1pt]$D_{kc}^{ot},\ M_{kc}^{ot}$};
+    {类条件统计\\[-1pt]$D_{kc}^{\mathrm{ot}},\ M_{kc}^{\mathrm{ot}}$};
 \node[chip, minimum width=2.80cm] at (9.85,3.70)
-    {逐源聚合\\[-1pt]$\mathcal{L}_{WJDOT}$};
+    {逐源聚合\\[-1pt]$\mathcal{L}_{\mathrm{WJDOT}}$};
 \node[note, text width=2.90cm] at (9.85,2.60)
     {不再简单合并多源批次};
 
@@ -66,9 +66,9 @@
 \draw[orangecard] (12.35,2.15) rectangle (15.95,7.75);
 \node at (14.15,7.43) {可靠性证据};
 \node[chip, minimum width=2.80cm] at (14.15,6.20)
-    {原型距离\\[-1pt]$D_{kc}^{proto}$};
+    {原型距离\\[-1pt]$D_{kc}^{\mathrm{proto}}$};
 \node[chip, minimum width=2.80cm] at (14.15,4.95)
-    {传输与熵\\[-1pt]$D_{kc}^{ot},\ H_{kc}^{pred}$};
+    {传输与熵\\[-1pt]$D_{kc}^{\mathrm{ot}},\ H_{kc}^{\mathrm{pred}}$};
 \node[chip, minimum width=2.80cm] at (14.15,3.70)
     {源类性能\\[-1pt]$E_{kc}^{s}$};
 \node[note, text width=2.90cm] at (14.15,2.60)
@@ -80,9 +80,9 @@
 \node[chip, minimum width=3.20cm] at (18.75,6.35)
     {可靠性到权重\\[-1pt]$R_{kc}\rightarrow\alpha_{kc}$};
 \node[chip, minimum width=3.20cm] at (18.75,5.20)
-    {类条件传输损失\\[-1pt]$\mathcal{L}_{CCSR}$};
+    {类条件传输损失\\[-1pt]$\mathcal{L}_{\mathrm{CCSR}}$};
 \node[chip, minimum width=3.20cm] at (18.75,4.05)
-    {教师先验融合\\[-1pt]$p^{final}$};
+    {教师先验融合\\[-1pt]$p^{\mathrm{final}}$};
 \begin{scope}[shift={(17.72,2.50)}]
     \node[font=\tiny\fontspec{Times New Roman}\songti] at (-0.34,0.56)
         {源域};
@@ -124,12 +124,12 @@
 % 总目标
 \draw[redcard] (3.75,0.50) rectangle (20.85,1.35);
 \node at (12.30,0.92)
-    {$\mathcal{L}_{\mathrm{CA\_CCSR\_WJDOT}}
-    =\lambda_s\mathcal{L}_{src}
-    +\lambda_d\mathcal{L}_{dom}
-    +\lambda_{ot}\mathcal{L}_{WJDOT}
-    +\lambda_{ccsr}\mathcal{L}_{CCSR}
-    +\lambda_{tea}\mathcal{L}_{tea}$};
+    {$\mathcal{L}_{\mathrm{CA}}
+    =\lambda_s\mathcal{L}_{\mathrm{src}}
+    +\lambda_d\mathcal{L}_{\mathrm{dom}}
+    +\lambda_{\mathrm{ot}}\mathcal{L}_{\mathrm{WJDOT}}
+    +\lambda_{\mathrm{ccsr}}\mathcal{L}_{\mathrm{CCSR}}
+    +\lambda_{\mathrm{tea}}\mathcal{L}_{\mathrm{tea}}$};
 
 \draw[arrow] (3.05,4.95) -- (3.75,4.95);
 \draw[arrow] (7.35,4.95) -- (8.05,4.95);

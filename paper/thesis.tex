@@ -13,6 +13,13 @@
 \SetKwFor{ForEach}{遍历}{执行}{结束遍历}
 \DontPrintSemicolon
 \setlength{\emergencystretch}{2em}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.78}
 \begin{document}
 \hypersetup{
   pdfauthor={陈鲲龙},
@@ -72,7 +79,7 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 在故障诊断领域，迁移学习主要用于解决不同设备、不同负载、不同工况和不同数据采集条件之间的知识迁移问题。例如，在一个工况下采集的故障样本较为充分，而另一个工况下故障样本较少时，可以利用源工况模型或源工况特征辅助目标工况诊断。深度迁移学习进一步结合深度神经网络的表征学习能力和迁移学习的知识复用能力，使模型能够在跨工况诊断、跨设备诊断和小样本诊断中获得更强泛化性能\cite{li2022perspective}。
 
-迁移学习在工业故障诊断中的应用主要有两类思路。第一类是预训练与微调，即先利用源域有标签数据训练特征提取器，再使用少量目标域有标签样本进行微调。这类方法实现较为直接，但需要目标域标签，在目标域完全无标签的场景下难以使用。第二类是特征对齐，即通过统计距离、对抗学习或最优传输等方法缩小源域与目标域特征分布差异，使源域训练得到的分类器能够迁移到目标域。相比监督微调，特征对齐更适合目标域标签缺失的场景。
+迁移学习在工业故障诊断中的应用主要有两类思路。第一类是预训练与微调，即先利用源域有标签数据训练特征提取器，再使用少量目标域有标签样本进行微调。这类方法形式较为直接，但需要目标域标签，在目标域完全无标签的场景下难以使用。第二类是特征对齐，即通过统计距离、对抗学习或最优传输等方法缩小源域与目标域特征分布差异，使源域训练得到的分类器能够迁移到目标域。相比监督微调，特征对齐更适合目标域标签缺失的场景。
 
 然而，迁移学习并不总是带来正向效果。当源域与目标域差异较大，或者源域知识与目标域任务不匹配时，迁移可能导致目标域性能下降，即负迁移问题。在工业过程故障诊断中，不同工况之间的故障动态响应可能存在差异，同一故障类别在不同生产模式下的特征中心和变量相关结构也可能发生变化。因此，迁移学习方法不仅需要利用源域知识，还需要判断哪些知识适合迁移、何时进行迁移以及如何避免不可靠源域或不可靠样本对目标域造成干扰。
 
@@ -80,9 +87,9 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 领域自适应是迁移学习中研究较为充分的一类问题。其典型设定为：源域拥有有标签样本，目标域只有无标签样本或少量标签样本，二者类别空间相同但数据分布不同。根据目标域标签使用情况，可分为有监督领域自适应、半监督领域自适应和无监督领域自适应。本文关注无监督领域自适应，即训练过程中不使用目标域标签，只利用源域标签和目标域无标签样本进行模型适配。
 
-现有领域自适应方法可大致分为基于度量学习的方法、基于对抗学习的方法以及基于重构或生成的方法。基于度量学习的方法通过最小化源域与目标域之间的统计差异实现对齐，常用度量包括最大均值差异、相关对齐、条件分布差异和 Wasserstein 距离等。其中，最优传输方法能够在样本层面建立源域与目标域之间的匹配关系，并显式刻画从一个分布变换到另一个分布的最小代价，具有较强的几何解释性。DeepJDOT 将最优传输扩展到深度特征空间，通过联合考虑特征距离和标签预测代价，在对齐源目标分布的同时保留分类判别信息\cite{damodaran2018deepjdot}。
+现有领域自适应方法可大致分为基于度量学习的方法、基于对抗学习的方法以及基于重构或生成的方法。基于度量学习的方法通过最小化源域与目标域之间的统计差异进行对齐，常用度量包括最大均值差异、相关对齐、条件分布差异和 Wasserstein 距离等。其中，最优传输方法能够在样本层面建立源域与目标域之间的匹配关系，并显式刻画从一个分布变换到另一个分布的最小代价，具有较强的几何解释性。DeepJDOT 将最优传输扩展到深度特征空间，通过联合考虑特征距离和标签预测代价，在对齐源目标分布的同时保留分类判别信息\cite{damodaran2018deepjdot}。
 
-基于对抗学习的方法通常借助领域判别器，使特征提取器学习到难以区分源域和目标域的领域不变表示。领域对抗神经网络通过梯度反转层实现源目标特征混淆，条件对抗方法进一步将类别预测信息引入领域判别过程，以缓解纯边缘分布对齐可能造成的类别混淆。对于时间序列数据，CoDATS 提出卷积式时间序列领域自适应框架，利用时间序列卷积特征提取器和领域对抗学习实现跨域特征对齐，并支持多源数据利用\cite{wilson2020codats}。
+基于对抗学习的方法通常借助领域判别器，使特征提取器学习到难以区分源域和目标域的领域不变表示。领域对抗神经网络通过梯度反转层促使源目标特征混淆，条件对抗方法进一步将类别预测信息引入领域判别过程，以缓解纯边缘分布对齐可能造成的类别混淆。对于时间序列数据，CoDATS 提出卷积式时间序列领域自适应框架，利用时间序列卷积特征提取器和领域对抗学习完成跨域特征对齐，并支持多源数据利用\cite{wilson2020codats}。
 
 在多源领域自适应场景中，模型可以利用多个源域的有标签数据适配同一个目标域。相比单源设置，多源数据提供了更丰富的运行模式和故障信息，但也带来了源域间分布差异和负迁移风险。若简单合并多个源域，模型可能忽略不同源域与目标域之间的差异，导致不可靠源域信息干扰目标域诊断。WJDOT 针对多源领域自适应问题，在最优传输框架下同时学习源目标分布对齐和源域权重，使模型能够利用源域多样性并降低不相关源域的影响\cite{turrisi2022wjdot}。
 
@@ -118,9 +125,9 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 本文技术路线围绕“数据预处理—基础模型构建—单源方法改进—多源方法改进—实验验证与分析”展开。
 
-在数据层面，本文整理田纳西伊斯曼过程领域自适应数据集。该数据集包含多个生产模式，每个生产模式对应一个领域；样本形式为多变量时间序列，标签包括正常状态和多类故障状态。针对不同变量尺度差异较大的特点，对各生产模式下的连续变量进行标准化处理，并按照固定实验划分构造训练和测试场景。实验中，目标域测试标签仅用于最终评价，不参与训练、调参或模型选择。
+在数据层面，本文整理田纳西伊斯曼过程领域自适应数据集。该数据集包含多个生产模式，每个生产模式对应一个领域；样本形式为多变量时间序列，标签包括正常状态和多类故障状态。针对不同变量尺度差异较大的特点，对各生产模式下的连续变量进行标准化处理，并按照固定实验划分构造训练和测试场景。实验中，目标域测试标签仅用于最终评价，不参与训练、参数确定或模型选择。
 
-在模型层面，本文构建跨工况领域自适应故障诊断的基础框架。单源域到单目标域场景以 DeepJDOT 为基础，利用深度特征与标签预测的联合最优传输实现源目标对齐；多源域到单目标域场景以 WJDOT 为基础，通过逐源最优传输和源域权重学习建模多源迁移关系。考虑到工业过程数据具有多变量时间序列特征，本文引入卷积式时间序列特征提取结构和领域对抗约束，为多源场景提供时序表征基础。
+在模型层面，本文构建跨工况领域自适应故障诊断的基础框架。单源域到单目标域场景以 DeepJDOT 为基础，利用深度特征与标签预测的联合最优传输完成源目标对齐；多源域到单目标域场景以 WJDOT 为基础，通过逐源最优传输和源域权重学习建模多源迁移关系。考虑到工业过程数据具有多变量时间序列特征，本文引入卷积式时间序列特征提取结构和领域对抗约束，为多源场景提供时序表征基础。
 
 围绕单源场景，本文提出两级递进改进。第一阶段针对 DeepJDOT 中平衡传输可能导致错误强制匹配以及故障类别结构保持不足的问题，提出时序原型非平衡联合分布对齐方法。第二阶段针对目标域伪标签不可靠问题，提出多证据置信均衡伪标签学习方法，从传输计划、教师模型和原型距离三个方面筛选可信目标样本，并引入类别均衡和一致性约束增强目标域学习稳定性。
 
@@ -140,7 +147,7 @@ For the single-source setting, this thesis develops a temporal-prototype unbalan
 
 第四章为基于多证据置信均衡伪标签的单源领域自适应故障诊断方法。该章在第三章方法基础上，进一步解决目标域伪标签不可靠问题。通过传输语义分布、教师预测语义分布和源域原型语义分布构造多证据伪标签，并结合动态置信阈值、类别均衡机制和强弱增强一致性约束，提高目标域样本利用的可靠性。
 
-第五章为基于类条件源域可靠性加权的多源领域自适应故障诊断方法。该章面向多源跨工况诊断任务，提出结合卷积式时间序列表征、逐源联合分布最优传输和类条件源域可靠性矩阵的多源适配方法，以实现对可靠源域和可靠故障类别的选择性迁移。
+第五章为基于类条件源域可靠性加权的多源领域自适应故障诊断方法。该章面向多源跨工况诊断任务，提出结合卷积式时间序列表征、逐源联合分布最优传输和类条件源域可靠性矩阵的多源适配方法，从而支持对可靠源域和可靠故障类别的选择性迁移。
 
 第六章为实验设计与结果分析。该章介绍田纳西伊斯曼过程领域自适应数据集、单源和多源实验场景、数据预处理方式、评价指标和对比方法，并通过准确率对比、混淆矩阵、特征可视化和源域可靠性分析本文方法的有效性。
 
@@ -383,7 +390,7 @@ CoDATS 将卷积式时间序列特征提取结构与领域对抗学习相结合�
 
 \section{本章小结}
 
-本章介绍了跨工况领域自适应故障诊断所需的基本方法。针对源域有标签、目标域无标签的跨工况诊断问题，首先说明了基于联合分布最优传输的领域自适应思想。DeepJDOT 通过在深度特征和标签预测联合空间中构造最优传输代价，实现单源域与目标域之间的对齐；WJDOT 则进一步引入源域权重，使模型在多源场景下能够利用可靠源域并抑制不可靠源域。
+本章介绍了跨工况领域自适应故障诊断所需的基本方法。针对源域有标签、目标域无标签的跨工况诊断问题，首先说明了基于联合分布最优传输的领域自适应思想。DeepJDOT 通过在深度特征和标签预测联合空间中构造最优传输代价，完成单源域与目标域之间的对齐；WJDOT 则进一步引入源域权重，使模型在多源场景下能够利用可靠源域并抑制不可靠源域。
 
 本章还介绍了卷积式时间序列领域自适应方法。卷积式时间序列特征提取结构能够从多变量过程数据中学习局部动态模式和全局故障表示；基于领域对抗学习的特征对齐方法通过领域判别器与特征提取器之间的对抗优化，促使模型学习源域和目标域共享的领域不变特征。CoDATS 将时间序列卷积特征提取与领域对抗学习结合，适合处理多源时间序列传感器数据的跨域迁移诊断任务。
 
@@ -398,7 +405,7 @@ CoDATS 将卷积式时间序列特征提取结构与领域对抗学习相结合�
 
 针对上述问题，本章提出时序原型非平衡联合分布对齐方法。该方法在 DeepJDOT 基础上引入非平衡小批量最优传输，使部分不可靠传输质量可以被削减；同时维护源域类别原型，并利用目标样本到源域类别原型的相对距离修正传输代价；此外，从原始过程窗口中提取均值、标准差和一阶差分统计量，构造时间序列统计代价。训练前期还使用源域监督对比学习增强特征空间的类内紧凑性和类间分离性。本章方法训练过程中不使用目标域标签，目标域标签只在最终实验评价阶段使用。方法整体结构如图 \ref{fig:ch3_tpu_architecture} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{figs/ch3_tpu_architecture.tikz.tex}}
     \caption{时序原型非平衡联合分布对齐方法架构示意}
@@ -637,7 +644,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 综上，本章方法的总体目标函数为
 \begin{equation}
-    \mathcal{L}_{\mathrm{TPU\_DPJDOT}}
+    \mathcal{L}_{\mathrm{TPU}}
     =
     \mathcal{L}_{\mathrm{src}}
     +
@@ -648,7 +655,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 其中 $\lambda_{\mathrm{supcon}}(\nu)$ 为监督对比损失权重，$\lambda_{\mathrm{ot}}(\nu)$ 为非平衡联合传输对齐权重。$\lambda_{\mathrm{ot}}(\nu)$ 采用逐步启用调度，并在源域预热阶段保持为零；$\mathcal{L}_{\mathrm{align}}$ 内部还包含逐步启动的原型代价和时序统计代价。
 
 本章方法的训练流程如算法 \ref{alg:tpu-deepjdot} 所示。
-\begin{algorithm}[htbp]
+\begin{algorithm}[!htbp]
     \caption{时序原型非平衡联合分布对齐训练流程}
     \label{alg:tpu-deepjdot}
     \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
@@ -679,9 +686,9 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 第三章方法通过非平衡联合传输、源域原型和时序统计代价增强了单源跨工况对齐能力，但目标域样本仍主要通过传输代价间接参与训练。随着训练推进，部分目标域样本的语义预测会逐渐稳定，若能可靠利用这些样本，有助于改善目标工况下的类别边界。然而，在无监督领域自适应中，目标域真实标签不可用于训练，直接将模型预测作为伪标签可能放大错误预测。对于 TEP 跨模式数据，分布差异较大且故障类别较多，错误伪标签可能导致目标域类别坍缩，或使模型过度偏向少数高置信类别。
 
-针对目标域伪标签不可靠问题，本章提出多证据置信均衡伪标签方法。该方法在第三章模型基础上加入教师--学生锚点结构、强弱增强一致性、多证据语义融合和类别均衡伪标签学习。在本文实验主线中，教师模型由同一迁移场景下训练得到的 TPU\_DPJDOT 检查点初始化，并作为冻结教师锚点；学生模型也从该检查点初始化，再通过多证据伪标签目标进行保守微调。训练过程不依赖目标域标签，而是融合三类证据：由非平衡传输计划得到的传输语义分布、由教师锚点得到的预测语义分布，以及由源域类别原型得到的原型语义分布。只有当多种证据一致、置信度较高且传输语义熵较低时，目标样本才参与伪标签学习。方法整体结构如图 \ref{fig:ch4_cbtpu_pseudolabel} 所示。
+针对目标域伪标签不可靠问题，本章提出多证据置信均衡伪标签方法。该方法在第三章模型基础上加入教师--学生参考结构、强弱增强一致性、多证据语义融合和类别均衡伪标签学习。在本文实验设定中，教师模型由同一迁移场景下训练得到的 TPU-DeepJDOT 阶段模型初始化，并在后续训练中保持固定；学生模型也以该阶段模型为初始状态，再通过多证据伪标签目标进行保守微调。训练过程不依赖目标域标签，而是融合三类证据：由非平衡传输计划得到的传输语义分布、由教师参考模型得到的预测语义分布，以及由源域类别原型得到的原型语义分布。只有当多种证据一致、置信度较高且传输语义熵较低时，目标样本才参与伪标签学习。方法整体结构如图 \ref{fig:ch4_cbtpu_pseudolabel} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{figs/ch4_cbtpu_pseudolabel.tikz.tex}}
     \caption{多证据置信均衡伪标签方法架构示意}
@@ -705,17 +712,17 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 \end{equation}
 只有当 $\kappa_j$ 超过动态阈值且三类证据之间差异较小时，样本才被纳入伪标签集合。
 
-\subsection{教师锚点与一致性学习原理}
+\subsection{教师参考模型与一致性学习原理}
 
-教师模型一致性学习通过比当前学生模型更稳定的预测分布，为无标签样本提供软监督信号。Mean Teacher 方法表明，权重平均教师模型可为无标签样本提供更平滑的一致性目标\cite{tarvainen2017meanteacher}。在本文单源主线中，第四章方法进一步利用第三章已经训练得到的 TPU\_DPJDOT 模型作为教师锚点。设第三章模型参数为 $\Theta_{\mathrm{TPU\_DPJDOT}}$，则教师模型和学生模型初始化为
+教师模型一致性学习通过比当前学生模型更稳定的预测分布，为无标签样本提供软监督信号。Mean Teacher 方法表明，权重平均教师模型可为无标签样本提供更平滑的一致性目标\cite{tarvainen2017meanteacher}。在本文单源方法递进关系中，第四章方法进一步利用第三章已经训练得到的 TPU-DeepJDOT 模型作为教师参考模型。设第三章模型参数为 $\Theta_{\mathrm{TPU}}$，则教师模型和学生模型初始化为
 \begin{equation}
-    \bar{\Theta}\leftarrow \Theta_{\mathrm{TPU\_DPJDOT}},
+    \bar{\Theta}\leftarrow \Theta_{\mathrm{TPU}},
     \quad
-    \Theta\leftarrow \Theta_{\mathrm{TPU\_DPJDOT}},
+    \Theta\leftarrow \Theta_{\mathrm{TPU}},
 \end{equation}
-其中 $\Theta=(\theta,\phi)$ 为学生模型参数集合，$\bar{\Theta}=(\bar{\theta},\bar{\phi})$ 为教师模型参数集合。教师锚点不使用目标域标签训练，其来源为前一阶段无监督领域自适应模型；在启用冻结教师锚点时，$\bar{\Theta}$ 在后续训练中保持不变，用于防止伪标签微调破坏第三章已获得的稳定决策边界。
+其中 $\Theta=(\theta,\phi)$ 为学生模型参数集合，$\bar{\Theta}=(\bar{\theta},\bar{\phi})$ 为教师模型参数集合。教师参考模型不使用目标域标签训练，其来源为前一阶段无监督领域自适应模型；当采用固定教师参考模型时，$\bar{\Theta}$ 在后续训练中保持不变，用于防止伪标签微调破坏第三章已获得的稳定决策边界。
 
-若未加载外部教师锚点，也可以退化为普通 EMA 教师形式：
+若不引入前序教师参考模型，也可以采用指数滑动平均教师形式：
 \begin{equation}
     \bar{\Theta}
     \leftarrow
@@ -723,7 +730,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     +
     (1-\xi)\Theta,
 \end{equation}
-其中 $\xi$ 为 EMA 衰减系数。本文实验采用冻结 TPU\_DPJDOT 教师锚点作为主要设置，EMA 更新仅作为未加载锚点时的通用实现形式。
+其中 $\xi$ 为指数滑动平均衰减系数。本文实验以固定的 TPU-DeepJDOT 教师参考模型作为主要设置，指数滑动平均形式仅作为无前序教师模型时的补充形式。
 
 对于目标样本的弱增强视图 $a_w(x_j^t)$，教师模型输出预测分布：
 \begin{equation}
@@ -734,7 +741,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
     \frac{G_{\bar{\phi}}(F_{\bar{\theta}}(a_w(x_j^t)))}{T_{\mathrm{tea}}}
     \right),
 \end{equation}
-其中 $T_{\mathrm{tea}}$ 为教师温度系数。该分布作为目标域预测语义证据，同时也用于强弱增强一致性约束。由于教师锚点来自第三章模型，第四章的伪标签学习是在已有单源对齐结果之上的二阶段细化，而不是从随机初始化重新进行目标域伪标签训练。
+其中 $T_{\mathrm{tea}}$ 为教师温度系数。该分布作为目标域预测语义证据，同时也用于强弱增强一致性约束。由于教师参考模型来自第三章模型，第四章的伪标签学习是在已有单源对齐结果之上的二阶段细化，而不是从随机初始化重新进行目标域伪标签训练。
 
 \subsection{类别均衡约束原理}
 
@@ -782,9 +789,9 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 \subsection{教师预测语义分布估计}
 
-教师预测语义分布 $q_j^{\mathrm{cls}}$ 来自教师模型对目标弱增强样本的预测。在本文实验主线中，该教师模型为第三章 TPU\_DPJDOT 检查点加载得到的冻结教师锚点；若未加载锚点，则可由 EMA 教师提供。相比当前正在接受伪标签微调的学生模型，冻结教师锚点保留了前一阶段较稳定的跨域对齐边界，因此 $q_j^{\mathrm{cls}}$ 既提供类别预测证据，也作为强增强一致性学习的目标分布。
+教师预测语义分布 $q_j^{\mathrm{cls}}$ 来自教师模型对目标弱增强样本的预测。在本文实验设定中，该教师模型由第三章 TPU-DeepJDOT 阶段模型得到；若不引入前序教师模型，则可由指数滑动平均教师提供。相比当前正在接受伪标签微调的学生模型，固定教师参考模型保留了前一阶段较稳定的跨域对齐边界，因此 $q_j^{\mathrm{cls}}$ 既提供类别预测证据，也作为强增强一致性学习的目标分布。
 
-本文只使用教师模型对目标无标签样本的输入输出关系，不引入目标标签。教师锚点来自目标标签不可见的第三章训练流程，不直接接受目标标签监督，因此可为目标样本提供较稳定的预测语义证据。
+本文只使用教师模型对目标无标签样本的输入输出关系，不引入目标标签。教师参考模型来自目标标签不可见的第三章训练过程，不直接接受目标标签监督，因此可为目标样本提供较稳定的预测语义证据。
 
 \subsection{源域原型语义分布估计}
 
@@ -923,7 +930,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 \subsection{教师--学生预测融合策略}
 
-第四章方法在训练阶段通过伪标签损失和一致性损失微调学生模型，但最终预测仍需要避免学生模型因局部伪标签噪声而偏离第三章教师锚点。为此，本文在推理阶段采用不使用目标标签的教师--学生预测融合策略。设学生预测概率为 $p_j^{\mathrm{stu}}$，教师锚点预测概率为 $p_j^{\mathrm{tea}}$，二者的最大置信度分别为 $s_j^{\mathrm{stu}}$ 和 $s_j^{\mathrm{tea}}$。
+第四章方法在训练阶段通过伪标签损失和一致性损失微调学生模型，但最终预测仍需要避免学生模型因局部伪标签噪声而偏离第三章教师参考模型。为此，本文在推理阶段采用不使用目标标签的教师--学生预测融合策略。设学生预测概率为 $p_j^{\mathrm{stu}}$，教师参考模型预测概率为 $p_j^{\mathrm{tea}}$，二者的最大置信度分别为 $s_j^{\mathrm{stu}}$ 和 $s_j^{\mathrm{tea}}$。
 
 默认的安全置信融合规则为
 \begin{equation}
@@ -936,7 +943,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
         & \mathrm{otherwise},
     \end{cases}
 \end{equation}
-其中 $\Delta_{\mathrm{conf}}$ 为固定置信裕度。该规则只有在学生模型明显更有把握时才采用学生预测，否则回退到冻结教师锚点。
+其中 $\Delta_{\mathrm{conf}}$ 为固定置信裕度。该规则只有在学生模型明显更有把握时才采用学生预测，否则采用教师参考模型预测。
 
 对于少数迁移方向，本文还使用固定的概率混合或置信差分带融合。概率混合形式为
 \begin{equation}
@@ -950,13 +957,13 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 \begin{equation}
     \Delta_{\min}\leq s_j^{\mathrm{stu}}-s_j^{\mathrm{tea}}\leq \Delta_{\max}
 \end{equation}
-时采用学生预测，否则采用教师预测。上述阈值和权重均在实验配置中预先固定，不根据目标域测试准确率进行后验选择，因此仍符合目标域标签不可见的无监督领域自适应设定。
+时采用学生预测，否则采用教师预测。上述阈值和权重均在实验设定中预先固定，不根据目标域测试准确率进行后验选择，因此仍符合目标域标签不可见的无监督领域自适应设定。
 
 \subsection{总体目标函数与算法流程}
 
 本章方法的总损失为
 \begin{equation}
-    \mathcal{L}_{\mathrm{CBTPU\_DPJDOT}}
+    \mathcal{L}_{\mathrm{CBTPU}}
     =
     \mathcal{L}_{\mathrm{src}}
     +
@@ -973,12 +980,12 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 其中前三项与第三章一致，$\mathcal{L}_{\mathrm{pl}}$ 为多证据伪标签损失，$\mathcal{L}_{\mathrm{cons}}$ 为强弱增强一致性损失。$\mathcal{L}_{\mathrm{im}}$ 为可选的信息最大化正则项，用于鼓励目标预测个体低熵且批次类别分布不过度坍缩；其权重较小，仅作为辅助稳定项。
 
 本章方法训练流程如算法 \ref{alg:cbtpu-deepjdot} 所示。
-\begin{algorithm}[htbp]
+\begin{algorithm}[!htbp]
     \caption{多证据置信均衡伪标签训练流程}
     \label{alg:cbtpu-deepjdot}
     \KwIn{源域有标签数据 $\mathcal{D}_s$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
     \KwOut{学生模型参数 $\Theta$ 与教师模型参数 $\bar{\Theta}$}
-    初始化学生模型、教师模型和源域类别原型；若存在 TPU\_DPJDOT 阶段检查点，则加载为冻结教师锚点并初始化学生模型\;
+    初始化学生模型、教师模型和源域类别原型；若存在 TPU-DeepJDOT 阶段模型，则以其作为固定教师参考模型并初始化学生模型\;
     \For{$\nu=1,2,\cdots,N_{\mathrm{iter}}$}{
         采样源域有标签小批量和目标域无标签小批量\;
         对目标样本生成弱增强视图和强增强视图\;
@@ -989,7 +996,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
         对 $q^{\mathrm{ot}}$、$q^{\mathrm{cls}}$ 和 $q^{\mathrm{proto}}$ 进行幂加权融合，得到 $q^{\mathrm{mix}}$\;
         依据语义一致性、JS 差异、融合置信度和传输熵筛选目标样本\;
         对接受样本计算类别均衡软伪标签损失，对接受样本和中等置信样本计算强弱增强一致性损失\;
-        组合各项损失更新学生模型参数；若教师未冻结，则用学生参数滑动更新教师模型参数\;
+        组合各项损失更新学生模型参数；若采用滑动平均教师形式，则用学生参数更新教师模型参数\;
     }
 \end{algorithm}
 
@@ -997,9 +1004,9 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 \section{本章小结}
 
-本章在第三章时序原型非平衡联合分布对齐方法基础上，提出了多证据置信均衡伪标签策略。该策略从非平衡传输计划、教师锚点预测和源域类别原型三类来源构建目标域语义分布，并通过一致性判断、JS 差异、动态置信阈值和传输熵筛选可靠目标样本。针对伪标签类别偏置问题，在被接受伪标签集合上进行对数先验调整，缓解少数高置信类别对训练的主导；针对目标时序样本扰动稳定性问题，引入弱增强教师预测和强增强学生预测之间的一致性约束。
+本章在第三章时序原型非平衡联合分布对齐方法基础上，提出了多证据置信均衡伪标签策略。该策略从非平衡传输计划、教师参考模型预测和源域类别原型三类来源构建目标域语义分布，并通过一致性判断、JS 差异、动态置信阈值和传输熵筛选可靠目标样本。针对伪标签类别偏置问题，在被接受伪标签集合上进行对数先验调整，缓解少数高置信类别对训练的主导；针对目标时序样本扰动稳定性问题，引入弱增强教师预测和强增强学生预测之间的一致性约束。
 
-本章方法保持无监督领域自适应设定，训练和教师--学生推理融合过程中均不使用目标域标签。目标域标签仅在后续实验章节中用于最终性能评价。通过上述教师锚点、多证据筛选、类别均衡和预测融合机制，模型可以更可靠地利用目标域无标签样本，为单源跨工况故障诊断提供较稳定的目标域决策边界。
+本章方法保持无监督领域自适应设定，训练和教师--学生推理融合过程中均不使用目标域标签。目标域标签仅在后续实验章节中用于最终性能评价。通过上述教师参考模型、多证据筛选、类别均衡和预测融合机制，模型可以更可靠地利用目标域无标签样本，为单源跨工况故障诊断提供较稳定的目标域决策边界。
 
 \chapter[基于类条件源域可靠性加权的多源领域自适应故障诊断方法]{基于类条件源域可靠性加权的\\多源领域自适应故障诊断方法}
 \section{引言}
@@ -1008,7 +1015,7 @@ $d_z$ 为特征维度。标签预测代价使用源域真实标签与目标域�
 
 针对上述问题，本章提出类条件源域可靠性加权方法。该方法结合 CoDATS 的时间序列领域对抗表征、WJDOT 的逐源联合分布传输思想，以及本文设计的类条件源域可靠性矩阵。具体而言，在每个源域与目标域之间分别计算联合传输代价，并从原型距离、类条件传输代价、目标预测熵和源域类别召回误差四个角度估计“源域--故障类别”可靠性，再据此分配类条件源域权重。训练和模型选择过程中不使用目标域标签，目标域标签仅用于最终评价。方法整体结构如图 \ref{fig:ch5_CA_CCSR_WJDOT} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{figs/ch5_CA_CCSR_WJDOT.tikz.tex}}
     \caption{类条件源域可靠性加权多源方法架构示意}
@@ -1229,7 +1236,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 通过梯度反转层，判别器最小化该损失，而特征提取器接收反向梯度，从而学习更难区分源目标领域的表示。领域对抗权重采用逐步启用调度，避免训练初期对抗信号过强。
 
-此外，本章引入教师先验约束，用于防止多源传输和类条件加权造成目标预测漂移。教师模型由同一多源任务中的 CoDATS 风格基础诊断模型给出，该模型只使用源域标签和目标域无标签数据训练，不使用目标域真实标签；在本章类条件可靠性训练阶段，教师参数保持冻结。知识蒸馏研究表明，教师模型的软概率可以携带比硬标签更丰富的类别相似性信息\cite{hinton2015distilling}；Mean Teacher 思想也说明稳定教师有助于无标签训练\cite{tarvainen2017meanteacher}。本文将教师输出作为目标域先验保护项，而不是目标标签监督。
+此外，本章引入教师先验约束，用于防止多源传输和类条件加权造成目标预测漂移。教师模型由同一多源任务中的 CoDATS 风格基础诊断模型给出，该模型只使用源域标签和目标域无标签数据训练，不使用目标域真实标签；在本章类条件可靠性训练阶段，教师参数保持固定。知识蒸馏研究表明，教师模型的软概率可以携带比硬标签更丰富的类别相似性信息\cite{hinton2015distilling}；Mean Teacher 思想也说明稳定教师有助于无标签训练\cite{tarvainen2017meanteacher}。本文将教师输出作为目标域先验保护项，而不是目标标签监督。
 
 设教师模型在目标样本上的未归一化预测得分为 $u_j^{\mathrm{tea}}$，学生模型的未归一化预测得分为 $u_j^{\mathrm{stu}}$。教师先验约束可写为
 \begin{equation}
@@ -1244,7 +1251,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \mathrm{softmax}\left(\frac{u_j^{\mathrm{stu}}}{T_{\mathrm{dist}}}\right)
     \right),
 \end{equation}
-其中 $T_{\mathrm{dist}}$ 为蒸馏温度，$\mathcal{B}_t$ 为当前目标域小批量。也可引入归一化特征均方误差作为辅助教师锚定项。
+其中 $T_{\mathrm{dist}}$ 为蒸馏温度，$\mathcal{B}_t$ 为当前目标域小批量。也可引入归一化特征均方误差作为辅助教师参考约束项。
 
 \subsection{教师先验保护的诊断结果融合}
 
@@ -1271,13 +1278,13 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{equation}
 其中 $\bar{p}^{\mathrm{base}}$ 为当前目标批次平均预测分布，$\beta$ 为先验均衡强度。该机制用于缓解目标预测类别数量坍缩，同样不使用目标真实标签。
 
-教师先验融合用于保护已有稳定教师预测，同时允许学生模型在更高置信、更低熵时覆盖教师预测。该机制与训练中的类条件源域可靠性矩阵互补，为最终诊断结果提供保守校正。
+教师先验融合用于保护已有稳定教师预测，同时允许学生模型在更高置信、更低熵时替代教师预测。该机制与训练中的类条件源域可靠性矩阵互补，为最终诊断结果提供保守校正。
 
 \subsection{总体目标函数与算法流程}
 
 本章训练阶段的总体目标函数为
 \begin{equation}
-    \mathcal{L}_{\mathrm{CA\_CCSR\_WJDOT}}
+    \mathcal{L}_{\mathrm{CA}}
     =
     \lambda_s\mathcal{L}_{\mathrm{src}}
     +
@@ -1292,7 +1299,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 其中 $\mathcal{L}_{\mathrm{WJDOT}}$ 为逐源传输损失的源域级聚合，$\mathcal{L}_{\mathrm{CCSR}}$ 为类条件可靠性加权传输损失，$\mathcal{L}_{\mathrm{dom}}$ 为领域判别损失，$\mathcal{L}_{\mathrm{tea}}$ 为教师先验约束。各权重均采用逐步启用调度控制。
 
 本章方法训练流程如算法 \ref{alg:ca-ccsr-wjdot} 所示。
-\begin{algorithm}[htbp]
+\begin{algorithm}[!htbp]
     \caption{类条件源域可靠性加权多源训练流程}
     \label{alg:ca-ccsr-wjdot}
     \KwIn{多源有标签数据 $\{\mathcal{D}_{s_k}\}_{k=1}^{K}$，目标域无标签数据 $\mathcal{D}_t$，训练步数 $N_{\mathrm{iter}}$}
@@ -1321,7 +1328,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本章提出了类条件源域可靠性加权方法。针对多源场景中的负迁移问题，不再仅使用源域整体权重，而是构建源域--故障类别级别的可靠性矩阵。该矩阵综合源目标原型距离、类条件传输代价、目标预测熵和源域类别召回误差，并通过类别维度 softmax 转化为类条件源域权重。基于该权重，模型能够为不同故障类别选择更可靠的源域信息。
 
-本章方法还结合 CoDATS 风格时间序列领域对抗表征和冻结教师先验约束，以提升多源训练稳定性；在最终诊断阶段，通过教师先验融合在学生预测和教师预测之间进行无标签置信校正。整个训练和融合过程均不使用目标域真实标签，目标标签仅用于最终实验评价。该方法为后续实验章节中的多源跨工况故障诊断提供模型基础和可解释性分析依据。
+本章方法还结合 CoDATS 风格时间序列领域对抗表征和固定教师先验约束，以提升多源训练稳定性；在最终诊断阶段，通过教师先验融合在学生预测和教师预测之间进行无标签置信校正。整个训练和融合过程均不使用目标域真实标签，目标标签仅用于最终实验评价。该方法为后续实验章节中的多源跨工况故障诊断提供模型基础和可解释性分析依据。
 
 \chapter{实验设计与结果分析}
 \section{引言}
@@ -1332,7 +1339,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本文实验关注无监督领域自适应场景。除目标域监督参考方法外，领域自适应方法在训练、伪标签筛选、超参数选择和模型选择过程中均不使用目标域真实标签；目标域标签仅在最终预测完成后用于计算评价指标。考虑到不同生产模式之间的分布偏移程度不同，且多源场景中不同源域对不同故障类别的贡献可能存在差异，本章结果分析不仅关注平均性能提升，也关注困难迁移场景、类别混淆现象和源域可靠性差异，以检验本文方法在跨工况工业过程故障诊断中的性能、稳定性和解释能力。
 
-本文方法名称按全文统一约定书写。第三章方法记为 TPU\_DPJDOT，第四章方法记为 CBTPU\_DPJDOT，第五章方法记为 CA\_CCSR\_WJDOT。DeepJDOT、WJDOT、CoDATS 仅作为基线或基础方法名称保留。
+本文方法名称按全文统一约定书写。第三章方法记为 TPU-DeepJDOT，第四章方法记为 CBTPU-DeepJDOT，第五章方法记为 CA-CCSR-WJDOT。DeepJDOT、WJDOT、CoDATS 作为基线或基础方法名称保留。
 
 \section{数据集与实验场景}
 
@@ -1340,7 +1347,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本文实验采用田纳西伊斯曼过程领域自适应数据集作为跨工况领域自适应故障诊断基准数据集。该数据集由田纳西伊斯曼过程（TEP）仿真数据整理形成，相关研究对数据生成、预处理流程和领域自适应基准实验进行了系统说明\cite{montesuma2024benchmark}。TEP 最早由 Downs 和 Vogel 提出，是化工过程控制、过程监测和故障诊断研究中常用的复杂工业过程基准系统\cite{downs1993plant}。该过程包含反应器、冷凝器、气液分离器、循环压缩机和汽提塔等主要单元，能够模拟多变量耦合、非线性动态和多种故障扰动，可作为工业过程故障诊断算法研究的基准模型。后续扩展 TEP 仿真数据集也进一步推动了该基准在故障检测和决策支持研究中的使用\cite{reinartz2021extended}。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=1\textwidth]{figs/TEP.pdf}
     \caption{田纳西伊斯曼过程流程示意图}
@@ -1351,7 +1358,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 数据集共包含 6 个生产模式，每个生产模式可视为一个领域。本文沿用基准文献的编号方式，将第 $r$ 个生产模式在公式和实验场景表中简记为 $m_r$，其中 $r=1,2,\cdots,6$。各生产模式的产品质量比、生产率和样本数如表 \ref{tab:tep_modes} 所示。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{田纳西伊斯曼过程领域自适应数据集中各生产模式信息}
     \label{tab:tep_modes}
@@ -1428,7 +1435,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 单源实验共包含 6 个任务，如表 \ref{tab:single_source_tasks} 所示，其中 $m_1$、$m_2$ 和 $m_5$ 的含义沿用上述生产模式记号。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{单源跨工况实验场景}
     \label{tab:single_source_tasks}
@@ -1456,7 +1463,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 本文多源实验包含两类任务。第一类为模式1、模式2和模式5之间的两源域到单目标域任务，用于考察小规模多源条件下的迁移效果。该设置与单源双向迁移场景保持一致，只是每次选择两个模式作为源域，剩余一个模式作为目标域。具体任务如表 \ref{tab:two_source_tasks} 所示。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{生产模式1、生产模式2和生产模式5之间的两源域到单目标域实验场景}
     \label{tab:two_source_tasks}
@@ -1474,7 +1481,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 第二类为 6 个生产模式之间的五源域到单目标域任务。该设置采用留一域策略，即每次选择其中 1 个生产模式作为目标域，其余 5 个生产模式作为源域。该实验能够更全面地评估多源领域自适应方法在不同目标生产模式上的适用性，也更适合分析类条件源域可靠性矩阵是否能够刻画不同源域对不同故障类别的贡献。具体任务如表 \ref{tab:five_source_tasks} 所示。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{6个生产模式之间的五源域到单目标域实验场景}
     \label{tab:five_source_tasks}
@@ -1495,19 +1502,19 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 在多源实验中，源域直接迁移方法用于衡量不进行领域自适应时的多源泛化能力，CoDATS 用于衡量卷积式时间序列领域自适应基线性能，WJDOT 用于衡量基于多源加权联合分布最优传输的基线性能，本文第五章方法用于验证类条件源域可靠性加权机制的有效性。通过两源域和五源域两组实验，可以分别分析源域数量较少和源域数量较多时，源域可靠性建模对目标域故障诊断结果的影响。
 
-\section{主线方法有效性验证}
+\section{方法有效性验证}
 
-本节按照第三章、第四章和第五章提出方法的三条主线重新组织代表场景分析。第 6.3.1 节验证 SourceOnly $\rightarrow$ DeepJDOT $\rightarrow$ TPU\_DPJDOT 的递进关系；第 6.3.2 节验证 TPU\_DPJDOT $\rightarrow$ CBTPU\_DPJDOT 的伪标签细化效果；第 6.3.3 节验证 SourceOnly $\rightarrow$ CA\_CCSR\_WJDOT 的多源选择性迁移效果。为避免将全局热力图和局部图像证据混在一起，本节只使用混淆矩阵、域 t-SNE 和类 t-SNE 三类图像进行对比；跨迁移任务的整体性能与基线优势留到第 6.4 节集中讨论。
+本节按照第三章、第四章和第五章方法的递进关系组织代表场景分析。第 6.3.1 节验证 SourceOnly $\rightarrow$ DeepJDOT $\rightarrow$ TPU-DeepJDOT 的递进关系；第 6.3.2 节验证 TPU-DeepJDOT $\rightarrow$ CBTPU-DeepJDOT 的伪标签细化效果；第 6.3.3 节验证 SourceOnly $\rightarrow$ CA-CCSR-WJDOT 的多源选择性迁移效果。为避免将全局热力图和局部图像证据混在一起，本节只使用混淆矩阵、域 t-SNE 和类 t-SNE 三类图像进行对比；跨迁移任务的整体性能与基线优势留到第 6.4 节集中讨论。
 
 单源代表场景选取较困难的 $m_5\rightarrow m_2$ 任务。该任务以模式5为源域、模式2为目标域，源目标生产模式差异较明显，适合观察单源领域自适应方法是否能够缓解类别误判并改善目标域特征结构。多源代表场景选取五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$，与单源代表场景保持相同目标域 $m_2$，便于观察引入多个源域后类条件源域可靠性建模的作用。
 
 \subsection{时序原型非平衡联合分布对齐有效性验证}
 
-本小节验证第三章方法的核心问题：在单源跨工况诊断中，SourceOnly 缺少领域对齐，DeepJDOT 引入联合分布最优传输，TPU\_DPJDOT 进一步加入非平衡传输、源域类别原型和时序统计代价。若第三章方法有效，则代表场景中应当出现 SourceOnly $<$ DeepJDOT $<$ TPU\_DPJDOT 的递进趋势，即目标域混淆减少、源目标域分布更加接近、类别结构更加清晰。
+本小节验证第三章方法的核心问题：在单源跨工况诊断中，SourceOnly 缺少领域对齐，DeepJDOT 引入联合分布最优传输，TPU-DeepJDOT 进一步加入非平衡传输、源域类别原型和时序统计代价。若第三章方法有效，则代表场景中应当出现 SourceOnly $<$ DeepJDOT $<$ TPU-DeepJDOT 的递进趋势，即目标域混淆减少、源目标域分布更加接近、类别结构更加清晰。
 
-图 \ref{fig:ch6_tpu_mainline_confusion} 给出 $m_5\rightarrow m_2$ 任务中三种方法的目标域混淆矩阵。SourceOnly 的非对角元素较分散，说明仅依赖源域监督训练难以直接适应目标生产模式；DeepJDOT 能够缓解部分误判，但仍存在若干类别被吸收到错误预测类别的现象；TPU\_DPJDOT 的对角线响应更集中，说明时序原型非平衡联合分布对齐能够降低不可靠强制匹配对类别边界的干扰。该代表场景中，三者准确率分别为 56.08\%、67.20\% 和 83.60\%，形成明显递进关系。
+图 \ref{fig:ch6_tpu_mainline_confusion} 给出 $m_5\rightarrow m_2$ 任务中三种方法的目标域混淆矩阵。SourceOnly 的非对角元素较分散，说明仅依赖源域监督训练难以直接适应目标生产模式；DeepJDOT 能够缓解部分误判，但仍存在若干类别被吸收到错误预测类别的现象；TPU-DeepJDOT 的对角线响应更集中，说明时序原型非平衡联合分布对齐能够降低不可靠强制匹配对类别边界的干扰。该代表场景中，三者准确率分别为 56.08\%、67.20\% 和 83.60\%，形成明显递进关系。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
@@ -1524,15 +1531,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_confusion.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU\_DPJDOT 的目标域混淆矩阵对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU-DeepJDOT 的目标域混淆矩阵对比}
     \label{fig:ch6_tpu_mainline_confusion}
 \end{figure}
 
-图 \ref{fig:ch6_tpu_mainline_tsne_domain} 从域分布角度展示同一任务的 t-SNE 结果。SourceOnly 下源域与目标域特征仍存在明显分离；DeepJDOT 缩短了部分源目标特征距离，但目标域样本仍有较多游离区域；TPU\_DPJDOT 使更多目标样本进入源域类别结构附近。该现象说明 TPU\_DPJDOT 的提升不是单纯依赖分类器输出校正，而是在特征层面改善了跨域对齐状态。
+图 \ref{fig:ch6_tpu_mainline_tsne_domain} 从域分布角度展示同一任务的 t-SNE 结果。SourceOnly 下源域与目标域特征仍存在明显分离；DeepJDOT 缩短了部分源目标特征距离，但目标域样本仍有较多游离区域；TPU-DeepJDOT 使更多目标样本进入源域类别结构附近。该现象说明 TPU-DeepJDOT 的提升不是单纯依赖分类器输出校正，而是在特征层面改善了跨域对齐状态。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
@@ -1549,15 +1556,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_tsne_domain.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU\_DPJDOT 的域 t-SNE 对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU-DeepJDOT 的域 t-SNE 对比}
     \label{fig:ch6_tpu_mainline_tsne_domain}
 \end{figure}
 
-图 \ref{fig:ch6_tpu_mainline_tsne_class} 进一步从类别聚集角度比较三种方法。SourceOnly 的部分类别簇边界混杂，目标样本难以稳定落入正确类别区域；DeepJDOT 形成了一定类别聚集结构，但局部类别仍交叠；TPU\_DPJDOT 的类别簇更紧凑，且不同故障类别之间的分离度更好。这与第三章方法引入源域类别原型、时序统计代价和源域监督对比学习的设计目标一致。
+图 \ref{fig:ch6_tpu_mainline_tsne_class} 进一步从类别聚集角度比较三种方法。SourceOnly 的部分类别簇边界混杂，目标样本难以稳定落入正确类别区域；DeepJDOT 形成了一定类别聚集结构，但局部类别仍交叠；TPU-DeepJDOT 的类别簇更紧凑，且不同故障类别之间的分离度更好。这与第三章方法引入源域类别原型、时序统计代价和源域监督对比学习的设计目标一致。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
@@ -1574,84 +1581,84 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_tsne_class.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU\_DPJDOT 的类 t-SNE 对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 SourceOnly、DeepJDOT 和 TPU-DeepJDOT 的类 t-SNE 对比}
     \label{fig:ch6_tpu_mainline_tsne_class}
 \end{figure}
 
-综合混淆矩阵、域 t-SNE 和类 t-SNE 可以看出，TPU\_DPJDOT 相比 DeepJDOT 的主要收益来自更可靠的类别结构保持。非平衡传输允许削减低可靠匹配质量，原型代价和时序统计代价则使传输计划不只依赖瞬时特征距离，从而在目标域无标签条件下减少错误对齐。
+综合混淆矩阵、域 t-SNE 和类 t-SNE 可以看出，TPU-DeepJDOT 相比 DeepJDOT 的主要收益来自更可靠的类别结构保持。非平衡传输允许削减低可靠匹配质量，原型代价和时序统计代价则使传输计划不只依赖瞬时特征距离，从而在目标域无标签条件下减少错误对齐。
 
 \subsection{多证据置信均衡伪标签有效性验证}
 
-本小节验证第四章方法的核心问题：在 TPU\_DPJDOT 已经建立较可靠源目标对齐关系之后，CBTPU\_DPJDOT 是否能够通过多证据置信筛选和类别均衡伪标签学习进一步改善目标域决策边界。与第 6.3.1 节不同，本小节不再重复 SourceOnly 和 DeepJDOT 的完整递进链，而是直接比较 TPU\_DPJDOT 与 CBTPU\_DPJDOT。
+本小节验证第四章方法的核心问题：在 TPU-DeepJDOT 已经建立较可靠源目标对齐关系之后，CBTPU-DeepJDOT 是否能够通过多证据置信筛选和类别均衡伪标签学习进一步改善目标域决策边界。与第 6.3.1 节不同，本小节不再重复 SourceOnly 和 DeepJDOT 的完整递进链，而是直接比较 TPU-DeepJDOT 与 CBTPU-DeepJDOT。
 
-图 \ref{fig:ch6_cbtpu_confusion} 展示两种方法在 $m_5\rightarrow m_2$ 任务上的混淆矩阵。CBTPU\_DPJDOT 相比 TPU\_DPJDOT 的代表场景准确率由 83.60\% 提升到 83.77\%，宏平均 F1 由 82.42\% 提升到 82.77\%，平衡准确率由 83.87\% 提升到 84.04\%。该提升幅度小于第 6.3.1 节中 DeepJDOT 到 TPU\_DPJDOT 的跃升，但混淆矩阵中局部非对角误判继续减弱，说明伪标签阶段主要承担细化目标域边界的作用。
+图 \ref{fig:ch6_cbtpu_confusion} 展示两种方法在 $m_5\rightarrow m_2$ 任务上的混淆矩阵。CBTPU-DeepJDOT 相比 TPU-DeepJDOT 的代表场景准确率由 83.60\% 提升到 83.77\%，宏平均 F1 由 82.42\% 提升到 82.77\%，平衡准确率由 83.87\% 提升到 84.04\%。该提升幅度小于第 6.3.1 节中 DeepJDOT 到 TPU-DeepJDOT 的跃升，但混淆矩阵中局部非对角误判继续减弱，说明伪标签阶段主要承担细化目标域边界的作用。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_confusion.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_CBTPU_DPJDOT_5_to_2_confusion.pdf}
-        \caption{CBTPU\_DPJDOT}
+        \caption{CBTPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU\_DPJDOT 和 CBTPU\_DPJDOT 的目标域混淆矩阵对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU-DeepJDOT 和 CBTPU-DeepJDOT 的目标域混淆矩阵对比}
     \label{fig:ch6_cbtpu_confusion}
 \end{figure}
 
-图 \ref{fig:ch6_cbtpu_tsne_domain} 从域 t-SNE 角度比较 TPU\_DPJDOT 与 CBTPU\_DPJDOT。两者都已经形成较好的源目标融合结构，这说明第四章方法并不是重新建立跨域对齐，而是在第三章对齐基础上进行保守微调。CBTPU\_DPJDOT 中部分目标样本在主簇附近更加紧凑，反映出高置信目标样本被逐步纳入训练后，对目标域局部边界产生了细化作用。
+图 \ref{fig:ch6_cbtpu_tsne_domain} 从域 t-SNE 角度比较 TPU-DeepJDOT 与 CBTPU-DeepJDOT。两者都已经形成较好的源目标融合结构，这说明第四章方法并不是重新建立跨域对齐，而是在第三章对齐基础上进行保守微调。CBTPU-DeepJDOT 中部分目标样本在主簇附近更加紧凑，反映出高置信目标样本被逐步纳入训练后，对目标域局部边界产生了细化作用。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_tsne_domain.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_CBTPU_DPJDOT_5_to_2_tsne_domain.pdf}
-        \caption{CBTPU\_DPJDOT}
+        \caption{CBTPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU\_DPJDOT 和 CBTPU\_DPJDOT 的域 t-SNE 对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU-DeepJDOT 和 CBTPU-DeepJDOT 的域 t-SNE 对比}
     \label{fig:ch6_cbtpu_tsne_domain}
 \end{figure}
 
-图 \ref{fig:ch6_cbtpu_tsne_class} 给出类 t-SNE 对比。CBTPU\_DPJDOT 在保持 TPU\_DPJDOT 类别结构的同时，使部分目标样本进一步靠近对应类别簇。由于第四章方法只接受传输语义、教师预测语义和原型语义相对一致的目标样本，该变化体现出“保守使用目标域样本”的特点：其目标不是扩大伪标签覆盖率，而是降低错误伪标签进入训练目标的风险。
+图 \ref{fig:ch6_cbtpu_tsne_class} 给出类 t-SNE 对比。CBTPU-DeepJDOT 在保持 TPU-DeepJDOT 类别结构的同时，使部分目标样本进一步靠近对应类别簇。由于第四章方法只接受传输语义、教师预测语义和原型语义相对一致的目标样本，该变化体现出“保守使用目标域样本”的特点：其目标不是扩大伪标签覆盖率，而是降低错误伪标签进入训练目标的风险。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_TPU_DPJDOT_5_to_2_tsne_class.pdf}
-        \caption{TPU\_DPJDOT}
+        \caption{TPU-DeepJDOT}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_single_CBTPU_DPJDOT_5_to_2_tsne_class.pdf}
-        \caption{CBTPU\_DPJDOT}
+        \caption{CBTPU-DeepJDOT}
     \end{subfigure}
-    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU\_DPJDOT 和 CBTPU\_DPJDOT 的类 t-SNE 对比}
+    \caption{单源任务 $m_5\rightarrow m_2$ 中 TPU-DeepJDOT 和 CBTPU-DeepJDOT 的类 t-SNE 对比}
     \label{fig:ch6_cbtpu_tsne_class}
 \end{figure}
 
-因此，CBTPU\_DPJDOT 的有效性应理解为第二阶段增益：在 TPU\_DPJDOT 已经显著改善对齐结构后，进一步通过冻结教师锚点、传输计划、源域原型和类别均衡机制筛选可信目标样本，使目标域决策边界获得小幅但稳定的修正。
+因此，CBTPU-DeepJDOT 的有效性应理解为第二阶段增益：在 TPU-DeepJDOT 已经显著改善对齐结构后，进一步通过固定教师参考模型、传输计划、源域原型和类别均衡机制筛选可信目标样本，使目标域决策边界获得小幅但稳定的修正。
 
 \subsection{类条件源域可靠性加权有效性验证}
 
-本小节验证第五章方法的核心问题：多源设置中仅增加源域数量并不必然带来可靠迁移，模型还需要识别不同源域对不同故障类别的贡献差异。为突出 CA\_CCSR\_WJDOT 相对直接多源训练的作用，本小节比较五源 SourceOnly 与 CA\_CCSR\_WJDOT。完整的 CoDATS、WJDOT 等基线优势在第 6.4.2 节结合热力图和平均性能表讨论。
+本小节验证第五章方法的核心问题：多源设置中仅增加源域数量并不必然带来可靠迁移，模型还需要识别不同源域对不同故障类别的贡献差异。为突出 CA-CCSR-WJDOT 相对直接多源训练的作用，本小节比较五源 SourceOnly 与 CA-CCSR-WJDOT。完整的 CoDATS、WJDOT 等基线优势在第 6.4.2 节结合热力图和平均性能表讨论。
 
-图 \ref{fig:ch6_caccsr_confusion} 展示五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 与 CA\_CCSR\_WJDOT 的混淆矩阵。SourceOnly 虽然使用了多个源域的有标签样本，但目标域准确率只有 64.02\%，说明简单合并多源数据仍会受到跨工况偏移和源域差异影响。CA\_CCSR\_WJDOT 的目标域准确率达到 82.89\%，宏平均 F1 和平衡准确率分别达到 81.77\% 和 82.57\%，混淆矩阵中对角线响应明显增强，表明类条件源域可靠性加权能够显著减少目标域误判。
+图 \ref{fig:ch6_caccsr_confusion} 展示五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 与 CA-CCSR-WJDOT 的混淆矩阵。SourceOnly 虽然使用了多个源域的有标签样本，但目标域准确率只有 64.02\%，说明简单合并多源数据仍会受到跨工况偏移和源域差异影响。CA-CCSR-WJDOT 的目标域准确率达到 82.89\%，宏平均 F1 和平衡准确率分别达到 81.77\% 和 82.57\%，混淆矩阵中对角线响应明显增强，表明类条件源域可靠性加权能够显著减少目标域误判。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -1662,15 +1669,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_CA_CCSR_WJDOT_5src_to_2_confusion.pdf}
-        \caption{CA\_CCSR\_WJDOT}
+        \caption{CA-CCSR-WJDOT}
     \end{subfigure}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA\_CCSR\_WJDOT 的目标域混淆矩阵对比}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA-CCSR-WJDOT 的目标域混淆矩阵对比}
     \label{fig:ch6_caccsr_confusion}
 \end{figure}
 
-图 \ref{fig:ch6_caccsr_tsne_domain} 展示两种方法的域 t-SNE 对比。SourceOnly 中目标域样本在多个区域与源域簇保持距离，说明多源监督训练本身不足以消除目标域偏移。CA\_CCSR\_WJDOT 中目标域样本更稳定地靠近多源特征结构，说明逐源联合分布对齐与类条件源域加权共同改善了目标域样本的位置。
+图 \ref{fig:ch6_caccsr_tsne_domain} 展示两种方法的域 t-SNE 对比。SourceOnly 中目标域样本在多个区域与源域簇保持距离，说明多源监督训练本身不足以消除目标域偏移。CA-CCSR-WJDOT 中目标域样本更稳定地靠近多源特征结构，说明逐源联合分布对齐与类条件源域加权共同改善了目标域样本的位置。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -1681,15 +1688,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_domain.pdf}
-        \caption{CA\_CCSR\_WJDOT}
+        \caption{CA-CCSR-WJDOT}
     \end{subfigure}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA\_CCSR\_WJDOT 的域 t-SNE 对比}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA-CCSR-WJDOT 的域 t-SNE 对比}
     \label{fig:ch6_caccsr_tsne_domain}
 \end{figure}
 
-图 \ref{fig:ch6_caccsr_tsne_class} 从类别结构角度进一步说明该差异。SourceOnly 的部分类别簇存在交叠，目标样本分布较分散；CA\_CCSR\_WJDOT 中类别簇结构更清晰，目标样本与对应类别区域的关系更稳定。这说明第五章方法的收益不仅来自更多源域样本，也来自对源域--故障类别可靠性的细粒度建模。
+图 \ref{fig:ch6_caccsr_tsne_class} 从类别结构角度进一步说明该差异。SourceOnly 的部分类别簇存在交叠，目标样本分布较分散；CA-CCSR-WJDOT 中类别簇结构更清晰，目标样本与对应类别区域的关系更稳定。这说明第五章方法的收益不仅来自更多源域样本，也来自对源域--故障类别可靠性的细粒度建模。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -1700,32 +1707,32 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{figs/ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_class.pdf}
-        \caption{CA\_CCSR\_WJDOT}
+        \caption{CA-CCSR-WJDOT}
     \end{subfigure}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA\_CCSR\_WJDOT 的类 t-SNE 对比}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 SourceOnly 和 CA-CCSR-WJDOT 的类 t-SNE 对比}
     \label{fig:ch6_caccsr_tsne_class}
 \end{figure}
 
-由上述三类图像可以看出，CA\_CCSR\_WJDOT 相比多源 SourceOnly 同时改善了类别预测、域间融合和类别聚集结构。这一结果验证了第五章方法的基本假设：多源跨工况诊断不能只依赖源域数量增加，还需要在类别层面判断各源域是否可靠。
+由上述三类图像可以看出，CA-CCSR-WJDOT 相比多源 SourceOnly 同时改善了类别预测、域间融合和类别聚集结构。这一结果验证了第五章方法的基本假设：多源跨工况诊断不能只依赖源域数量增加，还需要在类别层面判断各源域是否可靠。
 
 \section{综合实验结果对比分析}
 
-第 6.3 节从代表场景出发，分别验证三条主线方法自身的有效性；本节回到全部迁移任务，使用两张大热力图和平均性能表说明本文创新方法相对其他基线方法的整体优势。正文结果均采用固定 seed42、固定第一折协议和冻结的主线结果；表中“均值 $\pm$ 标准差”表示不同迁移任务或目标域之间的均值与场景标准差。Target-ref 使用目标域训练部分标签进行监督训练，仅作为有标签参考，不参与无监督方法公平排序。
+第 6.3 节从代表场景出发，分别验证三类方法自身的有效性；本节回到全部迁移任务，使用两张热力图和平均性能表说明本文创新方法相对其他基线方法的整体优势。正文结果均采用固定随机种子、固定第一折划分和统一实验协议；表中“均值 $\pm$ 标准差”表示不同迁移任务或目标域之间的均值与场景标准差。单源实验中的 Target Only 和多源实验中的 Target Ref 均使用目标域训练部分标签进行监督训练，仅作为有标签参考，不参与无监督方法公平排序。
 
 \subsection{单源创新方法相对基线方法的优势分析}
 
-图 \ref{fig:single_source_heatmap} 给出 6 个单源迁移任务上的逐任务准确率热力图。该图横轴完整包含 SourceOnly、DSAN、CDAN-TS、CoDATS、DeepJDOT、TPU\_DPJDOT、CBTPU\_DPJDOT 和 Target-ref 共 8 种方法，用于观察不同方法在不同源目标模式组合上的稳定性，而不只看代表场景。总体上，SourceOnly 在多数任务中处于较低水平，DSAN、CDAN-TS 和 CoDATS 能够提供一定领域自适应收益，DeepJDOT 引入联合分布最优传输后进一步改善部分任务，但仍存在平衡传输和类别结构保持不足的问题。TPU\_DPJDOT 在 DeepJDOT 基础上取得明显提升，CBTPU\_DPJDOT 则在 TPU\_DPJDOT 基础上继续获得一致正向增益。
+图 \ref{fig:single_source_heatmap} 给出 6 个单源迁移任务上的逐任务准确率热力图。该图横轴完整包含 SourceOnly、DSAN、CDAN-TS、CoDATS、DeepJDOT、TPU-DeepJDOT、CBTPU-DeepJDOT 和 Target Only 共 8 种方法，用于观察不同方法在不同源目标模式组合上的稳定性，而不只看代表场景。总体上，SourceOnly 在多数任务中处于较低水平，DSAN、CDAN-TS 和 CoDATS 能够提供一定领域自适应收益，DeepJDOT 引入联合分布最优传输后进一步改善部分任务，但仍存在平衡传输和类别结构保持不足的问题。TPU-DeepJDOT 在 DeepJDOT 基础上取得明显提升，CBTPU-DeepJDOT 则在 TPU-DeepJDOT 基础上继续获得一致正向增益。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=1\textwidth]{figs/ch6_single_source_heatmap.pdf}
     \caption{单源跨工况8种方法逐任务目标域准确率热力图}
     \label{fig:single_source_heatmap}
 \end{figure}
 
-表 \ref{tab:single_average_results} 给出单源跨工况实验的平均诊断性能。TPU\_DPJDOT 的平均准确率达到 80.54\%，相比 DeepJDOT 的 68.88\% 提升 11.66 个百分点，宏平均 F1 和平衡准确率分别提升 12.78 和 11.56 个百分点。CBTPU\_DPJDOT 的平均准确率进一步达到 82.02\%，相较 TPU\_DPJDOT 继续提升 1.48 个百分点，并在 6 个单源迁移方向上均取得无监督方法第一。该结果说明，第三章方法贡献了主要性能跃升，第四章方法在可靠对齐基础上进一步稳定细化目标域决策边界。
+表 \ref{tab:single_average_results} 给出单源跨工况实验的平均诊断性能。TPU-DeepJDOT 的平均准确率达到 80.54\%，相比 DeepJDOT 的 68.88\% 提升 11.66 个百分点，宏平均 F1 和平衡准确率分别提升 12.78 和 11.56 个百分点。CBTPU-DeepJDOT 的平均准确率进一步达到 82.02\%，相较 TPU-DeepJDOT 继续提升 1.48 个百分点，并在 6 个单源迁移方向上均取得无监督方法第一。该结果说明，第三章方法贡献了主要性能跃升，第四章方法在可靠对齐基础上进一步稳定细化目标域决策边界。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{单源跨工况主结果的平均诊断性能}
     \label{tab:single_average_results}
@@ -1737,36 +1744,36 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
                     >{\centering\arraybackslash}p{0.18\textwidth}
                     >{\centering\arraybackslash}p{0.16\textwidth}@{}}
         \toprule
-        方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
+        方法 & 准确率 & 宏平均 F1 & 平衡准确率 & 无监督第一数 \\
         \midrule
         SourceOnly & 55.88$\pm$7.67 & 49.97$\pm$7.96 & 55.83$\pm$7.79 & 0/6 \\
         DSAN & 62.42$\pm$13.35 & 58.45$\pm$15.51 & 62.41$\pm$13.67 & 0/6 \\
         CDAN-TS & 67.76$\pm$9.99 & 64.25$\pm$11.51 & 67.61$\pm$9.91 & 0/6 \\
         CoDATS & 74.30$\pm$4.62 & 72.34$\pm$5.72 & 74.33$\pm$4.71 & 0/6 \\
         DeepJDOT & 68.88$\pm$1.76 & 66.04$\pm$1.46 & 69.08$\pm$1.62 & 0/6 \\
-        TPU\_DPJDOT & 80.54$\pm$2.20 & 78.82$\pm$2.18 & 80.64$\pm$2.28 & 0/6 \\
-        CBTPU\_DPJDOT & 82.02$\pm$1.64 & 80.73$\pm$1.54 & 82.12$\pm$1.71 & 6/6 \\
-        Target-ref & 90.92$\pm$1.42 & 90.67$\pm$1.66 & 90.98$\pm$1.41 & -- \\
+        TPU-DeepJDOT & 80.54$\pm$2.20 & 78.82$\pm$2.18 & 80.64$\pm$2.28 & 0/6 \\
+        CBTPU-DeepJDOT & 82.02$\pm$1.64 & 80.73$\pm$1.54 & 82.12$\pm$1.71 & 6/6 \\
+        Target Only & 90.92$\pm$1.42 & 90.67$\pm$1.66 & 90.98$\pm$1.41 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-从单源热力图和平均表可以得到两点结论。第一，单源创新链条符合 SourceOnly $<$ DeepJDOT $<$ TPU\_DPJDOT $<$ CBTPU\_DPJDOT 的总体趋势，说明本文方法并非只在单个代表任务上有效。第二，CBTPU\_DPJDOT 在 6/6 任务中均为无监督方法第一，说明多证据置信均衡伪标签学习的增益虽然幅度相对较小，但跨迁移方向具有一致性。
+从单源热力图和平均表可以得到两点结论。第一，单源方法符合 SourceOnly $<$ DeepJDOT $<$ TPU-DeepJDOT $<$ CBTPU-DeepJDOT 的总体趋势，说明本文方法并非只在单个代表任务上有效。第二，CBTPU-DeepJDOT 在 6/6 任务中均为无监督方法第一，说明多证据置信均衡伪标签学习的增益虽然幅度相对较小，但跨迁移方向具有一致性。
 
 \subsection{多源创新方法相对基线方法的优势分析}
 
-图 \ref{fig:multi_source_heatmap} 给出五源留一域任务的逐目标生产模式准确率热力图。该图用于观察在源域数量增加后，不同方法是否能够稳定适应各个目标生产模式。SourceOnly 说明直接合并多源监督数据仍然不足，CoDATS 作为时间序列领域对抗基线具有较强表现，WJDOT 引入逐源联合分布传输但全局源域权重粒度仍然偏粗。CA\_CCSR\_WJDOT 在各目标生产模式上均取得无监督方法最高准确率，说明类条件源域可靠性加权能够在多源场景下提供更稳定的选择性迁移。
+图 \ref{fig:multi_source_heatmap} 给出五源留一域任务的逐目标生产模式准确率热力图。该图用于观察在源域数量增加后，不同方法是否能够稳定适应各个目标生产模式。SourceOnly 说明直接合并多源监督数据仍然不足，CoDATS 作为时间序列领域对抗基线具有较强表现，WJDOT 引入逐源联合分布传输但全局源域权重粒度仍然偏粗。CA-CCSR-WJDOT 在各目标生产模式上均取得无监督方法最高准确率，说明类条件源域可靠性加权能够在多源场景下提供更稳定的选择性迁移。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=1\textwidth]{figs/ch6_multi_source_heatmap.pdf}
     \caption{五源留一域逐目标生产模式准确率热力图}
     \label{fig:multi_source_heatmap}
 \end{figure}
 
-表 \ref{tab:two_source_average_results} 给出两源任务的平均诊断性能。CA\_CCSR\_WJDOT 在 3 个两源目标域上均取得无监督方法第一，平均准确率达到 81.21\%，分别高于 CoDATS 和 WJDOT 3.99 和 8.80 个百分点。
+表 \ref{tab:two_source_average_results} 给出两源任务的平均诊断性能。CA-CCSR-WJDOT 在 3 个两源目标域上均取得无监督方法第一，平均准确率达到 81.21\%，分别高于 CoDATS 和 WJDOT 3.99 和 8.80 个百分点。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{两源跨工况主结果的平均诊断性能}
     \label{tab:two_source_average_results}
@@ -1778,20 +1785,20 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
                     >{\centering\arraybackslash}p{0.18\textwidth}
                     >{\centering\arraybackslash}p{0.16\textwidth}@{}}
         \toprule
-        方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
+        方法 & 准确率 & 宏平均 F1 & 平衡准确率 & 无监督第一数 \\
         \midrule
         SourceOnly & 66.51$\pm$8.20 & 62.00$\pm$7.06 & 66.58$\pm$8.21 & 0/3 \\
         CoDATS & 77.22$\pm$6.22 & 75.58$\pm$6.95 & 77.28$\pm$6.28 & 0/3 \\
         WJDOT & 72.41$\pm$4.96 & 69.07$\pm$5.40 & 72.50$\pm$4.96 & 0/3 \\
-        CA\_CCSR\_WJDOT & 81.21$\pm$4.12 & 79.97$\pm$4.50 & 81.32$\pm$4.20 & 3/3 \\
-        Target-ref & 91.94$\pm$1.44 & 91.49$\pm$0.92 & 91.98$\pm$1.42 & -- \\
+        CA-CCSR-WJDOT & 81.21$\pm$4.12 & 79.97$\pm$4.50 & 81.32$\pm$4.20 & 3/3 \\
+        Target Ref & 91.94$\pm$1.44 & 91.49$\pm$0.92 & 91.98$\pm$1.42 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-表 \ref{tab:multi_average_results} 给出五源留一域任务的平均诊断性能。CA\_CCSR\_WJDOT 在 6 个目标生产模式上均取得无监督方法第一，平均准确率达到 85.50\%，高于 CoDATS 的 83.44\% 和 WJDOT 的 78.37\%。宏平均 F1 和平衡准确率也呈现相同趋势，说明该方法的收益并非只来自样本数量较多的类别。
+表 \ref{tab:multi_average_results} 给出五源留一域任务的平均诊断性能。CA-CCSR-WJDOT 在 6 个目标生产模式上均取得无监督方法第一，平均准确率达到 85.50\%，高于 CoDATS 的 83.44\% 和 WJDOT 的 78.37\%。宏平均 F1 和平衡准确率也呈现相同趋势，说明该方法的收益并非只来自样本数量较多的类别。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
     \caption{五源留一域主结果的平均诊断性能}
     \label{tab:multi_average_results}
@@ -1803,31 +1810,31 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
                     >{\centering\arraybackslash}p{0.18\textwidth}
                     >{\centering\arraybackslash}p{0.16\textwidth}@{}}
         \toprule
-        方法 & 准确率 & 宏平均F1 & 平衡准确率 & 无监督第一数 \\
+        方法 & 准确率 & 宏平均 F1 & 平衡准确率 & 无监督第一数 \\
         \midrule
         SourceOnly & 71.63$\pm$10.88 & 68.04$\pm$12.61 & 71.48$\pm$11.15 & 0/6 \\
         CoDATS & 83.44$\pm$3.19 & 82.46$\pm$3.42 & 83.21$\pm$3.53 & 0/6 \\
         WJDOT & 78.37$\pm$4.30 & 75.70$\pm$5.30 & 78.47$\pm$4.35 & 0/6 \\
-        CA\_CCSR\_WJDOT & 85.50$\pm$2.50 & 84.30$\pm$2.58 & 85.51$\pm$2.54 & 6/6 \\
-        Target-ref & 92.24$\pm$1.07 & 91.46$\pm$1.21 & 92.28$\pm$1.09 & -- \\
+        CA-CCSR-WJDOT & 85.50$\pm$2.50 & 84.30$\pm$2.58 & 85.51$\pm$2.54 & 6/6 \\
+        Target Ref & 92.24$\pm$1.07 & 91.46$\pm$1.21 & 92.28$\pm$1.09 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-为解释多源热力图中的稳定优势，图 \ref{fig:class_source_alpha_heatmap} 展示五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 CA\_CCSR\_WJDOT 的源域--类别权重。不同故障类别并不依赖同一个源域，例如部分类别更偏向 $m_1$，部分类别更偏向 $m_4$ 或 $m_6$，也有若干类别呈现多个源域共同提供信息的状态。该结果说明，CA\_CCSR\_WJDOT 的优势不是简单平均多个源域，而是在“源域--故障类别”层面重新分配迁移贡献。
+为解释多源热力图中的稳定优势，图 \ref{fig:class_source_alpha_heatmap} 展示五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 CA-CCSR-WJDOT 的源域--类别权重。不同故障类别并不依赖同一个源域，例如部分类别更偏向 $m_1$，部分类别更偏向 $m_4$ 或 $m_6$，也有若干类别呈现多个源域共同提供信息的状态。该结果说明，CA-CCSR-WJDOT 的优势不是简单平均多个源域，而是在“源域--故障类别”层面重新分配迁移贡献。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.92\textwidth]{figs/ch6_class_source_alpha_heatmap.pdf}
-    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 CA\_CCSR\_WJDOT 的源域--类别权重热力图}
+    \caption{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$ 中 CA-CCSR-WJDOT 的源域--类别权重热力图}
     \label{fig:class_source_alpha_heatmap}
 \end{figure}
 
-为验证主线提升是否具有跨迁移场景的一致性，本文采用 Wilcoxon signed-rank test 对相邻主线方法进行配对检验。这里的配对单位是迁移场景，而不是多随机种子重复实验，因此检验结论表述为“跨迁移场景配对显著性”。检验结果如表 \ref{tab:significance_results} 所示，三条相邻主线比较均呈现跨场景一致正向差异。
+为验证方法提升是否具有跨迁移场景的一致性，本文采用 Wilcoxon signed-rank test 对相邻方法进行配对检验。这里的配对单位是迁移场景，而不是多随机种子重复实验，因此检验结论表述为“跨迁移场景配对显著性”。检验结果如表 \ref{tab:significance_results} 所示，三组相邻方法比较均呈现跨场景一致正向差异。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
     \centering
-    \caption{主线方法跨迁移场景配对显著性检验结果}
+    \caption{相邻方法跨迁移场景配对显著性检验结果}
     \label{tab:significance_results}
     \zihao{5}
     \setlength{\tabcolsep}{3pt}
@@ -1838,20 +1845,20 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
         \toprule
         配对比较 & 配对场景 & 正向场景数 & Wilcoxon $p$ 值 \\
         \midrule
-        TPU\_DPJDOT vs. DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
-        CBTPU\_DPJDOT vs. TPU\_DPJDOT & 单源6任务 & 6/6 & 0.015625 \\
-        CA\_CCSR\_WJDOT vs. WJDOT & 两源与五源共9任务 & 9/9 & 0.001953 \\
+        TPU-DeepJDOT vs. DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
+        CBTPU-DeepJDOT vs. TPU-DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
+        CA-CCSR-WJDOT vs. WJDOT & 两源与五源共9任务 & 9/9 & 0.001953 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 \section{本章小结}
 
-本章围绕田纳西伊斯曼过程领域自适应数据集，在统一实验协议下对单源和多源跨工况故障诊断方法进行了实验验证。单源实验表明，TPU\_DPJDOT 相比 DeepJDOT 明显提升平均准确率、宏平均 F1 和平衡准确率，验证了时序原型非平衡联合分布对齐的有效性；CBTPU\_DPJDOT 相比 TPU\_DPJDOT 进一步取得一致增益，并在 6/6 个单源任务中取得无监督方法第一，验证了多证据置信均衡伪标签机制的作用。
+本章围绕田纳西伊斯曼过程领域自适应数据集，在统一实验协议下对单源和多源跨工况故障诊断方法进行了实验验证。单源实验表明，TPU-DeepJDOT 相比 DeepJDOT 明显提升平均准确率、宏平均 F1 和平衡准确率，验证了时序原型非平衡联合分布对齐的有效性；CBTPU-DeepJDOT 相比 TPU-DeepJDOT 进一步取得一致增益，并在 6/6 个单源任务中取得无监督方法第一，验证了多证据置信均衡伪标签机制的作用。
 
-多源实验表明，CA\_CCSR\_WJDOT 在两源设置中 3/3 第一，在五源留一域设置中 6/6 第一，并在五源任务上达到 85.50$\pm$2.50\% 的平均准确率，整体优于 CoDATS 和 WJDOT。该结果说明，类条件源域可靠性加权能够缓解 WJDOT 全局源域权重粒度过粗的问题，并提升多源选择性迁移能力。
+多源实验表明，CA-CCSR-WJDOT 在两源设置中 3/3 第一，在五源留一域设置中 6/6 第一，并在五源任务上达到 85.50$\pm$2.50\% 的平均准确率，整体优于 CoDATS 和 WJDOT。该结果说明，类条件源域可靠性加权能够缓解 WJDOT 全局源域权重粒度过粗的问题，并提升多源选择性迁移能力。
 
-总体而言，本章按照方法主线递进组织实验叙事，正文保留单源主结果表、单源逐任务热力图、两源和五源多源主结果表、五源逐目标热力图、代表场景混淆矩阵与特征可视化、源域--类别权重热力图以及显著性检验表。实验结果共同说明，本文方法能够在目标域无标签条件下提升工业过程跨工况故障诊断性能，并为源域可靠性差异提供必要解释。
+总体而言，本章按照方法递进关系组织实验叙事，正文保留单源主结果表、单源逐任务热力图、两源和五源多源主结果表、五源逐目标热力图、代表场景混淆矩阵与特征可视化、源域--类别权重热力图以及显著性检验表。实验结果共同说明，本文方法能够在目标域无标签条件下提升工业过程跨工况故障诊断性能，并为源域可靠性差异提供必要解释。
 
 \chapter{总结与展望}
 
@@ -1861,7 +1868,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
 在单源场景中，本文以深度联合分布最优传输方法为基础，针对普通平衡最优传输可能导致错误强制匹配、且原始联合传输过程缺少工业时间序列故障结构约束的问题，提出时序原型非平衡联合分布对齐方法。该方法通过非平衡最优传输降低不可靠源目标样本被强制匹配的风险，并结合源域类别原型、时间序列统计代价和源域监督对比学习增强故障类别结构表达能力。针对目标域无标签条件下伪标签可靠性不足的问题，进一步提出多证据置信均衡伪标签方法。该方法综合传输计划、教师模型预测和源域原型距离三类语义证据，对目标域样本进行一致性筛选，并通过动态置信阈值、类别均衡机制和强弱增强一致性约束，提高目标域无标签样本利用的可靠性。
 
-在多源场景中，本文以多源加权联合分布最优传输为基础，考虑到不同源域与目标域之间存在差异，且同一源域对不同故障类别的贡献并不一致，提出类条件源域可靠性加权方法。该方法结合卷积式时间序列领域自适应表征、逐源联合分布最优传输和源域--故障类别可靠性矩阵，对不同源域在不同故障类别上的迁移贡献进行建模，从而实现更细粒度的多源选择性迁移。同时，在多源方法中引入领域对抗特征约束与教师先验保护机制，以增强时序表征能力，并降低新增迁移损失破坏已有表征的风险。
+在多源场景中，本文以多源加权联合分布最优传输为基础，考虑到不同源域与目标域之间存在差异，且同一源域对不同故障类别的贡献并不一致，提出类条件源域可靠性加权方法。该方法结合卷积式时间序列领域自适应表征、逐源联合分布最优传输和源域--故障类别可靠性矩阵，对不同源域在不同故障类别上的迁移贡献进行建模，从而形成更细粒度的多源选择性迁移机制。同时，在多源方法中引入领域对抗特征约束与教师先验保护机制，以增强时序表征能力，并降低新增迁移损失破坏已有表征的风险。
 
 实验部分围绕单源跨工况和多源跨工况两类任务展开。本文采用诊断准确率、宏平均 F1 值、平衡准确率、混淆矩阵和跨域特征可视化等指标，对所提方法与源域直接迁移、典型领域自适应方法、DeepJDOT、WJDOT、CoDATS 以及目标域监督参考方法进行对比分析，并通过关键机制对比、典型场景分析和可解释性分析讨论时序原型约束、非平衡传输、多证据伪标签筛选、类别均衡机制以及类条件源域可靠性矩阵等设计的作用。考虑到不同跨工况任务的分布偏移程度和源域可靠性差异并不一致，结果分析重点关注整体趋势、典型成功场景和局部失效场景，避免将单一场景结果解释为绝对优势。整体而言，本文方法在跨工况故障诊断任务中表现出一定适应能力和解释价值，可为工业过程故障诊断中的无监督领域自适应研究提供方法参考。
 
@@ -1959,7 +1966,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     $\mathcal{B}_s^c$ & 源域小批量中第 $c$ 类样本集合 & 用于源域原型更新 \\
     $x,x_i^s,x_j^t,x_i^{s_k},x_u^t$ & 通用样本、源域样本、目标域样本、第 $k$ 源域样本、目标测试样本 & 均表示多变量时间序列窗口 \\
     $y_i^s,y_i^{s_k},y_u^t$ & 源域标签、第 $k$ 源域标签、目标域测试标签 & $y_u^t$ 不参与训练 \\
-    $h$ & 目标域诊断函数 & 由训练后的模型实现 \\
+    $h$ & 目标域诊断函数 & 由训练后的诊断模型给出 \\
     $P_s(X)$、$P_t(X)$、$P_{s_k}(X)$、$P_{s_l}(X)$ & 源域、目标域及不同源域的数据分布 & 用于描述分布偏移 \\
     $\mathbf{X}^{(m)}$ & 第 $m$ 个生产模式的数据张量 & 维度为 $N_m\times600\times34$ \\
     $V,L,L'$ & 过程变量数量、输入时间窗口长度、卷积输出时间长度 & $L'$ 仅用于全局平均池化 \\
@@ -1981,8 +1988,8 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     $G_\phi(\cdot)$ & 故障分类器 & 参数为 $\phi$ \\
     $G_{\phi,c}(\cdot)$ & 分类器输出第 $c$ 类概率的分量 & 领域对抗基线公式中使用 \\
     $D_\omega(\cdot)$ & 领域判别器 & 参数为 $\omega$ \\
-    $\Theta,\bar{\Theta},\Theta_{\mathrm{TPU\_DPJDOT}}$ & 学生模型、教师模型和 TPU\_DPJDOT 阶段模型参数集合 & $\Theta=(\theta,\phi)$，$\bar{\Theta}=(\bar{\theta},\bar{\phi})$ \\
-    $\xi$ & EMA 教师模型衰减系数 & 仅在教师未冻结时用于更新 $\bar{\Theta}$ \\
+    $\Theta,\bar{\Theta},\Theta_{\mathrm{TPU}}$ & 学生模型、教师模型和 TPU-DeepJDOT 阶段模型参数集合 & $\Theta=(\theta,\phi)$，$\bar{\Theta}=(\bar{\theta},\bar{\phi})$ \\
+    $\xi$ & 指数滑动平均教师衰减系数 & 仅在滑动平均教师形式下用于更新 $\bar{\Theta}$ \\
     $z,z_i^s,z_j^t,z_i^{s_k},\tilde{z}_i$ & 深度特征、源特征、目标特征、多源特征、归一化特征 & 由 $F_\theta$ 输出或归一化得到 \\
     $d_z,d_\psi$ & 深度特征维度与时序描述符维度 & 用于代价归一化 \\
     $p,p_i^{s_k},p_j^t,p_{kj}^t,p_{kjr}^t,p_{jc}$ & 类别预测概率分布及其分量 & $p_{kjr}^t$ 和 $p_{jc}$ 表示对应类别分量 \\
@@ -2069,7 +2076,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     $\mathcal{L}_{\mathrm{src}}$、$\mathcal{L}_{\mathrm{OT}}$、$\mathcal{L}_{\mathrm{align}}$、$\mathcal{L}_{\mathrm{dom}}$ & 源域分类损失、最优传输损失、非平衡联合传输对齐损失、领域判别损失 & 基础训练目标 \\
     $\mathcal{L}_{\mathrm{supcon}}$、$\mathcal{L}_{\mathrm{pl}}$、$\mathcal{L}_{\mathrm{cons}}$、$\mathcal{L}_{\mathrm{im}}$ & 源域监督对比损失、伪标签损失、一致性损失、信息最大化正则项 & 单源改进方法中使用 \\
     $\mathcal{L}_{\mathrm{tea}}$、$\mathcal{L}_{\mathrm{WJDOT}}$、$\mathcal{L}_{\mathrm{CCSR}}$ & 教师先验约束、逐源传输聚合损失和类条件传输损失 & 多源方法中使用 \\
-    $\mathcal{L}_{\mathrm{TPU\_DPJDOT}}$、$\mathcal{L}_{\mathrm{CBTPU\_DPJDOT}}$、$\mathcal{L}_{\mathrm{CA\_CCSR\_WJDOT}}$ & 第三章、第四章和第五章方法的总体损失 & 分别对应三条方法线 \\
+    $\mathcal{L}_{\mathrm{TPU}}$、$\mathcal{L}_{\mathrm{CBTPU}}$、$\mathcal{L}_{\mathrm{CA}}$ & 第三章、第四章和第五章方法的总体损失 & 分别对应三类方法 \\
     $\lambda_{\mathrm{supcon}}(\nu)$、$\lambda_{\mathrm{pl}}(\nu)$、$\lambda_{\mathrm{cons}}(\nu)$、$\lambda_{\mathrm{im}}(\nu)$ & 监督对比、伪标签、一致性和信息最大化损失权重 & 单源调度权重 \\
     $\lambda_d$、$\lambda_d(\nu)$、$\lambda_s$、$\lambda_{\mathrm{ccsr}}$、$\lambda_{\mathrm{tea}}(\nu)$ & 领域判别、源域分类、类条件传输和教师约束权重 & 领域对抗和多源方法中使用 \\
     $r_{\mathrm{ot}}(\nu),r_{\mathrm{ccsr}}(\nu)$ & WJDOT 与 CCSR 损失的启用进度 & 多源训练调度参数 \\
@@ -2078,12 +2085,12 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 }
 
 \cleardoublepage
-\chapter{主线算法参数表}
+\chapter{主要算法参数表}
 \label{app:seed42_mainline_config}
 
-本附录只列出本文三条主线创新方法在主实验中采用的主要算法参数。表中符号与正文第三章至第五章保持一致；目标域标签仅用于最终评价，不参与训练、早停、模型选择或参数确定。
+本附录只列出本文三条主要创新方法在主实验中采用的主要算法参数。表中符号与正文第三章至第五章保持一致；目标域标签仅用于最终评价，不参与训练、早停、模型选择或参数确定。
 
-为避免附录冗长，表中只列出影响三条创新主线的主要数值参数。若某一参数在特定场景中有覆盖取值，则以场景覆盖表为准；未列出的基线方法参数不属于本文创新方法参数，故不在本附录展开。
+为避免附录冗长，表中只列出影响三类创新方法的主要数值参数。若某一参数在特定场景中有单独取值，则以场景参数表为准；未列出的基线方法参数不属于本文创新方法参数，故不在本附录展开。
 
 {\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
@@ -2118,21 +2125,21 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{longtable}
 }
 
-\section{单源主线参数}
+\section{单源方法参数}
 
 {\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.24\textwidth}@{}}
-    \caption{TPU\_DPJDOT 与 CBTPU\_DPJDOT 主参数}
+    \caption{TPU-DeepJDOT 与 CBTPU-DeepJDOT 主参数}
     \label{tab:seed42_single_method_params}\\
     \toprule
-    参数含义 & 符号 & TPU\_DPJDOT & CBTPU\_DPJDOT \\
+    参数含义 & 符号 & TPU-DeepJDOT & CBTPU-DeepJDOT \\
     \midrule
     \endfirsthead
     \multicolumn{4}{r}{续表~\thetable}\\
     \toprule
-    参数含义 & 符号 & TPU\_DPJDOT & CBTPU\_DPJDOT \\
+    参数含义 & 符号 & TPU-DeepJDOT & CBTPU-DeepJDOT \\
     \midrule
     \endhead
     \bottomrule
@@ -2160,7 +2167,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     时序代价启动/预热 & $\nu_{\mathrm{temp}},S_{\mathrm{temp}}$ & $450,750$ & $200,500$ \\
     教师温度 & $T_{\mathrm{tea}}$ & -- & $1.0$ \\
     原型语义温度 & $T_{\mathrm{proto}}$ & -- & $0.18$ \\
-    教师 EMA 衰减 & $\xi$ & -- & $0.996$，冻结教师时不更新 \\
+    指数滑动平均教师衰减 & $\xi$ & -- & $0.996$，固定教师设定下不更新 \\
     三证据融合指数 & $\alpha_{\mathrm{ot}},\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & -- & $1.0,1.0,1.0$ \\
     伪标签权重 & $\lambda_{\mathrm{pl}}^0$ & -- & $0.012$ \\
     伪标签启动/预热 & $\nu_{\mathrm{pl}},S_{\mathrm{pl}}$ & -- & $250,700$ \\
@@ -2185,15 +2192,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.14\textwidth}>{\raggedright\arraybackslash}p{0.35\textwidth}>{\raggedright\arraybackslash}p{0.43\textwidth}@{}}
-    \caption{单源场景级参数覆盖}
+    \caption{单源场景级参数取值}
     \label{tab:seed42_cbtpu_scene_overrides}\\
     \toprule
-    场景 & 覆盖符号 & 覆盖取值 \\
+    场景 & 参数符号 & 场景取值 \\
     \midrule
     \endfirsthead
     \multicolumn{3}{r}{续表~\thetable}\\
     \toprule
-    场景 & 覆盖符号 & 覆盖取值 \\
+    场景 & 参数符号 & 场景取值 \\
     \midrule
     \endhead
     \bottomrule
@@ -2201,7 +2208,7 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \bottomrule
     \endlastfoot
 
-    $m_1\rightarrow m_2$ & TPU\_DPJDOT：$\lambda_{\mathrm{ot}}^0,\nu_{\mathrm{align}},\nu_p,S_p,\nu_{\mathrm{temp}},S_{\mathrm{temp}}$；CBTPU\_DPJDOT：$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & TPU\_DPJDOT：$0.62,700,700,900,700,900$；CBTPU\_DPJDOT：$0.50,0.008,0.94,0.88,0.40,0.014$ \\
+    $m_1\rightarrow m_2$ & TPU-DeepJDOT：$\lambda_{\mathrm{ot}}^0,\nu_{\mathrm{align}},\nu_p,S_p,\nu_{\mathrm{temp}},S_{\mathrm{temp}}$；CBTPU-DeepJDOT：$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},\lambda_{\mathrm{cons}}^0$ & TPU-DeepJDOT：$0.62,700,700,900,700,900$；CBTPU-DeepJDOT：$0.50,0.008,0.94,0.88,0.40,0.014$ \\
     $m_1\rightarrow m_5$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}},a_{\max},h_{\mathrm{ot}}$ & $0.10,0.50,0.010,0.94,0.87,0.45,0.72$ \\
     $m_2\rightarrow m_1$ & $\omega_{\mathrm{mix}},\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0,\lambda_{\mathrm{cons}}^0,\alpha_{\mathrm{cls}},\alpha_{\mathrm{proto}}$ & $0.12,0.50,0.010,0.016,1.25,0.85$ \\
     $m_2\rightarrow m_5$ & $\Delta_{\min},\Delta_{\max}$；$\lambda_{\mathrm{ot}}^0,\lambda_{\mathrm{pl}}^0$；$\vartheta_{\mathrm{start}},\vartheta_{\mathrm{end}}$；$a_{\max},\lambda_{\mathrm{cons}}^0$ & $-0.40,0.10$；$0.50,0.008$；$0.95,0.88$；$0.38,0.012$ \\
@@ -2210,15 +2217,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \end{longtable}
 }
 
-\section{多源主线参数}
+\section{多源方法参数}
 
-表 \ref{tab:seed42_ca_ccsr_params} 列出 CA\_CCSR\_WJDOT 在二源和五源主线中的核心算法参数。二源主线采用统一参数；五源主线的目标域相关覆盖见表 \ref{tab:seed42_ca_scene_overrides}。
+表 \ref{tab:seed42_ca_ccsr_params} 列出 CA-CCSR-WJDOT 在二源和五源实验中的核心算法参数。二源实验采用统一参数；五源实验的目标域相关场景取值见表 \ref{tab:seed42_ca_scene_overrides}。
 
 {\zihao{5}
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
-    \caption{CA\_CCSR\_WJDOT 主参数}
+    \caption{CA-CCSR-WJDOT 主参数}
     \label{tab:seed42_ca_ccsr_params}\\
     \toprule
     参数含义 & 符号 & 二源 & 五源通用 \\
@@ -2266,11 +2273,11 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     学生混合比例 & $\omega_{\mathrm{mix}}$ & $0.35$ & $0.35$ \\
     最小先验概率 & $\pi_{\min}$ & $10^{-4}$ & $10^{-4}$ \\
     同类融合系数 & $\lambda_{\mathrm{same}}$ & $0.04$ & $0.04$ \\
-    覆盖融合系数 & $\lambda_{\mathrm{override}}$ & $0.35$ & $0.35$ \\
-    覆盖置信/熵裕度 & $\Delta_{\mathrm{conf}},\Delta_H$ & $0.08,0.04$ & $0.08,0.04$ \\
+    替代融合系数 & $\lambda_{\mathrm{override}}$ & $0.35$ & $0.35$ \\
+    替代置信/熵裕度 & $\Delta_{\mathrm{conf}},\Delta_H$ & $0.08,0.04$ & $0.08,0.04$ \\
     融合系数范围 & $\eta_{\min},\eta_{\max}$ & $0,0.45$ & $0,0.45$ \\
     学生保护裕度 & $\Delta_{\mathrm{guard}}^{\mathrm{conf}},\Delta_{\mathrm{guard}}^H$ & -- & $0.05,0.02$ \\
-    WJDOT 锚点融合权重 & $\alpha_{\mathrm{anchor}}$ & $0.28$ & $0.41$ \\
+    WJDOT 参考融合权重 & $\alpha_{\mathrm{anchor}}$ & $0.28$ & $0.41$ \\
 \end{longtable}
 }
 
@@ -2278,15 +2285,15 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 \setlength{\tabcolsep}{3.5pt}
 \renewcommand{\arraystretch}{1.16}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth}>{\raggedright\arraybackslash}p{0.81\textwidth}@{}}
-    \caption{五源 CA\_CCSR\_WJDOT 场景级参数覆盖}
+    \caption{五源 CA-CCSR-WJDOT 场景级参数取值}
     \label{tab:seed42_ca_scene_overrides}\\
     \toprule
-    目标域 & 覆盖参数取值 \\
+    目标域 & 场景参数取值 \\
     \midrule
     \endfirsthead
     \multicolumn{2}{r}{续表~\thetable}\\
     \toprule
-    目标域 & 覆盖参数取值 \\
+    目标域 & 场景参数取值 \\
     \midrule
     \endhead
     \bottomrule
@@ -2296,14 +2303,14 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
 
     $m_1$ & 采用表 \ref{tab:seed42_ca_ccsr_params} 五源通用取值。 \\
     $m_2$ & $E=32$，$\eta_{\mathrm{lr}}=5.0\times10^{-5}$，$\lambda_s=0.70$，$\lambda_d=0.10$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.070$，$\lambda_{\mathrm{tea}}=0.08$，$(w_p,w_o,w_h,w_e)=(0.30,0.42,0.18,0.10)$，$\lambda_{\mathrm{same}}=\lambda_{\mathrm{override}}=0$，$(\Delta_{\mathrm{conf}},\Delta_H)=(0.04,0.02)$，$(\eta_{\min},\eta_{\max})=(0,0.70)$。 \\
-    $m_3$ & $E=20$，$\eta_{\mathrm{lr}}=3.0\times10^{-5}$，$\lambda_{\mathrm{ot}}^0=0.45$，$\lambda_s=0.70$，$S_{\mathrm{align}}=300$，$N_{\mathrm{rel}}=1440$，$(w_p,w_o,w_h,w_e)=(0.30,0.35,0.20,0.15)$，$\lambda_d=0.15$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.04$，$\lambda_{\mathrm{tea}}=0.20$，$\lambda_{\mathrm{same}}=0.05$，$\lambda_{\mathrm{override}}=0.60$，$(\eta_{\min},\eta_{\max})=(0,0.70)$。 \\
+    $m_3$ & $E=20$，$\eta_{\mathrm{lr}}=3.0\times10^{-5}$，$r_{\mathrm{ot}}^0=0.45$，$\lambda_s=0.70$，$S_{\mathrm{align}}=300$，$N_{\mathrm{rel}}=1440$，$(w_p,w_o,w_h,w_e)=(0.30,0.35,0.20,0.15)$，$\lambda_d=0.15$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.04$，$\lambda_{\mathrm{tea}}=0.20$，$\lambda_{\mathrm{same}}=0.05$，$\lambda_{\mathrm{override}}=0.60$，$(\eta_{\min},\eta_{\max})=(0,0.70)$。 \\
     $m_4$ & 采用表 \ref{tab:seed42_ca_ccsr_params} 五源通用取值。 \\
-    $m_5$ & 继承 $m_3$ 的覆盖参数，但 $\lambda_{\mathrm{same}}=\lambda_{\mathrm{override}}=0$。 \\
-    $m_6$ & $E=30$，$\lambda_s=0.82$，$\lambda_d=0.10$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.060$，$\lambda_{\mathrm{tea}}=0.08$；融合参数采用 $m_2$ 的覆盖取值。 \\
+    $m_5$ & 沿用 $m_3$ 的场景参数，但 $\lambda_{\mathrm{same}}=\lambda_{\mathrm{override}}=0$。 \\
+    $m_6$ & $E=30$，$\lambda_s=0.82$，$\lambda_d=0.10$，$\lambda_{\mathrm{WJDOT}}=\lambda_{\mathrm{CCSR}}=0.060$，$\lambda_{\mathrm{tea}}=0.08$；融合参数采用 $m_2$ 的场景取值。 \\
 \end{longtable}
 }
 
-以上参数表仅用于说明本文主线实验中的算法超参数取值；未在表中列出的量按正文算法定义取值。
+以上参数表仅用于说明本文主要实验中的算法超参数取值；未在表中列出的量按正文算法定义取值。
 
 \begin{acknowledgement}
   值此本科毕业论文完成之际，谨向在大学期间关心、指导和帮助过我的老师、学长、同学及家人表示诚挚感谢。

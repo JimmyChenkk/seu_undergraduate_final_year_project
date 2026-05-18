@@ -37,7 +37,7 @@
 \contentsline {section}{\numberline {4.1}引言}{24}{section.4.1}%
 \contentsline {section}{\numberline {4.2}多证据置信均衡伪标签学习基本原理}{24}{section.4.2}%
 \contentsline {subsection}{\numberline {4.2.1}目标域伪标签学习原理}{24}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}教师锚点与一致性学习原理}{25}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.2}教师参考模型与一致性学习原理}{25}{subsection.4.2.2}%
 \contentsline {subsection}{\numberline {4.2.3}类别均衡约束原理}{26}{subsection.4.2.3}%
 \contentsline {section}{\numberline {4.3}基于多证据置信均衡伪标签的目标域样本利用策略}{26}{section.4.3}%
 \contentsline {subsection}{\numberline {4.3.1}传输语义分布估计}{26}{subsection.4.3.1}%
@@ -66,14 +66,14 @@
 \contentsline {chapter}{\numberline {第六章\hspace {.3em}}实验设计与结果分析}{39}{chapter.6}%
 \contentsline {section}{\numberline {6.1}引言}{39}{section.6.1}%
 \contentsline {section}{\numberline {6.2}数据集与实验场景}{39}{section.6.2}%
-\contentsline {section}{\numberline {6.3}主线方法有效性验证}{44}{section.6.3}%
-\contentsline {subsection}{\numberline {6.3.1}时序原型非平衡联合分布对齐有效性验证}{45}{subsection.6.3.1}%
-\contentsline {subsection}{\numberline {6.3.2}多证据置信均衡伪标签有效性验证}{47}{subsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.3.3}类条件源域可靠性加权有效性验证}{49}{subsection.6.3.3}%
-\contentsline {section}{\numberline {6.4}综合实验结果对比分析}{50}{section.6.4}%
-\contentsline {subsection}{\numberline {6.4.1}单源创新方法相对基线方法的优势分析}{51}{subsection.6.4.1}%
-\contentsline {subsection}{\numberline {6.4.2}多源创新方法相对基线方法的优势分析}{52}{subsection.6.4.2}%
-\contentsline {section}{\numberline {6.5}本章小结}{54}{section.6.5}%
+\contentsline {section}{\numberline {6.3}方法有效性验证}{44}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}时序原型非平衡联合分布对齐有效性验证}{44}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}多证据置信均衡伪标签有效性验证}{46}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}类条件源域可靠性加权有效性验证}{48}{subsection.6.3.3}%
+\contentsline {section}{\numberline {6.4}综合实验结果对比分析}{49}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}单源创新方法相对基线方法的优势分析}{50}{subsection.6.4.1}%
+\contentsline {subsection}{\numberline {6.4.2}多源创新方法相对基线方法的优势分析}{51}{subsection.6.4.2}%
+\contentsline {section}{\numberline {6.5}本章小结}{53}{section.6.5}%
 \contentsline {chapter}{\numberline {第七章\hspace {.3em}}总结与展望}{55}{chapter.7}%
 \contentsline {section}{\numberline {7.1}工作总结}{55}{section.7.1}%
 \contentsline {subsection}{\numberline {7.1.1}本文主要研究内容}{56}{subsection.7.1.1}%
@@ -82,7 +82,7 @@
 \contentsline {section}{\numberline {7.2}未来展望}{58}{section.7.2}%
 \contentsline {chapter}{参考文献}{60}{chapter*.31}%
 \contentsline {chapter}{\numberline {附录A\hspace {.3em}}论文符号表}{63}{appendix.A}%
-\contentsline {chapter}{\numberline {附录B\hspace {.3em}}主线算法参数表}{70}{appendix.B}%
-\contentsline {section}{\numberline {B.1}单源主线参数}{70}{section.B.1}%
-\contentsline {section}{\numberline {B.2}多源主线参数}{73}{section.B.2}%
+\contentsline {chapter}{\numberline {附录B\hspace {.3em}}主要算法参数表}{70}{appendix.B}%
+\contentsline {section}{\numberline {B.1}单源方法参数}{70}{section.B.1}%
+\contentsline {section}{\numberline {B.2}多源方法参数}{73}{section.B.2}%
 \contentsline {chapter}{致\hspace {2\ccwd }谢}{76}{appendix*.32}%

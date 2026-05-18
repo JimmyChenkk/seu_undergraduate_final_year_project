@@ -25,13 +25,13 @@
 
 \draw[panel] (-0.25,0.00) rectangle (21.25,9.00);
 \node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
-    {CBTPU\_DPJDOT 多证据置信均衡伪标签控制机制};
+    {CBTPU-DeepJDOT 多证据置信均衡伪标签控制机制};
 
 % 基础输入
 \draw[bluecard] (0.45,2.15) rectangle (3.25,7.75);
 \node at (1.85,7.43) {基础信息};
 \node[chip, minimum width=2.20cm] at (1.85,6.05)
-    {TPU\_DPJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
+    {TPU-DeepJDOT\\[-1pt]$\gamma^\ast,\mu_c$};
 \node[chip, minimum width=2.20cm] at (1.85,4.60)
     {目标域样本\\[-1pt]$x_j^t$};
 \node[note, text width=2.30cm] at (1.85,3.25)
@@ -41,31 +41,31 @@
 \draw[cyancard] (3.95,2.15) rectangle (7.35,7.75);
 \node at (5.65,7.43) {教师--学生增强};
 \node[chip, minimum width=2.65cm] at (5.65,6.15)
-    {弱增强 + 教师锚点\\[-1pt]$a_w(x_j^t),\bar{\Theta}$};
+    {弱增强 + 教师参考\\[-1pt]$a_w(x_j^t),\bar{\Theta}$};
 \node[chip, minimum width=2.65cm] at (5.65,4.60)
     {强增强 + 学生\\[-1pt]$a_s(x_j^t),\Theta$};
 \node[note, text width=2.70cm] at (5.65,3.25)
-    {加载 TPU\_DPJDOT 检查点；冻结时不参与 EMA};
+    {以 TPU-DeepJDOT 为固定教师参考};
 
 % 三路证据
 \draw[orangecard] (8.05,2.15) rectangle (11.15,7.75);
 \node at (9.60,7.43) {三路语义证据};
 \node[chip, minimum width=2.35cm] at (9.60,6.20)
-    {传输语义\\[-1pt]$q^{ot}$};
+    {传输语义\\[-1pt]$q^{\mathrm{ot}}$};
 \node[chip, minimum width=2.35cm] at (9.60,4.95)
-    {教师语义\\[-1pt]$q^{cls}$};
+    {教师语义\\[-1pt]$q^{\mathrm{cls}}$};
 \node[chip, minimum width=2.35cm] at (9.60,3.70)
-    {原型语义\\[-1pt]$q^{proto}$};
+    {原型语义\\[-1pt]$q^{\mathrm{proto}}$};
 
 % 接收门控
 \draw[purplecard] (11.85,2.15) rectangle (15.45,7.75);
 \node at (13.65,7.43) {可靠接收门控};
 \node[chip, minimum width=2.75cm] at (13.65,6.20)
-    {多证据融合\\[-1pt]$q^{mix}$};
+    {多证据融合\\[-1pt]$q^{\mathrm{mix}}$};
 \node[chip, minimum width=2.75cm, text width=2.65cm] at (13.65,4.90)
     {接收集合 $\mathcal{A}$\\[-1pt]一致 / JS / $\vartheta(\nu)$ / 熵};
 \node[chip, minimum width=2.75cm] at (13.65,3.55)
-    {接收比例上限\\[-1pt]$\kappa,\,H(q^{ot})$};
+    {接收比例上限\\[-1pt]$\kappa,\,H(q^{\mathrm{ot}})$};
 \node[note, text width=2.90cm] at (13.65,2.60)
     {只让高可靠目标样本进入伪监督};
 
@@ -73,22 +73,22 @@
 \draw[redcard] (16.15,2.15) rectangle (20.85,7.75);
 \node at (18.50,7.43) {均衡目标学习};
 \node[chip, minimum width=3.65cm] at (18.50,6.20)
-    {类别均衡伪监督\\[-1pt]$\mathcal{L}_{pl},\ \hat{\pi}_c$};
+    {类别均衡伪监督\\[-1pt]$\mathcal{L}_{\mathrm{pl}},\ \hat{\pi}_c$};
 \node[chip, minimum width=3.65cm] at (18.50,4.95)
-    {强弱增强一致性\\[-1pt]$\mathcal{L}_{cons}$};
+    {强弱增强一致性\\[-1pt]$\mathcal{L}_{\mathrm{cons}}$};
 \node[chip, minimum width=3.65cm] at (18.50,3.70)
-    {信息最大化辅助\\[-1pt]$\mathcal{L}_{im}$};
+    {信息最大化辅助\\[-1pt]$\mathcal{L}_{\mathrm{im}}$};
 \node[note, text width=3.75cm] at (18.50,2.60)
     {降低伪标签噪声与类别坍缩};
 
 % 目标域学习
 \draw[redcard] (3.95,0.50) rectangle (20.85,1.35);
 \node at (12.40,0.92)
-    {$\mathcal{L}_{\mathrm{CBTPU\_DPJDOT}}
-    =\mathcal{L}_{\mathrm{TPU\_DPJDOT}}
-    +\lambda_{pl}\mathcal{L}_{pl}
-    +\lambda_{cons}\mathcal{L}_{cons}
-    +\lambda_{im}\mathcal{L}_{im}$};
+    {$\mathcal{L}_{\mathrm{CBTPU}}
+    =\mathcal{L}_{\mathrm{TPU}}
+    +\lambda_{\mathrm{pl}}\mathcal{L}_{\mathrm{pl}}
+    +\lambda_{\mathrm{cons}}\mathcal{L}_{\mathrm{cons}}
+    +\lambda_{\mathrm{im}}\mathcal{L}_{\mathrm{im}}$};
 
 \draw[arrow] (3.25,4.95) -- (3.95,4.95);
 \draw[arrow] (7.35,4.95) -- (8.05,4.95);

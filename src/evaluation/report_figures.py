@@ -46,6 +46,24 @@ METHOD_DISPLAY_NAMES = {
     "target_only": "target_ref",
 }
 
+METHOD_FIGURE_LABELS = {
+    "source_only": "SourceOnly",
+    "dan": "DAN",
+    "dsan": "DSAN",
+    "cdan_ts": "CDAN-TS",
+    "codats": "CoDATS",
+    "deepjdot": "DeepJDOT",
+    "tp_deepjdot": "TP-DeepJDOT",
+    "cbtp_deepjdot": "CBTP-DeepJDOT",
+    "tpu_dpjdot": "TPU-DeepJDOT",
+    "cbtpu_dpjdot": "CBTPU-DeepJDOT",
+    "raincoat": "RAINCOAT",
+    "wjdot": "WJDOT",
+    "ca_ccsr_wjdot": "CA-CCSR-WJDOT",
+    "target_ref": "Target Ref",
+    "target_only": "Target Only",
+}
+
 FINAL_MAIN_METHODS = (
     "source_only",
     "codats",
@@ -339,6 +357,13 @@ def _display_method_name(method_name: str) -> str:
     return METHOD_DISPLAY_NAMES.get(str(method_name), str(method_name))
 
 
+def _figure_method_label(method_name: str) -> str:
+    if str(method_name) in METHOD_FIGURE_LABELS:
+        return METHOD_FIGURE_LABELS[str(method_name)]
+    display_name = _display_method_name(str(method_name))
+    return METHOD_FIGURE_LABELS.get(display_name, display_name)
+
+
 def _is_main_table_method(method_name: str) -> bool:
     display_name = _display_method_name(str(method_name))
     return display_name in FINAL_MAIN_METHODS or any(
@@ -368,7 +393,7 @@ def export_mean_bar_chart(
 
     plt.figure(figsize=(10, 5))
     plt.bar(np.arange(len(methods)), values, width=0.65, color="#4C78A8")
-    plt.xticks(np.arange(len(methods)), [_display_method_name(method) for method in methods], rotation=20)
+    plt.xticks(np.arange(len(methods)), [_figure_method_label(method) for method in methods], rotation=20)
     plt.ylabel("Accuracy")
     plt.ylim(0, 1.0)
     if setting_name is None:
@@ -408,7 +433,7 @@ def export_setting_heatmap(
     plt.figure(figsize=(max(7, len(methods) * 1.2), max(4, len(scenarios) * 0.5)))
     image = plt.imshow(matrix, aspect="auto", cmap="YlGnBu", vmin=0, vmax=1)
     plt.colorbar(image, label="Accuracy")
-    plt.xticks(np.arange(len(methods)), [_display_method_name(method) for method in methods], rotation=30)
+    plt.xticks(np.arange(len(methods)), [_figure_method_label(method) for method in methods], rotation=30)
     plt.yticks(np.arange(len(scenarios)), scenario_labels)
     plt.title(f"{setting_name.replace('_', '-').title()} Task Heatmap")
 

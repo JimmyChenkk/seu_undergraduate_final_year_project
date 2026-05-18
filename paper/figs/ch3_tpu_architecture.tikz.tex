@@ -30,7 +30,7 @@
 
 \draw[panel] (-0.25,0.00) rectangle (17.95,9.00);
 \node[font=\large\fontspec{Times New Roman}\songti] at (8.85,8.55)
-    {TPU\_DPJDOT 时序原型非平衡联合分布对齐机制};
+    {TPU-DeepJDOT 时序原型非平衡联合分布对齐机制};
 
 % 输入批次
 \draw[bluecard] (0.55,2.15) rectangle (3.25,7.75);
@@ -56,11 +56,11 @@
 \draw[orangecard] (8.35,2.15) rectangle (11.95,7.75);
 \node at (10.15,7.43) {结构增强约束};
 \node[chip, minimum width=2.75cm] at (10.15,6.25)
-    {源域类别原型\\[-1pt]$\mu_c,\ r_{ij}^{proto}$};
+    {源域类别原型\\[-1pt]$\mu_c,\ r_{ij}^{\mathrm{proto}}$};
 \node[chip, minimum width=2.75cm] at (10.15,4.95)
-    {时序统计描述符\\[-1pt]$\psi(x),\ c_{ij}^{temp}$};
+    {时序统计描述符\\[-1pt]$\psi(x),\ c_{ij}^{\mathrm{temp}}$};
 \node[chip, minimum width=2.75cm] at (10.15,3.65)
-    {源域监督对比\\[-1pt]$\mathcal{L}_{supcon}$};
+    {源域监督对比\\[-1pt]$\mathcal{L}_{\mathrm{supcon}}$};
 \node[note, text width=2.90cm] at (10.15,2.60)
     {修正传输代价，预热源类结构};
 
@@ -72,17 +72,17 @@
 \node[chip, minimum width=3.35cm] at (15.00,4.95)
     {非平衡 Sinkhorn\\[-1pt]$\gamma^\ast,\tau_s,\tau_t$};
 \node[chip, minimum width=3.35cm] at (15.00,3.65)
-    {对齐损失\\[-1pt]$\mathcal{L}_{align}$};
+    {对齐损失\\[-1pt]$\mathcal{L}_{\mathrm{align}}$};
 \node[note, text width=3.35cm] at (15.00,2.60)
     {边际质量可削减，缓解错误强制匹配};
 
 % 优化目标
 \draw[redcard] (4.05,0.50) rectangle (17.25,1.35);
 \node at (10.65,0.92)
-    {$\mathcal{L}_{\mathrm{TPU\_DPJDOT}}
-    =\mathcal{L}_{src}
-    +\lambda_{supcon}\mathcal{L}_{supcon}
-    +\lambda_{ot}\mathcal{L}_{align}$};
+    {$\mathcal{L}_{\mathrm{TPU}}
+    =\mathcal{L}_{\mathrm{src}}
+    +\lambda_{\mathrm{supcon}}\mathcal{L}_{\mathrm{supcon}}
+    +\lambda_{\mathrm{ot}}\mathcal{L}_{\mathrm{align}}$};
 
 \draw[arrow] (3.25,4.95) -- (4.05,4.95);
 \draw[arrow] (7.55,4.95) -- (8.35,4.95);
