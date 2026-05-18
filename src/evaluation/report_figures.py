@@ -430,10 +430,17 @@ def export_setting_heatmap(
         method_index = methods.index(row["method"])
         matrix[scenario_index, method_index] = row["target_eval_acc"]
 
-    plt.figure(figsize=(max(7, len(methods) * 1.2), max(4, len(scenarios) * 0.5)))
+    plt.figure(figsize=(max(8.5, len(methods) * 1.45), max(4.2, len(scenarios) * 0.55)))
     image = plt.imshow(matrix, aspect="auto", cmap="YlGnBu", vmin=0, vmax=1)
     plt.colorbar(image, label="Accuracy")
-    plt.xticks(np.arange(len(methods)), [_figure_method_label(method) for method in methods], rotation=30)
+    plt.xticks(
+        np.arange(len(methods)),
+        [_figure_method_label(method) for method in methods],
+        rotation=28,
+        ha="right",
+        rotation_mode="anchor",
+        fontsize=9,
+    )
     plt.yticks(np.arange(len(scenarios)), scenario_labels)
     plt.title(f"{setting_name.replace('_', '-').title()} Task Heatmap")
 
@@ -525,12 +532,12 @@ def _domain_group_labels(source_domains, target_domains):
     target_unique = list(dict.fromkeys(str(domain) for domain in target_domains.tolist()))
     show_individual_domains = len(source_unique) > 1 or len(target_unique) > 1
     if not show_individual_domains:
-        source_labels = np.asarray(["source"] * len(source_domains))
-        target_labels = np.asarray(["target"] * len(target_domains))
+        source_labels = np.asarray(["Source"] * len(source_domains))
+        target_labels = np.asarray(["Target"] * len(target_domains))
         return np.concatenate([source_labels, target_labels])
 
-    source_labels = np.asarray([f"source:{domain}" for domain in source_domains])
-    target_labels = np.asarray([f"target:{domain}" for domain in target_domains])
+    source_labels = np.asarray([f"Source:{domain}" for domain in source_domains])
+    target_labels = np.asarray([f"Target:{domain}" for domain in target_domains])
     return np.concatenate([source_labels, target_labels])
 
 
@@ -572,11 +579,12 @@ def _domain_visual_styles(labels: list[str]) -> dict[str, dict[str, str]]:
     fallback_index = 0
     for label in labels:
         normalized = str(label)
-        if normalized.startswith("source"):
+        role = normalized.split(":", maxsplit=1)[0].lower()
+        if role == "source":
             color = source_palette[source_index % len(source_palette)]
             marker = "o"
             source_index += 1
-        elif normalized.startswith("target"):
+        elif role == "target":
             color = target_palette[target_index % len(target_palette)]
             marker = "^"
             target_index += 1
