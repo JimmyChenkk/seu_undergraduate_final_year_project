@@ -28,6 +28,8 @@
 \node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
     {CA-CCSR-WJDOT 类条件源域可靠性加权机制};
 
+\begin{scope}[xshift=-0.15cm]
+
 % 多源输入
 \draw[bluecard] (0.45,2.15) rectangle (3.05,7.75);
 \node at (1.75,7.43) {多源输入};
@@ -122,8 +124,8 @@
 \end{scope}
 
 % 总目标
-\draw[redcard] (3.75,0.50) rectangle (20.85,1.35);
-\node at (12.30,0.92)
+\draw[redcard] (0.45,0.50) rectangle (20.85,1.35);
+\node[align=center] at (10.65,0.92)
     {$\mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}
     =\lambda_s\mathcal{L}_{\mathrm{src}}
     +\lambda_d\mathcal{L}_{\mathrm{dom}}
@@ -136,5 +138,7 @@
 \draw[arrow] (11.65,4.95) -- (12.35,4.95);
 \draw[arrow] (15.95,4.95) -- (16.65,4.95);
 \draw[arrow] (18.75,2.15) -- (18.75,1.35);
+
+\end{scope}
 
 \end{tikzpicture}

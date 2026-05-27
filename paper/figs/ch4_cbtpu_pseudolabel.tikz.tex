@@ -27,6 +27,8 @@
 \node[font=\large\fontspec{Times New Roman}\songti] at (10.50,8.55)
     {CBTPU-DeepJDOT 多证据置信均衡伪标签控制机制};
 
+\begin{scope}[xshift=-0.15cm]
+
 % 基础输入
 \draw[bluecard] (0.45,2.15) rectangle (3.25,7.75);
 \node at (1.85,7.43) {基础信息};
@@ -82,8 +84,8 @@
     {降低伪标签噪声与类别坍缩};
 
 % 目标域学习
-\draw[redcard] (3.95,0.50) rectangle (20.85,1.35);
-\node at (12.40,0.92)
+\draw[redcard] (0.45,0.50) rectangle (20.85,1.35);
+\node[align=center] at (10.65,0.92)
     {$\mathcal{L}_{\mathrm{CBTPU}}
     =\mathcal{L}_{\mathrm{TPU}}
     +\lambda_{\mathrm{pl}}\mathcal{L}_{\mathrm{pl}}
@@ -95,5 +97,7 @@
 \draw[arrow] (11.15,4.95) -- (11.85,4.95);
 \draw[arrow] (15.45,4.95) -- (16.15,4.95);
 \draw[arrow] (18.50,2.15) -- (18.50,1.35);
+
+\end{scope}
 
 \end{tikzpicture}

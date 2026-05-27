@@ -32,6 +32,8 @@
 \node[font=\large\fontspec{Times New Roman}\songti] at (8.85,8.55)
     {TPU-DeepJDOT 时序原型非平衡联合分布对齐机制};
 
+\begin{scope}[xshift=-0.05cm]
+
 % 输入批次
 \draw[bluecard] (0.55,2.15) rectangle (3.25,7.75);
 \node at (1.90,7.43) {输入批次};
@@ -40,7 +42,7 @@
 \node[chip, minimum width=2.05cm] at (1.90,4.60)
     {目标域无标签\\[-1pt]$\mathcal{B}_t$};
 \node[note, text width=2.20cm] at (1.90,3.25)
-    {训练阶段不使用目标标签};
+    {训练阶段\\不使用\\目标标签};
 
 % 时序诊断网络
 \draw[cyancard] (4.05,2.15) rectangle (7.55,7.75);
@@ -74,11 +76,11 @@
 \node[chip, minimum width=3.35cm] at (15.00,3.65)
     {对齐损失\\[-1pt]$\mathcal{L}_{\mathrm{align}}$};
 \node[note, text width=3.35cm] at (15.00,2.60)
-    {边际质量可削减，缓解错误强制匹配};
+    {边际质量可削减，\\缓解错误强制匹配};
 
 % 优化目标
-\draw[redcard] (4.05,0.50) rectangle (17.25,1.35);
-\node at (10.65,0.92)
+\draw[redcard] (0.55,0.50) rectangle (17.25,1.35);
+\node[align=center] at (8.90,0.92)
     {$\mathcal{L}_{\mathrm{TPU}}
     =\mathcal{L}_{\mathrm{src}}
     +\lambda_{\mathrm{supcon}}\mathcal{L}_{\mathrm{supcon}}
@@ -88,5 +90,7 @@
 \draw[arrow] (7.55,4.95) -- (8.35,4.95);
 \draw[arrow] (11.95,4.95) -- (12.75,4.95);
 \draw[arrow] (15.00,2.15) -- (15.00,1.35);
+
+\end{scope}
 
 \end{tikzpicture}

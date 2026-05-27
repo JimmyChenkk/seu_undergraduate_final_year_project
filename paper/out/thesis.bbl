@@ -1,4 +1,4 @@
-\begin{thebibliography}{38}
+\begin{thebibliography}{37}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{#1}
 \expandafter\ifx\csname urlstyle\endcsname\relax\else
@@ -279,12 +279,5 @@ REINARTZ C, KULAHCI M, RAVN O.
 \newblock An extended {Tennessee Eastman} simulation dataset for
   fault-detection and decision support systems\allowbreak[J].
 \newblock Computers \& Chemical Engineering, 2021, 149: 107281.
-
-\bibitem[Wang et~al.(2022)Wang, Fink, Van~Gool, and Dai]{wang2022cotta}
-WANG Q, FINK O, VAN~GOOL L, et~al.
-\newblock Continual test-time domain adaptation\allowbreak[C]//\allowbreak
-Proceedings of the {IEEE/CVF} Conference on Computer Vision and Pattern
-  Recognition ({CVPR}).
-\newblock IEEE, 2022: 7201-7211.
 
 \end{thebibliography}
