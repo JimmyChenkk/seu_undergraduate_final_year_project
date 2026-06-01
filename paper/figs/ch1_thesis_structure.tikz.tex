@@ -48,10 +48,6 @@
         fill=gray!1,
         inner xsep=5pt,
         inner ysep=1pt
-    },
-    title/.style={
-        font=\large\fontspec{Times New Roman}\songti,
-        align=center
     }
 ]
 
@@ -59,7 +55,7 @@
 \def\XMin{0.90}
 \def\XMax{16.50}
 \def\YMin{0.00}
-\def\YMax{12.60}
+\def\YMax{12.00}
 \def\CX{8.70}
 \def\LX{1.60}
 \def\RX{15.80}
@@ -72,9 +68,6 @@
 \def\YMultiRoute{5.66}
 
 % 主要节点
-\node[title] (title) at (\CX,12.15)
-    {论文结构与章节关系};
-
 \node[bluecard, minimum width=3.50cm, minimum height=1.00cm] (ch1) at (\CX,11.25)
     {第一章\\[-1pt]绪论与研究路线};
 

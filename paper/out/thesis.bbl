@@ -71,6 +71,13 @@ LI W, HUANG R, LI J, et~al.
   industrial scenarios: Theories, applications and challenges\allowbreak[J].
 \newblock Mechanical Systems and Signal Processing, 2022, 167: 108487.
 
+\bibitem[Courty et~al.(2017)Courty, Flamary, Tuia, and
+  Rakotomamonjy]{courty2017otda}
+COURTY N, FLAMARY R, TUIA D, et~al.
+\newblock Optimal transport for domain adaptation\allowbreak[J].
+\newblock IEEE Transactions on Pattern Analysis and Machine Intelligence, 2017,
+  39\allowbreak (9): 1853-1865.
+
 \bibitem[Damodaran et~al.(2018)Damodaran, Kellenberger, Flamary, Tuia, and
   Courty]{damodaran2018deepjdot}
 DAMODARAN B~B, KELLENBERGER B, FLAMARY R, et~al.
@@ -96,13 +103,6 @@ Proceedings of the Thirty-Eighth Conference on Uncertainty in Artificial
   Intelligence.
 \newblock PMLR, 2022: 1970-1980.
 
-\bibitem[Courty et~al.(2017)Courty, Flamary, Tuia, and
-  Rakotomamonjy]{courty2017otda}
-COURTY N, FLAMARY R, TUIA D, et~al.
-\newblock Optimal transport for domain adaptation\allowbreak[J].
-\newblock IEEE Transactions on Pattern Analysis and Machine Intelligence, 2017,
-  39\allowbreak (9): 1853-1865.
-
 \bibitem[Wang et~al.(2017)Wang, Yan, and Oates]{wang2017time}
 WANG Z, YAN W, OATES T.
 \newblock Time series classification from scratch with deep neural networks: A
@@ -117,12 +117,6 @@ FAWAZ H~I, FORESTIER G, WEBER J, et~al.
 \newblock Data Mining and Knowledge Discovery, 2019, 33\allowbreak (4):
   917-963.
 
-\bibitem[Ganin et~al.(2016)Ganin, Ustinova, Ajakan, Germain, Larochelle,
-  Laviolette, Marchand, and Lempitsky]{ganin2016dann}
-GANIN Y, USTINOVA E, AJAKAN H, et~al.
-\newblock Domain-adversarial training of neural networks\allowbreak[J].
-\newblock Journal of Machine Learning Research, 2016, 17\allowbreak (59): 1-35.
-
 \bibitem[Courty et~al.(2017)Courty, Flamary, Habrard, and
   Rakotomamonjy]{courty2017jdot}
 COURTY N, FLAMARY R, HABRARD A, et~al.
@@ -130,6 +124,12 @@ COURTY N, FLAMARY R, HABRARD A, et~al.
   adaptation\allowbreak[C]//\allowbreak
 Advances in Neural Information Processing Systems ({NeurIPS}).
 \newblock Curran Associates, Inc., 2017: 3730-3739.
+
+\bibitem[Ganin et~al.(2016)Ganin, Ustinova, Ajakan, Germain, Larochelle,
+  Laviolette, Marchand, and Lempitsky]{ganin2016dann}
+GANIN Y, USTINOVA E, AJAKAN H, et~al.
+\newblock Domain-adversarial training of neural networks\allowbreak[J].
+\newblock Journal of Machine Learning Research, 2016, 17\allowbreak (59): 1-35.
 
 \bibitem[Peyr{\'e} et~al.(2019)Peyr{\'e} and Cuturi]{peyre2019computational}
 PEYR{\'E} G, CUTURI M.
