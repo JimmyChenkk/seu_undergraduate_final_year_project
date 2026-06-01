@@ -13,6 +13,17 @@
 \SetKwFor{For}{循环}{执行}{结束循环}
 \SetKwFor{ForEach}{遍历}{执行}{结束遍历}
 \DontPrintSemicolon
+\makeatletter
+\SetAlFnt{\seut@control@mainlinespread}
+\SetAlCapFnt{\seut@control@mainlinespread}
+\SetAlCapNameFnt{\seut@control@mainlinespread}
+\SetAlgoInsideSkip{smallskip}
+\setlength{\interspacetitleruled}{5pt}
+\setlength{\interspacealgoruled}{5pt}
+\AtBeginEnvironment{algorithm}{\seut@control@mainlinespread}
+\setlength{\@fptop}{0pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
 \setlength{\emergencystretch}{2em}
 \setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
 \setlength{\floatsep}{10pt plus 2pt minus 2pt}
@@ -39,9 +50,11 @@
 \end{abstract}
 
 \begin{abstract}[en]
+{\setlength{\emergencystretch}{4em}\hbadness=2000
 In the Tennessee Eastman process, changes in production mode alter variable correlations and the temporal responses of faults. A model trained in one mode may therefore meet distribution shift, weakened class structure, and unavailable fault labels when it is used in another mode. Taking the Tennessee Eastman domain adaptation benchmark as the study object, this thesis treats production modes as domains and investigates both single-source to single-target and multi-source to single-target fault diagnosis tasks.
 
 For the single-source task, a temporal-prototype unbalanced joint distribution alignment method is developed on the basis of DeepJDOT. Unbalanced transport relaxes mini-batch marginal constraints and reduces unreliable forced matching; source-class prototypes, temporal statistical costs, and supervised contrastive learning are then introduced so that the transport plan reflects feature distance, dynamic fault behavior, and class-center relations. A multi-evidence confidence-balanced pseudo-labeling method is further used to select target samples by combining transport semantics, teacher-model predictions, and source-prototype semantics, with dynamic thresholds, class balancing, and weak-strong augmentation consistency used to control pseudo-label noise. For the multi-source task, a source-fault reliability matrix is constructed from prototype distance, class-conditional transport cost, target prediction entropy, and source-class performance. Experiments show that the proposed methods improve target-mode diagnosis performance and provide interpretable evidence for source selection and class-level transfer contribution.
+\par}
 \keywords{\mbox{Industrial process fault diagnosis},\mbox{Domain adaptation},\mbox{Optimal transport},\newline \mbox{Pseudo-label learning},\mbox{Multi-source transfer}}
 \end{abstract}
 
@@ -1862,27 +1875,30 @@ WJDOT 通过源域加权联合分布最优传输为多源领域自适应提供�
     \label{fig:class_source_alpha_heatmap}
 \end{figure}
 
-为验证方法提升是否具有跨迁移场景的一致性，本文采用 Wilcoxon signed-rank test 对相邻方法进行配对检验。这里的配对单位是迁移场景，而不是多随机种子重复实验，因此检验结论表述为“跨迁移场景配对显著性”。检验结果如表 \ref{tab:significance_results} 所示，三组相邻方法比较均呈现跨场景一致正向差异。
+为验证方法提升是否具有跨迁移场景的一致性，本文采用 Wilcoxon signed-rank test 对相邻方法进行配对检验。这里的配对单位是迁移场景，而不是多随机种子重复实验，因此检验结论表述为“跨迁移场景配对显著性”。为使表格含义更加直观，表 \ref{tab:significance_results} 同时列出相邻方法在对应任务范围内的平均准确率提升，其中 $\uparrow$ 表示左侧改进方法相对右侧基线方法的提升幅度，单位为百分点。为控制表格宽度，表中 TPU-$\sim$ 表示 TPU-DeepJDOT。
 
 \begin{table}[!htbp]
     \centering
-    \caption{相邻方法跨迁移场景配对显著性检验结果}
+    \caption{相邻方法准确率提升与跨迁移场景配对显著性检验结果}
     \label{tab:significance_results}
     \zihao{5}
-    \setlength{\tabcolsep}{3pt}
-    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.37\textwidth}
-                    >{\centering\arraybackslash}p{0.20\textwidth}
+    \setlength{\tabcolsep}{2pt}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.32\textwidth}
+                    >{\centering\arraybackslash}p{0.15\textwidth}
                     >{\centering\arraybackslash}p{0.17\textwidth}
-                    >{\centering\arraybackslash}p{0.20\textwidth}@{}}
+                    >{\centering\arraybackslash}p{0.13\textwidth}
+                    >{\centering\arraybackslash}p{0.16\textwidth}@{}}
         \toprule
-        配对比较 & 配对场景 & 正向场景数 & Wilcoxon $p$ 值 \\
+        配对比较 & 任务范围 & 平均准确率提升（百分点） & 正向场景数 & Wilcoxon $p$ 值 \\
         \midrule
-        TPU-DeepJDOT vs. DeepJDOT & 单源6任务 & 6/6 & 0.015625 \\
-        CBTPU-DeepJDOT vs. TPU-$\sim$ & 单源6任务 & 6/6 & 0.015625 \\
-        CA-CCSR-WJDOT vs. WJDOT & 多源共9任务 & 9/9 & 0.001953 \\
+        TPU-DeepJDOT 相对 DeepJDOT & 单源6任务 & $\uparrow$11.66 & 6/6 & 0.015625 \\
+        CBTPU-DeepJDOT 相对 TPU-$\sim$ & 单源6任务 & $\uparrow$1.48 & 6/6 & 0.015625 \\
+        CA-CCSR-WJDOT 相对 WJDOT & 多源共9任务 & $\uparrow$7.69 & 9/9 & 0.001953 \\
         \bottomrule
     \end{tabular}
 \end{table}
+
+表 \ref{tab:significance_results} 表明，三组相邻方法不仅在平均准确率上取得提升，而且在对应迁移场景中均保持正向增益。具体而言，TPU-DeepJDOT 相比 DeepJDOT 平均提升 11.66 个百分点，CBTPU-DeepJDOT 相比 TPU-DeepJDOT 平均继续提升 1.48 个百分点，CA-CCSR-WJDOT 相比 WJDOT 在多源任务上平均提升 7.69 个百分点；三组比较的 Wilcoxon $p$ 值均小于 0.05，说明这些提升在跨迁移场景配对比较下具有统计显著性。
 
 \section{本章小结}
 
