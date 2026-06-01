@@ -65,25 +65,25 @@
         fill=gray!2
     },
     flow/.style={
-        -{Stealth[length=3.0pt,width=3.3pt]},
-        draw=black!50,
-        line width=.42pt,
+        -{Stealth[length=3.4pt,width=3.8pt]},
+        draw=black,
+        line width=.58pt,
         shorten >=.4pt
     },
     auxflow/.style={
-        -{Stealth[length=2.8pt,width=3.0pt]},
-        draw=black!28,
-        line width=.34pt,
+        -{Stealth[length=3.2pt,width=3.5pt]},
+        draw=black,
+        line width=.50pt,
         shorten >=.3pt
     },
     routebar/.style={
-        draw=black!42,
-        line width=.42pt
+        draw=black,
+        line width=.56pt
     },
     routeflow/.style={
-        -{Stealth[length=3.0pt,width=3.3pt]},
-        draw=black!42,
-        line width=.42pt,
+        -{Stealth[length=3.4pt,width=3.8pt]},
+        draw=black,
+        line width=.58pt,
         shorten >=.35pt
     },
     divider/.style={draw=black!20, line width=.34pt}
@@ -227,7 +227,7 @@
     \draw[flow] (\a.east) -- (\b.west);
 }
 \coordinate (c6bus) at (10.40,4.62);
-\draw[draw=black!28, line width=.34pt] (c6c.south) -- (c6bus) -- (4.05,4.62);
+\draw[draw=black, line width=.50pt] (c6c.south) -- (c6bus) -- (4.05,4.62);
 \draw[auxflow] (4.05,4.62) -- (c6e.north);
 \draw[auxflow] (8.80,4.62) -- (c6f.north);
 \draw[auxflow] (c6d.south) -- (c6g.north);
