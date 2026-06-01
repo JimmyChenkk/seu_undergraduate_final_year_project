@@ -1,135 +1,259 @@
+% \usetikzlibrary{arrows.meta,backgrounds}
+\providecommand{\chaptertitlefont}{\small\fontspec{Times New Roman}\songti}
 \begin{tikzpicture}[
     x=1cm,
     y=1cm,
     font=\small\fontspec{Times New Roman}\songti,
     >=Stealth,
-    card/.style={
-        draw,
-        rounded corners=4.5pt,
-        line width=0.45pt,
-        fill=white,
-        align=center,
-        inner xsep=6pt,
-        inner ysep=5pt,
-        outer sep=0pt
-    },
-    bluecard/.style={card, draw=blue!45!black, fill=blue!4},
-    cyancard/.style={card, draw=cyan!50!black, fill=cyan!5},
-    orangecard/.style={card, draw=orange!65!black, fill=orange!6},
-    purplecard/.style={card, draw=purple!45!black, fill=purple!5},
-    greencard/.style={card, draw=green!45!black, fill=green!6},
-    redcard/.style={card, draw=red!45!black, fill=red!5},
-    panel/.style={
-        draw=black!14,
+    line cap=round,
+    line join=round,
+    outerpanel/.style={
+        draw=none,
+        fill=gray!2,
         rounded corners=6pt,
-        line width=0.35pt,
-        fill=gray!1
+        line width=.45pt
     },
-    flow/.style={
-        line width=0.55pt,
-        draw=black!62,
-        line cap=round,
-        line join=round
+    block/.style args={#1}{
+        draw=#1!70!black,
+        fill=#1!8,
+        rounded corners=5pt,
+        line width=.55pt
     },
-    arrow/.style={
-        flow,
-        -{Stealth[length=3.6pt,width=4.0pt]},
-        shorten >=0.4pt
+    lefttitle/.style args={#1}{
+        draw=none,
+        fill=none,
+        minimum width=2.18cm,
+        minimum height=.82cm,
+        align=center,
+        text=black!92,
+        line width=.42pt,
+        font=\chaptertitlefont
     },
-    routebar/.style={
-        line width=0.42pt,
-        draw=black!35,
-        line cap=round
+    chaptermaintitle/.style={
+        align=center,
+        text=black!92,
+        font=\chaptertitlefont
     },
-    route/.style={
-        font=\scriptsize\fontspec{Times New Roman}\songti,
+    card/.style={
+        draw=black!26,
+        fill=white,
+        rounded corners=3pt,
+        line width=.38pt,
+        align=center,
+        inner xsep=3.5pt,
+        inner ysep=2.6pt,
+        minimum height=.54cm,
+        font=\scriptsize\fontspec{Times New Roman}\songti
+    },
+    bigcard/.style={
+        draw=black!26,
+        fill=white,
+        rounded corners=3pt,
+        line width=.38pt,
+        align=center,
+        inner xsep=4.2pt,
+        inner ysep=2.8pt,
+        minimum height=.56cm,
+        font=\scriptsize\fontspec{Times New Roman}\songti
+    },
+    note/.style={
         align=center,
         text=black!72,
-        fill=gray!1,
-        inner xsep=5pt,
-        inner ysep=1pt
-    }
+        font=\scriptsize\fontspec{Times New Roman}\songti,
+        inner xsep=4pt,
+        inner ysep=1pt,
+        fill=gray!2
+    },
+    flow/.style={
+        -{Stealth[length=3.0pt,width=3.3pt]},
+        draw=black!50,
+        line width=.42pt,
+        shorten >=.4pt
+    },
+    auxflow/.style={
+        -{Stealth[length=2.8pt,width=3.0pt]},
+        draw=black!28,
+        line width=.34pt,
+        shorten >=.3pt
+    },
+    routebar/.style={
+        draw=black!42,
+        line width=.42pt
+    },
+    routeflow/.style={
+        -{Stealth[length=3.0pt,width=3.3pt]},
+        draw=black!42,
+        line width=.42pt,
+        shorten >=.35pt
+    },
+    divider/.style={draw=black!20, line width=.34pt}
 ]
 
-% 灰色外框即最终 TikZ 盒子，中心线为 \CX。
-\def\XMin{0.90}
-\def\XMax{16.50}
-\def\YMin{0.00}
-\def\YMax{12.00}
-\def\CX{8.70}
-\def\LX{1.60}
-\def\RX{15.80}
-\def\VGap{0.52cm}
-\def\YTopFold{8.55}
-\def\YMethod{7.20}
-\def\YMulti{4.55}
-\def\YMergeFold{3.45}
-\def\YSingleRoute{8.25}
-\def\YMultiRoute{5.66}
+% ------- colors -------
+\colorlet{cOne}{blue}
+\colorlet{cTwo}{teal}
+\colorlet{cMid}{orange}
+\colorlet{cFive}{purple}
+\colorlet{cSix}{green!55!black}
+\colorlet{cSeven}{red}
 
-% 主要节点
-\node[bluecard, minimum width=3.50cm, minimum height=1.00cm] (ch1) at (\CX,11.25)
-    {第一章\\[-1pt]绪论与研究路线};
+% ------- overall frame -------
+\def\xmin{0.25}
+\def\xmax{17.35}
+\def\ymin{0.90}
+\def\ymax{23.10}
+\def\cx{8.80}
+\def\routeL{0.34}
+\def\routeR{17.26}
 
-\node[cyancard, minimum width=3.50cm, minimum height=1.00cm, below=\VGap of ch1] (ch2)
-    {第二章\\[-1pt]基础理论与模型};
-
-\node[orangecard, minimum width=3.70cm, minimum height=1.20cm] (ch3) at (6.20,\YMethod)
-    {第三章\\[-1pt]TPU-DeepJDOT\\[-1pt]时序原型非平衡对齐};
-
-\node[orangecard, minimum width=3.70cm, minimum height=1.20cm] (ch4) at (11.20,\YMethod)
-    {第四章\\[-1pt]CBTPU-DeepJDOT\\[-1pt]多证据伪标签学习};
-
-\node[purplecard, minimum width=8.70cm, minimum height=1.20cm] (ch5) at (\CX,\YMulti)
-    {第五章\\[-1pt]CA-CCSR-WJDOT\\[-1pt]类条件源域可靠性加权};
-
-\node[greencard, minimum width=3.50cm, minimum height=1.00cm] (ch6) at (\CX,2.35)
-    {第六章\\[-1pt]实验验证与分析};
-
-\node[redcard, minimum width=3.50cm, minimum height=1.00cm, below=\VGap of ch6] (ch7)
-    {第七章\\[-1pt]总结与未来展望};
-
-% 路由坐标
-\coordinate (l3) at (\LX,\YMethod);
-\coordinate (l5) at (\LX,\YMulti);
-
-\coordinate (r4) at (\RX,\YMethod);
-\coordinate (r5) at (\RX,\YMulti);
-
-\coordinate (cTop) at (\CX,\YTopFold);
-\coordinate (lTop) at (\LX,\YTopFold);
-
-\coordinate (cMerge) at (\CX,\YMergeFold);
-\coordinate (rMerge) at (\RX,\YMergeFold);
-
-% 外框
 \begin{scope}[on background layer]
-\draw[panel] (\XMin,\YMin) rectangle (\XMax,\YMax);
+  \draw[outerpanel] (\xmin,\ymin) rectangle (\xmax,\ymax);
 \end{scope}
 
-% 路线标签
-\draw[routebar] (4.60,\YSingleRoute) -- (12.80,\YSingleRoute);
-\node[route] at (\CX,\YSingleRoute) {单源方法递进路线};
+% =====================================================
+% Chapter 1
+% =====================================================
+\node[block=cOne, minimum width=16.45cm, minimum height=1.62cm] (bg1) at (\cx,22.00) {};
+\node[chaptermaintitle] at (\cx,22.48) {第一章\quad 绪论};
+\node[card, minimum width=2.45cm] (c1a) at (3.40,21.70) {研究背景\\与意义};
+\node[card, minimum width=2.45cm] (c1b) at (6.95,21.70) {国内外\\研究现状};
+\node[card, minimum width=2.60cm] (c1c) at (10.55,21.70) {研究问题\\与技术路线};
+\node[card, minimum width=2.90cm] (c1d) at (14.20,21.70) {主要内容\\与组织结构};
 
-\draw[routebar] (4.60,\YMultiRoute) -- (12.80,\YMultiRoute);
-\node[route] at (\CX,\YMultiRoute) {多源选择性迁移路线};
+% =====================================================
+% Chapter 2
+% =====================================================
+\node[block=cTwo, minimum width=16.45cm, minimum height=1.62cm] (bg2) at (\cx,19.88) {};
+\node[chaptermaintitle] at (\cx,20.36) {第二章\quad 跨工况领域自适应故障诊断基本方法};
+\node[card, minimum width=1.86cm] (c2a) at (3.10,19.58) {跨工况\\任务设定};
+\node[card, minimum width=1.86cm] (c2b) at (5.95,19.58) {联合分布\\最优传输};
+\node[card, minimum width=1.86cm] (c2c) at (8.80,19.58) {DeepJDOT\\单源对齐};
+\node[card, minimum width=1.86cm] (c2d) at (11.65,19.58) {WJDOT\\多源加权};
+\node[card, minimum width=1.86cm] (c2e) at (14.50,19.58) {CoDATS\\时序表征};
 
-% 连接关系
-\draw[arrow] (ch1.south) -- (ch2.north);
+\foreach \a/\b in {c2a/c2b,c2b/c2c,c2c/c2d,c2d/c2e}{
+    \draw[flow] (\a.east) -- (\b.west);
+}
+\draw[auxflow] (bg1.south) -- (bg2.north);
 
-\draw[flow]  (ch2.south) -- (cTop) -- (lTop) -- (l5);
-\draw[arrow] (l3) -- (ch3.west);
-\draw[arrow] (l5) -- (ch5.west);
+% =====================================================
+% Chapter 3 and 4 shared layout guide
+% =====================================================
+\coordinate (routeTop) at (\cx,18.82);
+\node[note, anchor=west] at (9.10,18.82) {为第三至第五章提供最优传输、时序建模与领域自适应理论支撑};
 
-\draw[arrow] (ch3.east) -- (ch4.west);
+% =====================================================
+% Chapter 3
+% =====================================================
+\node[block=cMid, minimum width=16.45cm, minimum height=3.50cm] (bg3) at (\cx,16.82) {};
+\node[chaptermaintitle] at (\cx,18.07) {第三章 TPU-DeepJDOT：基于时序原型非平衡联合分布对齐的单源领域自适应故障诊断方法};
 
-\draw[flow]  (ch4.east) -- (r4) -- (rMerge);
-\draw[flow]  (ch5.east) -- (r5);
-\draw[arrow] (rMerge) -- (cMerge) -- (ch6.north);
+\node[note] at (\cx,17.52) {时序原型非平衡联合分布对齐基本原理};
+\node[card, minimum width=2.35cm] (c3a) at (4.72,16.97) {非平衡最优\\传输对齐原理};
+\node[card, minimum width=2.35cm] (c3b) at (8.80,16.97) {源域类别原型\\约束原理};
+\node[card, minimum width=2.35cm] (c3c) at (12.88,16.97) {时间序列统计\\代价构建原理};
 
-\draw[arrow] (ch6.south) -- (ch7.north);
+\node[note] at (\cx,16.22) {基于时序原型非平衡联合分布对齐的诊断模型构建};
+\node[card, minimum width=2.18cm] (c3d) at (2.50,15.62) {单源跨工况\\诊断问题建模};
+\node[card, minimum width=2.18cm] (c3e) at (6.70,15.62) {非平衡联合\\传输代价构建};
+\node[card, minimum width=2.18cm] (c3f) at (10.90,15.62) {源域原型与\\时序统计融合};
+\node[card, minimum width=2.18cm] (c3g) at (15.10,15.62) {源域监督对比\\特征学习};
+
+\foreach \a/\b in {c3a/c3b,c3b/c3c,c3d/c3e,c3e/c3f,c3f/c3g}{
+    \draw[flow] (\a.east) -- (\b.west);
+}
+
+% =====================================================
+% Chapter 4
+% =====================================================
+\node[block=cMid, minimum width=16.45cm, minimum height=3.50cm] (bg4) at (\cx,12.82) {};
+\node[chaptermaintitle] at (\cx,14.07) {第四章 CBTPU-DeepJDOT：基于多证据置信均衡伪标签的单源领域自适应故障诊断方法};
+
+\node[note] at (\cx,13.52) {多证据置信均衡伪标签学习基本原理};
+\node[card, minimum width=2.35cm] (c4a) at (4.72,12.97) {目标域伪标签\\学习原理};
+\node[card, minimum width=2.35cm] (c4b) at (8.80,12.97) {教师参考模型与\\一致性学习原理};
+\node[card, minimum width=2.35cm] (c4c) at (12.88,12.97) {类别均衡\\约束原理};
+
+\node[note] at (\cx,12.22) {基于多证据置信均衡伪标签的目标域样本利用策略};
+\node[card, minimum width=2.18cm] (c4d) at (2.50,11.62) {三类语义\\分布估计};
+\node[card, minimum width=2.18cm] (c4e) at (6.70,11.62) {多证据一致性\\筛选机制};
+\node[card, minimum width=2.18cm] (c4f) at (10.90,11.62) {动态置信阈值\\与类别均衡};
+\node[card, minimum width=2.18cm] (c4g) at (15.10,11.62) {增强一致性与\\预测融合策略};
+
+\foreach \a/\b in {c4a/c4b,c4b/c4c,c4d/c4e,c4e/c4f,c4f/c4g}{
+    \draw[flow] (\a.east) -- (\b.west);
+}
+\draw[routeflow] (bg3.south) -- (bg4.north);
+\node[note, anchor=west] at (9.10,14.82) {单源方法递进：先建立可靠对齐，再筛选高置信目标样本};
+
+% =====================================================
+% Chapter 5
+% =====================================================
+\node[block=cFive, minimum width=16.45cm, minimum height=3.50cm] (bg5) at (\cx,8.815) {};
+\node[chaptermaintitle] at (\cx,10.065) {第五章 CA-CCSR-WJDOT：基于类条件源域可靠性加权的多源领域自适应故障诊断方法};
+
+\node[note] at (\cx,9.515) {类条件源域可靠性加权基本原理};
+\node[card, minimum width=2.35cm] (c5a) at (4.72,8.965) {多源迁移与\\负迁移问题};
+\node[card, minimum width=2.35cm] (c5b) at (8.80,8.965) {源域可靠性\\度量原理};
+\node[card, minimum width=2.35cm] (c5c) at (12.88,8.965) {类条件源域\\权重分配原理};
+
+\node[note] at (\cx,8.215) {基于类条件源域可靠性加权的多源对齐策略};
+\node[card, minimum width=1.95cm] (c5d) at (2.18,7.615) {多源跨工况\\诊断问题建模};
+\node[card, minimum width=1.95cm] (c5e) at (5.49,7.615) {逐源联合分布\\最优传输对齐};
+\node[card, minimum width=1.95cm] (c5f) at (8.80,7.615) {类条件源域\\可靠性矩阵构建};
+\node[card, minimum width=1.95cm] (c5g) at (12.11,7.615) {领域对抗特征\\与教师先验约束};
+\node[card, minimum width=1.95cm] (c5h) at (15.42,7.615) {教师先验保护\\诊断结果融合};
+
+\foreach \a/\b in {c5a/c5b,c5b/c5c,c5d/c5e,c5e/c5f,c5f/c5g,c5g/c5h}{
+    \draw[flow] (\a.east) -- (\b.west);
+}
+\node[note, anchor=east] (toexp) at (8.52,6.815) {三大方法主线在TEP数据集上实验验证};
+
+% =====================================================
+% Chapter 6
+% =====================================================
+\node[block=cSix, minimum width=16.45cm, minimum height=3.25cm] (bg6) at (\cx,4.94) {};
+\node[chaptermaintitle] at (\cx,6.19) {第六章\quad 实验设计与结果分析};
+\node[card, minimum width=2.05cm] (c6a) at (4.05,5.46) {TEP 数据集\\6个生产模式};
+\node[card, minimum width=2.05cm] (c6b) at (7.20,5.46) {统一划分协议\\目标标签仅评估};
+\node[card, minimum width=2.05cm] (c6c) at (10.40,5.46) {$m_1,m_2,m_5$\\三模式组合};
+\node[card, minimum width=2.05cm] (c6d) at (13.55,5.46) {$m_1$--$m_6$\\六模式组合};
+
+\node[bigcard, minimum width=2.75cm] (c6e) at (4.05,3.85) {6个单源\\单目标域任务};
+\node[bigcard, minimum width=2.75cm] (c6f) at (8.80,3.85) {3个两源\\单目标域任务};
+\node[bigcard, minimum width=2.75cm] (c6g) at (13.55,3.85) {6个五源\\单目标域任务};
+
+\foreach \a/\b in {c6a/c6b,c6b/c6c,c6c/c6d}{
+    \draw[flow] (\a.east) -- (\b.west);
+}
+\coordinate (c6bus) at (10.40,4.62);
+\draw[draw=black!28, line width=.34pt] (c6c.south) -- (c6bus) -- (4.05,4.62);
+\draw[auxflow] (4.05,4.62) -- (c6e.north);
+\draw[auxflow] (8.80,4.62) -- (c6f.north);
+\draw[auxflow] (c6d.south) -- (c6g.north);
+
+% 章节级路线：保留左右贴边走线，避免穿过内容密集区。
+\draw[routebar] (bg2.south) -- (routeTop) -- (\routeL,18.82) -- (\routeL,8.815);
+\draw[routeflow] (\routeL,16.82) -- (bg3.west);
+\draw[routeflow] (\routeL,8.815) -- (bg5.west);
+
+\draw[routebar] (bg4.east) -- (\routeR,12.82) -- (\routeR,6.815) -- (\cx,6.815);
+\draw[routebar] (bg5.east) -- (\routeR,8.815);
+\draw[routeflow] (\cx,6.815) -- (bg6.north);
+
+% =====================================================
+% Chapter 7
+% =====================================================
+\node[block=cSeven, minimum width=16.45cm, minimum height=1.62cm] (bg7) at (\cx,2.00) {};
+\node[chaptermaintitle] at (\cx,2.48) {第七章\quad 总结与展望};
+\node[card, minimum width=2.40cm] (c7a) at (3.40,1.69) {三条方法链\\研究总结};
+\node[card, minimum width=2.40cm] (c7b) at (6.95,1.69) {方法作用边界\\与局限};
+\node[card, minimum width=2.40cm] (c7c) at (10.50,1.69) {可扩展实验\\与消融验证};
+\node[card, minimum width=2.40cm] (c7d) at (14.05,1.69) {工业部署\\后续方向};
+
+\draw[auxflow] (bg6.south) -- (bg7.north);
 
 \pgfresetboundingbox
-\path[use as bounding box] (\XMin,\YMin) rectangle (\XMax,\YMax);
+\path[use as bounding box] (\xmin,\ymin) rectangle (\xmax,\ymax);
 
 \end{tikzpicture}
