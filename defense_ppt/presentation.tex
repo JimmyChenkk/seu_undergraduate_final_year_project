@@ -72,6 +72,32 @@
     draw=line, rounded corners=1.5pt,
     inner xsep=6pt, inner ysep=6pt,
     align=center, font=\small, fill=white
+  },
+  algstep/.style={
+    draw=line, fill=white, rounded corners=2pt,
+    minimum width=2.00cm, minimum height=1.46cm,
+    text width=1.72cm,
+    inner xsep=6pt, inner ysep=8pt,
+    align=center, font=\small
+  },
+  algkey/.style={
+    draw=line, fill=white, rounded corners=1.5pt,
+    minimum width=3.34cm, minimum height=1.00cm,
+    text width=3.02cm,
+    inner xsep=6pt, inner ysep=7pt,
+    align=center, font=\small
+  },
+  algnote/.style={
+    fill=white, draw=muted!40, rounded corners=1.5pt,
+    inner xsep=5pt, inner ysep=3pt,
+    font=\scriptsize\color{muted}
+  },
+  algarrow/.style={
+    -{Latex[length=2.2mm]},
+    line width=0.7pt,
+    draw=muted,
+    shorten >=3pt,
+    shorten <=3pt
   }
 }
 
@@ -113,12 +139,16 @@
   \includegraphics[width=\linewidth,height=#2,keepaspectratio,#1]%
 }
 \newcommand{\captionline}[1]{%
-  \vspace{0.04cm}\centering{\scriptsize\color{muted}#1}%
+  \par\vspace{0.05cm}{\centering\small\color{muted}#1\par}%
+}
+\newcommand{\resultcaption}[2]{%
+  \par\vspace{0.06cm}{\centering\small #1\\[-1pt]\textbf{#2}\par}%
 }
 \newcommand{\formularow}[4]{%
   {\setbeamercolor{formulaPanel}{fg=ink,bg=#1}%
-  \begin{beamercolorbox}[wd=\linewidth,sep=5.2pt,rounded=true]{formulaPanel}
+  \begin{beamercolorbox}[wd=\linewidth,sep=5.8pt,rounded=true]{formulaPanel}
     \scriptsize
+    \linespread{1.10}\selectfont
     \begin{tabular}{@{}>{\raggedright\arraybackslash}m{0.15\linewidth}@{\hspace{0.012\linewidth}}>{\centering\arraybackslash}m{0.72\linewidth}@{\hspace{0.012\linewidth}}>{\raggedleft\arraybackslash}m{0.08\linewidth}@{}}
       \bfseries #2 &
       $\displaystyle #3$ &
@@ -314,97 +344,96 @@
 
 \paperref{P21}
 \begin{frame}{方法一：TPU-DeepJDOT 训练流程}
-  \begin{columns}[c,onlytextwidth,totalwidth=\textwidth]
-    \begin{column}{0.58\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[node distance=0.42cm]
-        \node[box, fill=blue!7, draw=blue!35, minimum width=2.55cm] (a) {采样批次\\源有标签 / 目标无标签};
-        \node[box, fill=teal!7, draw=teal!35, minimum width=2.55cm, right=0.45cm of a] (b) {FCN 表征\\分类预测};
-        \node[box, fill=amber!9, draw=amber!40, minimum width=2.55cm, right=0.45cm of b] (c) {源域原型\\SupCon};
-        \node[box, fill=violet!8, draw=violet!40, minimum width=2.55cm, below=0.88cm of c] (d) {联合代价\\四类证据};
-        \node[box, fill=green!8, draw=green!35, minimum width=2.55cm, left=0.45cm of d] (e) {非平衡传输\\$\gamma^\ast$};
-        \node[box, fill=red!6, draw=red!35, minimum width=2.55cm, left=0.45cm of e] (f) {组合损失\\更新参数};
-        \draw[arrow] (a) -- (b);
-        \draw[arrow] (b) -- (c);
-        \draw[arrow] (c) -- (d);
-        \draw[arrow] (d) -- (e);
-        \draw[arrow] (e) -- (f);
-        \draw[thinarr] (f.west) .. controls +(-1.0,0.78) and +(-0.8,-0.78) .. (a.west);
-      \end{tikzpicture}
-      }
-    \end{column}
-    \begin{column}{0.37\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[
-        flow/.style={box, minimum width=2.20cm, minimum height=0.58cm, inner xsep=5pt, inner ysep=4pt},
-        core/.style={box, minimum width=2.40cm, minimum height=0.78cm, inner xsep=6pt, inner ysep=5pt},
-        result/.style={box, minimum width=2.40cm, minimum height=0.72cm, inner xsep=6pt, inner ysep=5pt}
-      ]
-        \node[flow, fill=blue!7, draw=blue!35] (a) at (0,2.05) {深度特征\\距离};
-        \node[flow, fill=teal!7, draw=teal!35] (b) at (0,0.86) {标签预测\\代价};
-        \node[flow, fill=amber!9, draw=amber!40] (c) at (0,-0.33) {源域类别\\原型};
-        \node[flow, fill=violet!8, draw=violet!40] (d) at (0,-1.52) {时序统计\\差分};
-        \node[core, fill=green!8, draw=green!35] (e) at (2.84,0.28) {非平衡\\Sinkhorn};
-        \node[result, fill=red!6, draw=red!35] (f) at (2.84,-1.54) {削减低可靠\\匹配质量};
-        \draw[thinarr] (a.east) -- ([yshift=0.28cm]e.west);
-        \draw[thinarr] (b.east) -- ([yshift=0.09cm]e.west);
-        \draw[thinarr] (c.east) -- ([yshift=-0.09cm]e.west);
-        \draw[thinarr] (d.east) -- ([yshift=-0.28cm]e.west);
-        \draw[arrow] (e.south) -- (f.north);
-      \end{tikzpicture}
-      }
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace*{\fill}
+  \resizebox{0.985\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[algstep, fill=blue!7, draw=blue!35] (a) at (-5.6,1.25)
+      {{\scriptsize\color{blue}\bfseries 01}\\批次输入\\[-1pt]{\scriptsize 源域标记}\\[-2pt]{\scriptsize 目标无标签}};
+    \node[algstep, fill=teal!7, draw=teal!35] (b) at (-2.8,1.25)
+      {{\scriptsize\color{teal}\bfseries 02}\\FCN 表征\\[-1pt]{\scriptsize 特征提取}\\[-2pt]{\scriptsize 分类预测}};
+    \node[algstep, fill=amber!9, draw=amber!40] (c) at (0,1.25)
+      {{\scriptsize\color{amber}\bfseries 03}\\源域结构\\[-1pt]{\scriptsize 类别原型}\\[-2pt]{\scriptsize SupCon}};
+    \node[algstep, fill=violet!8, draw=violet!40] (d) at (2.8,1.25)
+      {{\scriptsize\color{violet}\bfseries 04}\\联合匹配\\[-1pt]{\scriptsize 特征标签}\\[-2pt]{\scriptsize 原型时序}};
+    \node[algstep, fill=green!8, draw=green!35] (e) at (5.6,1.25)
+      {{\scriptsize\color{green}\bfseries 05}\\优化更新\\[-1pt]{\scriptsize 非平衡 OT}\\[-2pt]{\scriptsize 对齐目标域}};
+
+    \draw[algarrow] (a) -- (b);
+    \draw[algarrow] (b) -- (c);
+    \draw[algarrow] (c) -- (d);
+    \draw[algarrow] (d) -- (e);
+
+    \node[algkey, fill=blue!4, draw=blue!25] (k1) at (-3.95,-1.55)
+      {{\Large\bfseries $C_{ij}$}\\[-1pt]{\scriptsize\color{muted}联合代价}};
+    \node[algkey, fill=green!5, draw=green!28] (k2) at (0,-1.55)
+      {{\Large\bfseries $\gamma^\ast$}\\[-1pt]{\scriptsize\color{muted}非平衡传输计划}};
+    \node[algkey, fill=amber!6, draw=amber!35] (k3) at (3.95,-1.55)
+      {{\Large\bfseries $\mathcal{L}_{\mathrm{TPU}}$}\\[-1pt]{\scriptsize\color{muted}训练目标}};
+
+    \begin{pgfonlayer}{background}
+      \node[draw=line, fill=soft, rounded corners=2pt,
+        inner xsep=10pt, inner ysep=9pt,
+        fit=(a)(b)(c)(d)(e)] {};
+    \end{pgfonlayer}
+  \end{tikzpicture}
+  }
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P44}
 \begin{frame}{方法一验证：$m_5\rightarrow m_2$ 对齐递进}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_confusion.pdf}\\[-0.05cm]
-      \centering{\small SourceOnly\\\textbf{56.08\%}}
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.64\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_confusion.pdf}
+      \resultcaption{SourceOnly}{56.08\%}
     \end{column}
-    \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_confusion.pdf}\\[-0.05cm]
-      \centering{\small DeepJDOT\\\textbf{67.20\%}}
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.64\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_confusion.pdf}
+      \resultcaption{DeepJDOT}{67.20\%}
     \end{column}
-    \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_confusion.pdf}\\[-0.05cm]
-      \centering{\small TPU-DeepJDOT\\\textbf{83.60\%}}
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.64\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_confusion.pdf}
+      \resultcaption{TPU-DeepJDOT}{83.60\%}
     \end{column}
   \end{columns}
-  \vspace{0.3cm}
-  \centering
-  {\small\color{muted}混淆矩阵对角线增强：错误强制匹配被削弱，类别结构更清晰。}
+  \vspace*{\fill}
 \end{frame}
 
-\paperref{P44--45}
+\paperref{P45}
 \begin{frame}{方法一验证：域分布与类别结构}
-  \begin{columns}[T,totalwidth=\textwidth]
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
     \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_tsne_domain.pdf}
       \captionline{SourceOnly：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_sourceonly_5_to_2_tsne_class.pdf}
       \captionline{SourceOnly：类 t-SNE}
     \end{column}
     \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_tsne_domain.pdf}
       \captionline{DeepJDOT：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_deepjdot_5_to_2_tsne_class.pdf}
       \captionline{DeepJDOT：类 t-SNE}
     \end{column}
     \begin{column}{0.31\textwidth}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_tsne_domain.pdf}
       \captionline{TPU-DeepJDOT：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.29\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_2_tsne_class.pdf}
       \captionline{TPU-DeepJDOT：类 t-SNE}
     \end{column}
   \end{columns}
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P22}
@@ -446,87 +475,83 @@
 
 \paperref{P28}
 \begin{frame}{方法二：CBTPU-DeepJDOT 训练流程}
-  \begin{columns}[c,onlytextwidth,totalwidth=\textwidth]
-    \begin{column}{0.58\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[node distance=0.40cm]
-        \node[box, fill=blue!7, draw=blue!35, minimum width=2.62cm] (a) {初始化学生/教师\\继承 TPU};
-        \node[box, fill=teal!7, draw=teal!35, minimum width=2.62cm, right=0.42cm of a] (b) {目标弱增强\\目标强增强};
-        \node[box, fill=amber!9, draw=amber!40, minimum width=2.62cm, right=0.42cm of b] (c) {三类证据\\传输/教师/原型};
-        \node[box, fill=violet!8, draw=violet!40, minimum width=2.62cm, below=0.86cm of c] (d) {融合与筛选\\$\mathcal{A}$};
-        \node[box, fill=green!8, draw=green!35, minimum width=2.62cm, left=0.42cm of d] (e) {伪标签学习\\强弱一致性};
-        \node[box, fill=red!6, draw=red!35, minimum width=2.62cm, left=0.42cm of e] (f) {更新学生\\维护教师};
-        \draw[arrow] (a) -- (b);
-        \draw[arrow] (b) -- (c);
-        \draw[arrow] (c) -- (d);
-        \draw[arrow] (d) -- (e);
-        \draw[arrow] (e) -- (f);
-      \end{tikzpicture}
-      }
-    \end{column}
-    \begin{column}{0.37\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[
-        flow/.style={box, minimum width=2.32cm, minimum height=0.62cm, inner xsep=5pt, inner ysep=4pt},
-        core/.style={box, minimum width=2.48cm, minimum height=0.78cm, inner xsep=6pt, inner ysep=5pt},
-        result/.style={box, minimum width=2.54cm, minimum height=0.78cm, inner xsep=6pt, inner ysep=5pt}
-      ]
-        \node[flow, fill=blue!7, draw=blue!35] (ot) at (0,1.50) {传输语义\\$q^{\mathrm{ot}}$};
-        \node[flow, fill=teal!7, draw=teal!35] (tea) at (0,0.30) {固定教师\\预测 $q^{\mathrm{cls}}$};
-        \node[flow, fill=amber!9, draw=amber!40] (pro) at (0,-0.90) {源域原型\\$q^{\mathrm{proto}}$};
-        \node[core, fill=green!8, draw=green!35] (mix) at (2.96,0.36) {幂加权融合\\$q^{\mathrm{mix}}$};
-        \node[result, fill=red!6, draw=red!35] (gate) at (2.96,-1.28) {一致性 + 置信度\\+ 传输熵门控};
-        \draw[thinarr] (ot.east) -- ([yshift=0.24cm]mix.west);
-        \draw[thinarr] (tea.east) -- (mix.west);
-        \draw[thinarr] (pro.east) -- ([yshift=-0.24cm]mix.west);
-        \draw[arrow] (mix.south) -- (gate.north);
-      \end{tikzpicture}
-      }
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace*{\fill}
+  \resizebox{0.985\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[algstep, fill=blue!7, draw=blue!35] (a) at (-5.6,1.25)
+      {{\scriptsize\color{blue}\bfseries 01}\\继承 TPU\\[-1pt]{\scriptsize 学生初始化}\\[-2pt]{\scriptsize 教师维护}};
+    \node[algstep, fill=teal!7, draw=teal!35] (b) at (-2.8,1.25)
+      {{\scriptsize\color{teal}\bfseries 02}\\目标增强\\[-1pt]{\scriptsize 弱视图}\\[-2pt]{\scriptsize 强视图}};
+    \node[algstep, fill=amber!9, draw=amber!40] (c) at (0,1.25)
+      {{\scriptsize\color{amber}\bfseries 03}\\证据生成\\[-1pt]{\scriptsize 传输}\\[-2pt]{\scriptsize 分类原型}};
+    \node[algstep, fill=violet!8, draw=violet!40] (d) at (2.8,1.25)
+      {{\scriptsize\color{violet}\bfseries 04}\\融合筛选\\[-1pt]{\scriptsize 一致性}\\[-2pt]{\scriptsize 置信低熵}};
+    \node[algstep, fill=green!8, draw=green!35] (e) at (5.6,1.25)
+      {{\scriptsize\color{green}\bfseries 05}\\自训练更新\\[-1pt]{\scriptsize 伪标签学习}\\[-2pt]{\scriptsize 一致性约束}};
+
+    \draw[algarrow] (a) -- (b);
+    \draw[algarrow] (b) -- (c);
+    \draw[algarrow] (c) -- (d);
+    \draw[algarrow] (d) -- (e);
+
+    \node[algkey, fill=blue!4, draw=blue!25] (k1) at (-3.95,-1.55)
+      {{\Large\bfseries $q^{\mathrm{mix}}_{jc}$}\\[-1pt]{\scriptsize\color{muted}融合证据}};
+    \node[algkey, fill=green!5, draw=green!28] (k2) at (0,-1.55)
+      {{\Large\bfseries $\mathcal{A}_j$}\\[-1pt]{\scriptsize\color{muted}伪标签接收集合}};
+    \node[algkey, fill=amber!6, draw=amber!35] (k3) at (3.95,-1.55)
+      {{\Large\bfseries $\mathcal{L}_{\mathrm{CBTPU}}$}\\[-1pt]{\scriptsize\color{muted}训练目标}};
+
+    \begin{pgfonlayer}{background}
+      \node[draw=line, fill=soft, rounded corners=2pt,
+        inner xsep=10pt, inner ysep=9pt,
+        fit=(a)(b)(c)(d)(e)] {};
+    \end{pgfonlayer}
+  \end{tikzpicture}
+  }
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P46}
 \begin{frame}{方法二验证：$m_5\rightarrow m_1$ 伪标签细化}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.38\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_confusion.pdf}\\[-0.05cm]
-      \centering{\small TPU-DeepJDOT\\\textbf{77.59\%}}
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_confusion.pdf}
+      \resultcaption{TPU-DeepJDOT}{77.59\%}
     \end{column}
-    \begin{column}{0.38\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_confusion.pdf}\\[-0.05cm]
-      \centering{\small CBTPU-DeepJDOT\\\textbf{81.38\%}}
-    \end{column}
-    \begin{column}{0.20\textwidth}
-      \vspace{0.55cm}
-      \tagpill{teal}{三证据筛选}\\[0.16cm]
-      \tagpill{amber}{类别均衡}\\[0.16cm]
-      \tagpill{violet}{强弱一致性}\\[0.45cm]
-      {\small\color{muted}不是追求伪标签数量，而是控制进入训练的噪声。}
+    \begin{column}{0.47\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_confusion.pdf}
+      \resultcaption{CBTPU-DeepJDOT}{81.38\%}
     \end{column}
   \end{columns}
+  \vspace*{\fill}
 \end{frame}
 
-\paperref{P46--47}
+\paperref{P47}
 \begin{frame}{方法二验证：局部边界继续收紧}
-  \begin{columns}[T,totalwidth=\textwidth]
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
     \begin{column}{0.48\textwidth}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_tsne_domain.pdf}
       \captionline{TPU-DeepJDOT：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_single_TPU_DPJDOT_5_to_1_tsne_class.pdf}
       \captionline{TPU-DeepJDOT：类 t-SNE}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_tsne_domain.pdf}
       \captionline{CBTPU-DeepJDOT：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_single_CBTPU_DPJDOT_5_to_1_tsne_class.pdf}
       \captionline{CBTPU-DeepJDOT：类 t-SNE}
     \end{column}
   \end{columns}
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P30}
@@ -571,226 +596,207 @@
 
 \paperref{P36}
 \begin{frame}{方法三：CA-CCSR-WJDOT 训练流程}
-  \begin{columns}[c,onlytextwidth,totalwidth=\textwidth]
-    \begin{column}{0.58\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[node distance=0.38cm]
-        \node[box, fill=blue!7, draw=blue!35, minimum width=2.55cm] (a) {初始化\\FCN/CoDATS/教师};
-        \node[box, fill=teal!7, draw=teal!35, minimum width=2.55cm, right=0.42cm of a] (b) {多源采样\\目标无标签};
-        \node[box, fill=amber!9, draw=amber!40, minimum width=2.55cm, right=0.42cm of b] (c) {逐源传输\\$\gamma_k^\ast,D_{kc}^{\mathrm{ot}}$};
-        \node[box, fill=violet!8, draw=violet!40, minimum width=2.55cm, below=0.86cm of c] (d) {可靠性矩阵\\$R_{kc}\rightarrow\alpha_{kc}$};
-        \node[box, fill=green!8, draw=green!35, minimum width=2.55cm, left=0.42cm of d] (e) {CCSR/WJDOT\\对抗/教师先验};
-        \node[box, fill=red!6, draw=red!35, minimum width=2.55cm, left=0.42cm of e] (f) {更新模型\\目标预测};
-        \draw[arrow] (a) -- (b);
-        \draw[arrow] (b) -- (c);
-        \draw[arrow] (c) -- (d);
-        \draw[arrow] (d) -- (e);
-        \draw[arrow] (e) -- (f);
-      \end{tikzpicture}
-      }
-    \end{column}
-    \begin{column}{0.37\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{%
-      \begin{tikzpicture}[
-        flow/.style={box, minimum width=2.24cm, minimum height=0.58cm, inner xsep=5pt, inner ysep=4pt},
-        core/.style={box, minimum width=2.44cm, minimum height=0.78cm, inner xsep=6pt, inner ysep=5pt},
-        result/.style={box, minimum width=2.52cm, minimum height=0.74cm, inner xsep=6pt, inner ysep=5pt}
-      ]
-        \node[flow, fill=blue!7, draw=blue!35] (a) at (0,2.05) {源目标\\原型距离};
-        \node[flow, fill=teal!7, draw=teal!35] (b) at (0,0.86) {类条件\\传输代价};
-        \node[flow, fill=amber!9, draw=amber!40] (c) at (0,-0.33) {目标预测\\熵};
-        \node[flow, fill=violet!8, draw=violet!40] (d) at (0,-1.52) {源域类别\\召回误差};
-        \node[core, fill=green!8, draw=green!35] (r) at (2.94,0.28) {$R_{kc}$\\$\rightarrow\alpha_{kc}$};
-        \node[result, fill=red!6, draw=red!35] (l) at (2.94,-1.54) {按类别分配\\源域贡献};
-        \draw[thinarr] (a.east) -- ([yshift=0.28cm]r.west);
-        \draw[thinarr] (b.east) -- ([yshift=0.09cm]r.west);
-        \draw[thinarr] (c.east) -- ([yshift=-0.09cm]r.west);
-        \draw[thinarr] (d.east) -- ([yshift=-0.28cm]r.west);
-        \draw[arrow] (r.south) -- (l.north);
-      \end{tikzpicture}
-      }
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace*{\fill}
+  \resizebox{0.985\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[algstep, fill=blue!7, draw=blue!35] (a) at (-5.6,1.25)
+      {{\scriptsize\color{blue}\bfseries 01}\\多源输入\\[-1pt]{\scriptsize 多个源域}\\[-2pt]{\scriptsize 目标无标签}};
+    \node[algstep, fill=teal!7, draw=teal!35] (b) at (-2.8,1.25)
+      {{\scriptsize\color{teal}\bfseries 02}\\CoDATS 表征\\[-1pt]{\scriptsize 特征建模}\\[-2pt]{\scriptsize 域判别教师}};
+    \node[algstep, fill=amber!9, draw=amber!40] (c) at (0,1.25)
+      {{\scriptsize\color{amber}\bfseries 03}\\逐源 WJDOT\\[-1pt]{\scriptsize 源域单独}\\[-2pt]{\scriptsize 目标对齐}};
+    \node[algstep, fill=violet!8, draw=violet!40] (d) at (2.8,1.25)
+      {{\scriptsize\color{violet}\bfseries 04}\\可靠性估计\\[-1pt]{\scriptsize 原型传输}\\[-2pt]{\scriptsize 熵召回}};
+    \node[algstep, fill=green!8, draw=green!35] (e) at (5.6,1.25)
+      {{\scriptsize\color{green}\bfseries 05}\\类别级迁移\\[-1pt]{\scriptsize 源域贡献}\\[-2pt]{\scriptsize 按类分配}};
+
+    \draw[algarrow] (a) -- (b);
+    \draw[algarrow] (b) -- (c);
+    \draw[algarrow] (c) -- (d);
+    \draw[algarrow] (d) -- (e);
+
+    \node[algkey, fill=blue!4, draw=blue!25] (k1) at (-3.95,-1.55)
+      {{\Large\bfseries $R_{kc}$}\\[-1pt]{\scriptsize\color{muted}类条件可靠性}};
+    \node[algkey, fill=green!5, draw=green!28] (k2) at (0,-1.55)
+      {{\Large\bfseries $\alpha_{kc}$}\\[-1pt]{\scriptsize\color{muted}源域类别权重}};
+    \node[algkey, fill=amber!6, draw=amber!35] (k3) at (3.95,-1.55)
+      {{\Large\bfseries $\mathcal{L}_{\mathrm{CA}\text{-}\mathrm{CCSR}}$}\\[-1pt]{\scriptsize\color{muted}训练目标}};
+
+    \begin{pgfonlayer}{background}
+      \node[draw=line, fill=soft, rounded corners=2pt,
+        inner xsep=10pt, inner ysep=9pt,
+        fit=(a)(b)(c)(d)(e)] {};
+    \end{pgfonlayer}
+  \end{tikzpicture}
+  }
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P48}
 \begin{frame}{方法三验证：五源代表任务减少误判}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.40\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_confusion.pdf}\\[-0.05cm]
-      \centering{\small SourceOnly\\\textbf{64.02\%}}
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_confusion.pdf}
+      \resultcaption{SourceOnly}{64.02\%}
     \end{column}
-    \begin{column}{0.40\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_confusion.pdf}\\[-0.05cm]
-      \centering{\small CA-CCSR-WJDOT\\\textbf{82.89\%}}
-    \end{column}
-    \begin{column}{0.17\textwidth}
-      \vspace{0.55cm}
-      \tagpill{blue}{五源输入}\\[0.16cm]
-      \tagpill{teal}{逐源传输}\\[0.16cm]
-      \tagpill{amber}{类别可靠性}\\[0.45cm]
-      {\small\color{muted}多源样本更多，但需要判断每个源域在哪些类别上可靠。}
+    \begin{column}{0.47\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_confusion.pdf}
+      \resultcaption{CA-CCSR-WJDOT}{82.89\%}
     \end{column}
   \end{columns}
+  \vspace*{\fill}
 \end{frame}
 
-\paperref{P48--49}
+\paperref{P49}
 \begin{frame}{方法三验证：域间融合与类别聚集}
-  \begin{columns}[T,totalwidth=\textwidth]
+  \vspace*{\fill}
+  \begin{columns}[c,totalwidth=\textwidth]
     \begin{column}{0.48\textwidth}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_tsne_domain.pdf}
       \captionline{SourceOnly：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_multi_sourceonly_5src_to_2_tsne_class.pdf}
       \captionline{SourceOnly：类 t-SNE}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_domain.pdf}
+      \centering
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_domain.pdf}
       \captionline{CA-CCSR-WJDOT：域 t-SNE}
-      \vspace{0.08cm}
-      \includegraphics[width=\linewidth,height=0.31\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_class.pdf}
+      \vspace{0.14cm}
+      \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{ch6_multi_CA_CCSR_WJDOT_5src_to_2_tsne_class.pdf}
       \captionline{CA-CCSR-WJDOT：类 t-SNE}
     \end{column}
   \end{columns}
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P54}
 \begin{frame}{方法三解释：源域--类别权重矩阵}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.56\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{ch6_class_source_alpha_heatmap.pdf}
-      \captionline{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$}
-    \end{column}
-    \begin{column}{0.39\textwidth}
-      \vspace{0.35cm}
-      \metricbox{类别粒度}{不是单一源域权重}{每列重新分配}
-      \vspace{0.25cm}
-
-      \metricbox{选择性迁移}{可靠源域贡献更高}{降低负迁移}
-      \vspace{0.35cm}
-
-      {\small\color{muted}不同故障类别依赖不同源模式，说明方法不是简单平均多个源域，而是在源域--故障类别层面重新分配迁移贡献。}
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace*{\fill}
+  \includegraphics[width=0.86\textwidth,height=0.72\textheight,keepaspectratio]{ch6_class_source_alpha_heatmap.pdf}
+  \captionline{五源任务 $\{m_1,m_3,m_4,m_5,m_6\}\rightarrow m_2$}
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P42}
-\begin{frame}{实验协议：目标标签仅用于最终评价}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.50\textwidth}
-      \small
-      \begin{tabular}{lcc}
-        \toprule
-        实验组 & 规模 & 目的 \\
-        \midrule
-        单源 & $6\times8$ & 单源递进链 \\
-        两源 & $3\times5$ & 小规模多源 \\
-        五源 & $6\times5$ & 多源压力测试 \\
-        \bottomrule
-      \end{tabular}
-      \vspace{0.55cm}
+\begin{frame}{实验协议：场景 $\times$ 方法 汇总对比}
+  \vspace{0.06cm}
+  {\small\setlength{\tabcolsep}{0pt}\renewcommand{\arraystretch}{1.38}
+  \begin{tabular}{@{}>{\centering\arraybackslash}m{0.09\textwidth}@{\hspace{0.012\textwidth}}>{\centering\arraybackslash}m{0.13\textwidth}@{\hspace{0.012\textwidth}}>{\raggedright\arraybackslash}m{0.35\textwidth}@{\hspace{0.012\textwidth}}>{\centering\arraybackslash}m{0.39\textwidth}@{}}
+    \toprule
+    源域数 & 目标域数 & 场景构造 & 汇总规模 \\
+    \midrule
+    $1$ & $1$
+      & $m_1,m_2,m_5$ 全量握手原则
+      & $6$ 单到单场景 $\times$ $8$ 方法 \\
+    $2$ & $1$
+      & $m_1,m_2,m_5$ 全量握手原则
+      & $3$ 两源一目标场景 $\times$ $5$ 方法 \\
+    $5$ & $1$
+      & $6$ 个工况轮流作为目标
+      & $6$ 五源一目标场景 $\times$ $5$ 方法 \\
+    \bottomrule
+  \end{tabular}}
 
-      \begin{tikzpicture}[node distance=0.28cm]
-        \node[box, fill=blue!7, draw=blue!35, minimum width=5.0cm] (fold) {固定第一折划分};
-        \node[box, fill=teal!7, draw=teal!35, below=of fold, minimum width=5.0cm] (targetunlabeled) {目标训练样本无标签};
+  \vspace{0.42cm}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{tikzpicture}
+        \node[
+          box,
+          fill=blue!6,
+          draw=blue!28,
+          text width=6.35cm,
+          minimum width=6.65cm,
+          minimum height=1.32cm,
+          align=left,
+          inner ysep=9pt
+        ] {%
+          \textbf{$m_1,m_2,m_5$ 全量握手原则}\\[1pt]
+          {\footnotesize 三个代表工况两两作为源域与目标域；}\\[-1pt]
+          {\footnotesize 形成 6 个有向单到单场景；}\\[-1pt]
+          {\footnotesize 两源实验对应 3 个留一目标场景。}
+        };
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.45\textwidth}
-      \vspace{0.05cm}
-      \metricbox{Accuracy}{整体诊断准确率}{越高越好}
-      \hfill
-      \metricbox{Macro-F1}{类别等权 F1}{关注少数类}
-      \vspace{0.2cm}
-
-      \metricbox{BAcc}{平衡准确率}{类别召回平均}
-      \hfill
-      \metricbox{t-SNE}{结构证据}{看域与类}
-      \vspace{0.25cm}
-
-      {\small\color{red}Target-ref 只作为有标签参考，不参与 UDA 方法排名。}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        protoMetric/.style={
+          draw=line, fill=white, rounded corners=1.5pt,
+          minimum width=2.58cm, minimum height=0.98cm,
+          text width=2.40cm,
+          inner xsep=5pt, inner ysep=5pt,
+          align=center
+        }
+      ]
+        \node[protoMetric] (acc) at (-1.58,0.76)
+          {{\large\bfseries ACC}\\[-1pt]{\scriptsize 整体诊断准确率}\\[-1pt]{\tiny\color{muted}主汇总指标}};
+        \node[protoMetric] (f1) at (1.58,0.76)
+          {{\large\bfseries Macro-F1}\\[-1pt]{\scriptsize 类别等权 F1}\\[-1pt]{\tiny\color{muted}关注少数类}};
+        \node[protoMetric] (cm) at (-1.58,-0.76)
+          {{\large\bfseries 混淆矩阵}\\[-1pt]{\scriptsize 类别误判结构}\\[-1pt]{\tiny\color{muted}逐任务展示}};
+        \node[protoMetric] (tsne) at (1.58,-0.76)
+          {{\large\bfseries t-SNE}\\[-1pt]{\scriptsize 结构证据}\\[-1pt]{\tiny\color{muted}看域与类}};
+      \end{tikzpicture}
     \end{column}
   \end{columns}
 \end{frame}
 
 \paperref{P50}
 \begin{frame}{单源结果：主提升来自对齐，细化来自伪标签}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.50\textwidth}
-      \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ch6_single_source_heatmap.pdf}
-    \end{column}
-    \begin{column}{0.47\textwidth}
-      \includegraphics[width=\linewidth,height=0.40\textheight,keepaspectratio]{ch6_single_source_mean_accuracy.pdf}
-      \vspace{0.14cm}
-
-      \tinymetric{+11.66}{TPU $\uparrow$ DeepJDOT}{准确率百分点}
-      \hfill
-      \tinymetric{+1.48}{CBTPU $\uparrow$ TPU}{准确率百分点}
-      \hfill
-      \tinymetric{82.02\%}{CBTPU}{6/6 第一}
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace*{\fill}
+  \includegraphics[width=0.94\textwidth,height=0.74\textheight,keepaspectratio]{ch6_single_source_mean_accuracy.pdf}
+  \vspace*{\fill}
 \end{frame}
 
-\paperref{P53}
+\paperref{P51}
 \begin{frame}{多源结果：类别级可靠性压住负迁移}
+  \vspace*{\fill}
   \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.47\textwidth}
-      \includegraphics[width=\linewidth,height=0.54\textheight,keepaspectratio]{ch6_two_source_mean_accuracy.pdf}
-      \centering{\small 两源：CA-CCSR-WJDOT \textbf{81.21\%}，3/3 第一}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ch6_two_source_heatmap.pdf}
+      \captionline{两源任务准确率热力图}
+      \vspace{0.10cm}
+      \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ch6_two_source_mean_accuracy.pdf}
+      \resultcaption{两源 CA-CCSR-WJDOT}{81.21\%}
     \end{column}
-    \begin{column}{0.47\textwidth}
-      \includegraphics[width=\linewidth,height=0.54\textheight,keepaspectratio]{ch6_five_source_mean_accuracy.pdf}
-      \centering{\small 五源：CA-CCSR-WJDOT \textbf{85.50\%}，6/6 第一}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ch6_five_source_heatmap.pdf}
+      \captionline{五源任务准确率热力图}
+      \vspace{0.10cm}
+      \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ch6_five_source_mean_accuracy.pdf}
+      \resultcaption{五源 CA-CCSR-WJDOT}{85.50\%}
     \end{column}
   \end{columns}
-  \vspace{0.25cm}
-  \centering
-  {\small\color{muted}相对 WJDOT，多源 9 个任务平均准确率提升 7.69 个百分点。}
+  \vspace*{\fill}
 \end{frame}
 
 \paperref{P54}
-\begin{frame}{结论：三类风险对应三类结构约束}
+\begin{frame}{结论：基线对比实验结果}
   \centering
-  \metricbox{+11.66}{TPU-DeepJDOT $\uparrow$ DeepJDOT}{$p=0.015625$}
+  \metricbox{+11.66\%}{TPU-DeepJDOT $\uparrow >$ DeepJDOT}{$p=0.015625$}
   \hfill
-  \metricbox{+1.48}{CBTPU-DeepJDOT $\uparrow$ TPU}{$p=0.015625$}
+  \metricbox{+1.48\%}{CBTPU-DeepJDOT $\uparrow >$ TPU}{$p=0.015625$}
   \hfill
-  \metricbox{+7.69}{CA-CCSR-WJDOT $\uparrow$ WJDOT}{$p=0.001953$}
+  \metricbox{+7.69\%}{CA-CCSR-WJDOT $\uparrow >$ WJDOT}{$p=0.001953$}
 
-  \vspace{0.65cm}
-  \begin{tikzpicture}[node distance=0.45cm]
-    \node[box, fill=blue!7, draw=blue!35, minimum width=2.9cm] (a) {样本匹配};
-    \node[box, fill=teal!7, draw=teal!35, minimum width=2.9cm, right=of a] (b) {目标筛选};
-    \node[box, fill=amber!9, draw=amber!40, minimum width=2.9cm, right=of b] (c) {源域类别分配};
-    \draw[arrow] (a) -- (b);
-    \draw[arrow] (b) -- (c);
-  \end{tikzpicture}
-
-  \vspace{0.35cm}
-  {\large\bfseries 跨生产模式故障诊断，需要同时处理这三件事。}
-\end{frame}
-
-\paperref{P57}
-\begin{frame}{展望}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \begin{column}{0.48\textwidth}
-      \begin{tikzpicture}[node distance=0.28cm]
-        \node[box, fill=blue!7, draw=blue!35, minimum width=5.3cm] (fewshot) {少量目标标签预算：1 / 3 / 5 shot};
-        \node[box, fill=teal!7, draw=teal!35, below=of fewshot, minimum width=5.3cm] (tta) {连续目标批次测试时自适应};
-        \node[box, fill=amber!9, draw=amber!40, below=of tta, minimum width=5.3cm] (matrixperturb) {源域--类别矩阵扰动验证};
-      \end{tikzpicture}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{tikzpicture}[node distance=0.28cm]
-        \node[box, fill=violet!8, draw=violet!40, minimum width=5.3cm] (ablation) {机制裁剪 + 训练效率统计};
-        \node[box, fill=red!6, draw=red!35, below=of ablation, minimum width=5.3cm] (robust) {真实现场噪声、缺失、漂移、未知故障};
-      \end{tikzpicture}
-      \vspace{0.7cm}
-      {\small\color{muted}后续重点不是堆叠新模块，而是把有效性、解释性和部署成本继续做成可检验实验。}
-    \end{column}
-  \end{columns}
+  \vspace{0.62cm}
+  \begin{minipage}{0.86\textwidth}
+    \small
+    单源场景中，TPU-DeepJDOT 与 CBTPU-DeepJDOT 相对基线依次提升，体现了对齐约束与伪标签细化的递进作用。\\[0.20cm]
+    多源场景中，CA-CCSR-WJDOT 相对 WJDOT 基线胜出，说明类别级源域可靠性能够缓解负迁移。\\[0.20cm]
+    整体上，三套方法在对应实验场景中均取得有效提升，完成了跨生产模式故障诊断课题任务。
+  \end{minipage}
 \end{frame}
 
 \begin{frame}[plain,noframenumbering]
