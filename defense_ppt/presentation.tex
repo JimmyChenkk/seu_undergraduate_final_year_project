@@ -33,6 +33,32 @@
 
 \setbeamertemplate{navigation symbols}{}
 \usefonttheme{professionalfonts}
+% Use the bundled Times New Roman files for Latin text in this deck.
+\newcommand{\TimesFontPath}{assets/fonts/}
+\IfFileExists{../assets/fonts/times.ttf}{%
+  \renewcommand{\TimesFontPath}{../assets/fonts/}%
+}{}
+\setmainfont[
+  Path=\TimesFontPath,
+  UprightFont=times.ttf,
+  BoldFont=timesbd.ttf,
+  ItalicFont=timesi.ttf,
+  BoldItalicFont=timesbi.ttf
+]{Times New Roman}
+\setsansfont[
+  Path=\TimesFontPath,
+  UprightFont=times.ttf,
+  BoldFont=timesbd.ttf,
+  ItalicFont=timesi.ttf,
+  BoldItalicFont=timesbi.ttf
+]{Times New Roman}
+\setmonofont[
+  Path=\TimesFontPath,
+  UprightFont=times.ttf,
+  BoldFont=timesbd.ttf,
+  ItalicFont=timesi.ttf,
+  BoldItalicFont=timesbi.ttf
+]{Times New Roman}
 \setbeamersize{text margin left=0.68cm,text margin right=0.68cm}
 
 \setbeamertemplate{frametitle}{%
